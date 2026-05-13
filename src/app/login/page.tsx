@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [error, setError] = useState('')
+  const [confirmEmail, setConfirmEmail] = useState(false)
 
   const handleSubmit = async () => {
     if (!email || !password) return
@@ -19,16 +20,27 @@ export default function LoginPage() {
     setError('')
     const supabase = createClient()
 
-    const { error } = mode === 'login'
-      ? await supabase.auth.signInWithPassword({ email, password })
-      : await supabase.auth.signUp({ email, password })
-
-    if (error) {
-      setError(error.message)
-      setLoading(false)
+    if (mode === 'login') {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) {
+        setError(error.message)
+        setLoading(false)
+      } else {
+        router.push('/')
+        router.refresh()
+      }
     } else {
-      router.push('/')
-      router.refresh()
+      const { data, error } = await supabase.auth.signUp({ email, password })
+      if (error) {
+        setError(error.message)
+        setLoading(false)
+      } else if (data.session) {
+        router.push('/')
+        router.refresh()
+      } else {
+        setConfirmEmail(true)
+        setLoading(false)
+      }
     }
   }
 
@@ -57,7 +69,7 @@ export default function LoginPage() {
           {(['login', 'signup'] as const).map((m) => (
             <button
               key={m}
-              onClick={() => { setMode(m); setError('') }}
+              onClick={() => { setMode(m); setError(''); setConfirmEmail(false) }}
               aria-label={m === 'login' ? 'Sign in' : 'Sign up'}
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
                 mode === m
@@ -102,6 +114,12 @@ export default function LoginPage() {
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
               <p className="text-red-400 text-sm">{error}</p>
+            </div>
+          )}
+
+          {confirmEmail && (
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl px-4 py-3">
+              <p className="text-orange-300 text-sm">Check your email to confirm your account, then sign in.</p>
             </div>
           )}
 
