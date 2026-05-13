@@ -41,6 +41,13 @@ export default async function TodayPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const { data: onboarding } = await supabase
+    .from('user_onboarding')
+    .select('completed')
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (!onboarding?.completed) redirect('/onboarding')
+
   const todayStr = new Date().toISOString().split('T')[0]
   const params = await searchParams
   const rawDate = params.date ?? todayStr
