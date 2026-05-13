@@ -122,6 +122,20 @@ export interface WhoopWorkout {
   synced_at: string
 }
 
+export interface FoodLog {
+  id: string
+  user_id: string
+  date: string
+  meal_type: 'breakfast' | 'lunch' | 'dinner' | 'snack'
+  name: string
+  calories: number | null
+  protein_g: number | null
+  carbs_g: number | null
+  fats_g: number | null
+  notes: string | null
+  created_at: string
+}
+
 export interface ChatMessage {
   id: string
   user_id: string

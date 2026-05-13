@@ -610,7 +610,7 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
         <div style={{
           position: 'fixed', inset: 0, zIndex: 50,
           backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
           padding: '20px',
         }}>
           <div style={{

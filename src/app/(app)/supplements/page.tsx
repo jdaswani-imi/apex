@@ -43,6 +43,17 @@ export default function SupplementsPage() {
       .eq('id', supp.id)
   }
 
+  async function updateTimeTaken(supp: SupplementLog, time: string) {
+    const supabase = createClient()
+    setSupplements(prev =>
+      prev.map(s => s.id === supp.id ? { ...s, time_taken: time || null } : s),
+    )
+    await supabase
+      .from('supplement_logs')
+      .update({ time_taken: time || null })
+      .eq('id', supp.id)
+  }
+
   function toggleExpand(id: string) {
     setExpanded(prev => prev === id ? null : id)
   }
@@ -165,52 +176,69 @@ export default function SupplementsPage() {
                 </button>
 
                 {/* Expanded detail */}
-                {isExpanded && catalog && (
+                {isExpanded && (
                   <div className="px-4 pb-4 border-t border-white/[0.04] mt-0 pt-3 space-y-4">
 
-                    {/* Dose + timing rationale */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-white/[0.03] rounded-xl p-3">
-                        <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-1">Dose</p>
-                        <p className="text-xs text-zinc-300">{catalog.dose}</p>
-                      </div>
-                      <div className="bg-white/[0.03] rounded-xl p-3">
-                        <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-1">When</p>
-                        <p className="text-xs text-zinc-300">{catalog.timing}</p>
-                      </div>
+                    {/* Editable consumption time */}
+                    <div className="flex items-center gap-3">
+                      <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold shrink-0">Time taken</p>
+                      <input
+                        type="time"
+                        value={s.time_taken ?? ''}
+                        onChange={e => updateTimeTaken(s, e.target.value)}
+                        className="bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 py-1 text-xs text-zinc-300 outline-none focus:border-violet-500/50 transition-colors"
+                      />
+                      {!s.taken && !s.time_taken && (
+                        <span className="text-[10px] text-zinc-700">set when marked done</span>
+                      )}
                     </div>
 
-                    {/* Benefits */}
-                    <div>
-                      <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-2">Benefits</p>
-                      <ul className="space-y-1.5">
-                        {catalog.benefits.map((b, i) => (
-                          <li key={i} className="flex items-start gap-2">
-                            <span className={cn('mt-0.5 w-1.5 h-1.5 rounded-full shrink-0', colors?.bg, colors?.text, 'bg-current')} />
-                            <span className="text-xs text-zinc-400 leading-relaxed">{b}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    {catalog && (
+                      <>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-white/[0.03] rounded-xl p-3">
+                            <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-1">Dose</p>
+                            <p className="text-xs text-zinc-300">{catalog.dose}</p>
+                          </div>
+                          <div className="bg-white/[0.03] rounded-xl p-3">
+                            <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-1">When</p>
+                            <p className="text-xs text-zinc-300">{catalog.timing}</p>
+                          </div>
+                        </div>
 
-                    {/* Mechanism */}
-                    <div>
-                      <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-1.5">How it works</p>
-                      <p className="text-xs text-zinc-500 leading-relaxed">{catalog.mechanism}</p>
-                    </div>
+                        {/* Benefits */}
+                        <div>
+                          <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-2">Benefits</p>
+                          <ul className="space-y-1.5">
+                            {catalog.benefits.map((b, i) => (
+                              <li key={i} className="flex items-start gap-2">
+                                <span className={cn('mt-0.5 w-1.5 h-1.5 rounded-full shrink-0', colors?.bg, colors?.text, 'bg-current')} />
+                                <span className="text-xs text-zinc-400 leading-relaxed">{b}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
 
-                    {/* Timing rationale */}
-                    <div>
-                      <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-1.5">Why this timing</p>
-                      <p className="text-xs text-zinc-500 leading-relaxed">{catalog.timing_rationale}</p>
-                    </div>
+                        {/* Mechanism */}
+                        <div>
+                          <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-1.5">How it works</p>
+                          <p className="text-xs text-zinc-500 leading-relaxed">{catalog.mechanism}</p>
+                        </div>
 
-                    {/* Interactions */}
-                    {catalog.interactions && (
-                      <div className="bg-amber-950/20 border border-amber-900/30 rounded-xl p-3">
-                        <p className="text-[10px] text-amber-600 uppercase tracking-wider font-semibold mb-1">Notes & Interactions</p>
-                        <p className="text-xs text-amber-200/60 leading-relaxed">{catalog.interactions}</p>
-                      </div>
+                        {/* Timing rationale */}
+                        <div>
+                          <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-1.5">Why this timing</p>
+                          <p className="text-xs text-zinc-500 leading-relaxed">{catalog.timing_rationale}</p>
+                        </div>
+
+                        {/* Interactions */}
+                        {catalog.interactions && (
+                          <div className="bg-amber-950/20 border border-amber-900/30 rounded-xl p-3">
+                            <p className="text-[10px] text-amber-600 uppercase tracking-wider font-semibold mb-1">Notes & Interactions</p>
+                            <p className="text-xs text-amber-200/60 leading-relaxed">{catalog.interactions}</p>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )}

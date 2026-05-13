@@ -2,15 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, MessageCircle, Dumbbell, TrendingUp, Settings } from 'lucide-react'
+import { Home, MessageCircle, Dumbbell, UtensilsCrossed, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const nav = [
   { href: '/', icon: Home, label: 'Today' },
   { href: '/chat', icon: MessageCircle, label: 'Coach' },
   { href: '/training', icon: Dumbbell, label: 'Train' },
-  { href: '/progress', icon: TrendingUp, label: 'Progress' },
-  { href: '/settings', icon: Settings, label: 'Settings' },
+  { href: '/food', icon: UtensilsCrossed, label: 'Food' },
+  { href: '/more', icon: LayoutGrid, label: 'More' },
 ]
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

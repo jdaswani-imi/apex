@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronRight, Plus, Trash2 } from 'lucide-react'
+import { ChevronRight, Plus, Trash2, UserCircle } from 'lucide-react'
 
 type Section = 'profile' | 'goals' | 'training' | 'supplements' | 'lifestyle' | 'baselines' | null
 
@@ -89,6 +89,30 @@ export default function SettingsPage() {
         <p style={{ fontSize: '14px', color: '#52525b', marginBottom: '24px' }}>Everything the AI uses to coach you</p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {/* Complete Profile */}
+          <a
+            href="/onboarding"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '14px',
+              backgroundColor: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)',
+              borderRadius: '16px', padding: '16px 20px', marginBottom: '4px',
+              textDecoration: 'none',
+            }}
+          >
+            <div style={{
+              width: '40px', height: '40px', borderRadius: '12px',
+              backgroundColor: 'rgba(249,115,22,0.15)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <UserCircle size={20} color="#f97316" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '15px', fontWeight: 600, color: '#f97316' }}>Complete your profile</div>
+              <div style={{ fontSize: '12px', color: '#71717a', marginTop: '2px' }}>Full questionnaire — helps the AI coach know you</div>
+            </div>
+            <ChevronRight size={18} color="#f97316" />
+          </a>
+
           {/* Whoop connection */}
           <div style={{
             backgroundColor: whoopConnected ? '#0a1f0a' : '#111',

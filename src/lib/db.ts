@@ -5,17 +5,6 @@ import type {
   WhoopCycle, WhoopWorkout, TodayContext,
 } from '@/lib/types'
 
-export const DEFAULT_SUPPLEMENTS = [
-  { name: 'Humantra', time: 'On wake' },
-  { name: 'Concentrace', time: 'On wake' },
-  { name: 'Creatine 5g', time: 'On wake' },
-  { name: 'Seed DS-01 Daily Synbiotic', time: '12:00 PM' },
-  { name: 'Omega-3', time: 'Post-lunch' },
-  { name: 'Multivitamin', time: 'Post-lunch' },
-  { name: 'Ferroglobibin', time: 'Pre-dinner (with OJ)' },
-  { name: 'Magnesium Glycinate 360mg', time: 'Before bed' },
-  { name: 'Sleep + Restore PM02', time: 'Before bed' },
-]
 
 // ─── Daily Log ────────────────────────────────────────────────────────────────
 
@@ -165,7 +154,10 @@ export async function getTodaySupplements(date: string): Promise<SupplementLog[]
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
 
-  await ensureSupplementRows(user.id, date)
+  const todayStr = new Date().toISOString().split('T')[0]
+  if (date === todayStr) {
+    await ensureSupplementRows(user.id, date)
+  }
 
   const { data } = await supabase
     .from('supplement_logs')
@@ -180,22 +172,32 @@ export async function getTodaySupplements(date: string): Promise<SupplementLog[]
 export async function ensureSupplementRows(userId: string, date: string): Promise<void> {
   const supabase = await createClient()
 
-  const { data: existing } = await supabase
-    .from('supplement_logs')
-    .select('supplement_name')
-    .eq('user_id', userId)
-    .eq('date', date)
+  const [{ data: userSupps }, { data: existing }] = await Promise.all([
+    supabase
+      .from('user_supplements')
+      .select('name, timing, timing_notes')
+      .eq('user_id', userId)
+      .eq('active', true)
+      .order('sort_order', { ascending: true }),
+    supabase
+      .from('supplement_logs')
+      .select('supplement_name')
+      .eq('user_id', userId)
+      .eq('date', date),
+  ])
 
-  const existingNames = new Set((existing ?? []).map((r: any) => r.supplement_name))
+  if (!userSupps || userSupps.length === 0) return
 
-  const toInsert = DEFAULT_SUPPLEMENTS
+  const existingNames = new Set((existing ?? []).map(r => r.supplement_name))
+
+  const toInsert = userSupps
     .filter(s => !existingNames.has(s.name))
     .map(s => ({
       user_id: userId,
       date,
       supplement_name: s.name,
       taken: false,
-      notes: s.time,
+      notes: s.timing_notes ?? s.timing,
     }))
 
   if (toInsert.length > 0) {
@@ -522,12 +524,12 @@ export async function getFullUserContext() {
 
 // ─── Full today context (used by AI and dashboard) ────────────────────────────
 
-export async function getTodayContext(): Promise<TodayContext | null> {
+export async function getTodayContext(dateOverride?: string): Promise<TodayContext | null> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = dateOverride ?? new Date().toISOString().split('T')[0]
 
   const [
     dailyLog,

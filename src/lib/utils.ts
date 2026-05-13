@@ -23,23 +23,14 @@ export function getRecoveryLabel(score: number): string {
   return 'Red'
 }
 
-export function getDaysToTomorrowland(): number {
-  const target = new Date('2026-07-24')
-  const today = new Date()
-  const diff = target.getTime() - today.getTime()
+export function getDaysToEvent(fromDate: string | undefined, targetDate: string): number {
+  const target = new Date(targetDate + 'T12:00:00')
+  const from = fromDate ? new Date(fromDate + 'T12:00:00') : new Date()
+  const diff = target.getTime() - from.getTime()
   return Math.ceil(diff / (1000 * 60 * 60 * 24))
 }
 
-export function getTrainingDayType(date: Date): string {
+export function getTrainingDayType(date: Date, trainingSplit: Record<string, string>): string {
   const day = date.getDay()
-  const types: Record<number, string> = {
-    0: 'Upper Pull / Rest',
-    1: 'Upper Push',
-    2: 'Cricket / Legs',
-    3: 'Lower Body / Zone 2',
-    4: 'Upper Pull',
-    5: 'Cardio / Stairmaster',
-    6: 'Arms & Abs (Optional)',
-  }
-  return types[day]
+  return trainingSplit[String(day)] ?? 'Rest'
 }
