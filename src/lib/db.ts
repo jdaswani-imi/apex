@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import type {
   DailyLog, TrainingSession, Exercise,
   SupplementLog, WhoopRecovery, WhoopSleep,
-  WhoopCycle, TodayContext,
+  WhoopCycle, WhoopWorkout, TodayContext,
 } from '@/lib/types'
 
 export const DEFAULT_SUPPLEMENTS = [
@@ -333,6 +333,40 @@ export async function getRecentSleep(days = 14): Promise<WhoopSleep[]> {
   return data ?? []
 }
 
+export async function getRecentCycles(days = 30): Promise<WhoopCycle[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data } = await supabase
+    .from('whoop_cycles')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('date', { ascending: false })
+    .limit(days)
+
+  return data ?? []
+}
+
+export async function getRecentWorkouts(days = 30): Promise<WhoopWorkout[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const from = new Date()
+  from.setDate(from.getDate() - days)
+
+  const { data } = await supabase
+    .from('whoop_workouts')
+    .select('*')
+    .eq('user_id', user.id)
+    .gte('start_time', from.toISOString())
+    .order('start_time', { ascending: false })
+    .limit(50)
+
+  return data ?? []
+}
+
 // ─── Weight ───────────────────────────────────────────────────────────────────
 
 export async function logWeight(date: string, weight_kg: number): Promise<void> {
@@ -344,6 +378,136 @@ export async function getWeightHistory(days = 30): Promise<{ date: string; weigh
   return logs
     .filter(l => l.weight_kg !== null)
     .map(l => ({ date: l.date, weight_kg: l.weight_kg! }))
+}
+
+// ─── User Settings ────────────────────────────────────────────────────────────
+
+export async function getUserProfile() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data } = await supabase.from('user_profile').select('*').eq('user_id', user.id).single()
+  return data
+}
+
+export async function getUserGoals() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data } = await supabase.from('user_goals').select('*').eq('user_id', user.id).single()
+  return data
+}
+
+export async function getUserTraining() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data } = await supabase.from('user_training').select('*').eq('user_id', user.id).single()
+  return data
+}
+
+export async function getUserSupplements() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const { data } = await supabase
+    .from('user_supplements')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('active', true)
+    .order('sort_order', { ascending: true })
+  return data ?? []
+}
+
+export async function getUserLifestyle() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data } = await supabase.from('user_lifestyle').select('*').eq('user_id', user.id).single()
+  return data
+}
+
+export async function getExerciseBaselines() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const { data } = await supabase
+    .from('exercise_baselines')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('session_type', { ascending: true })
+  return data ?? []
+}
+
+export async function updateUserProfile(updates: any) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data } = await supabase
+    .from('user_profile')
+    .upsert({ user_id: user.id, ...updates, updated_at: new Date().toISOString() })
+    .select().single()
+  return data
+}
+
+export async function updateUserGoals(updates: any) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data } = await supabase
+    .from('user_goals')
+    .upsert({ user_id: user.id, ...updates, updated_at: new Date().toISOString() })
+    .select().single()
+  return data
+}
+
+export async function updateUserLifestyle(updates: any) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data } = await supabase
+    .from('user_lifestyle')
+    .upsert({ user_id: user.id, ...updates, updated_at: new Date().toISOString() })
+    .select().single()
+  return data
+}
+
+export async function upsertUserSupplement(supp: any) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data } = await supabase
+    .from('user_supplements')
+    .upsert({ user_id: user.id, ...supp })
+    .select().single()
+  return data
+}
+
+export async function deleteUserSupplement(id: string) {
+  const supabase = await createClient()
+  await supabase.from('user_supplements').delete().eq('id', id)
+}
+
+export async function updateExerciseBaseline(id: string, updates: any) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('exercise_baselines')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select().single()
+  return data
+}
+
+export async function getFullUserContext() {
+  const [profile, goals, training, supplements, lifestyle, baselines] = await Promise.all([
+    getUserProfile(),
+    getUserGoals(),
+    getUserTraining(),
+    getUserSupplements(),
+    getUserLifestyle(),
+    getExerciseBaselines(),
+  ])
+  return { profile, goals, training, supplements, lifestyle, baselines }
 }
 
 // ─── Full today context (used by AI and dashboard) ────────────────────────────
