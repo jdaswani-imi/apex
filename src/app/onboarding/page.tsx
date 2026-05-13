@@ -2092,7 +2092,7 @@ export default function OnboardingPage() {
         {isWelcome && (
           <div key="welcome" style={{
             minHeight: '100dvh', display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center', padding: '40px 28px', textAlign: 'center',
+            alignItems: 'center', justifyContent: 'flex-start', padding: '60px 28px 100px', textAlign: 'center',
           }}>
             <div style={{
               width: '80px', height: '80px', borderRadius: '24px',
