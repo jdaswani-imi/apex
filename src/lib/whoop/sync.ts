@@ -1,27 +1,8 @@
 import { whoopFetch, whoopFetchAll } from './client'
 import { createClient } from '@/lib/supabase/server'
 
-const MIN_SYNC_INTERVAL_MS = 15 * 60 * 1000 // 15 minutes
-
-export async function syncWhoopData(userId: string, days = 7, force = false) {
+export async function syncWhoopData(userId: string, days = 7) {
   const supabase = await createClient()
-
-  // Enforce minimum sync interval to protect rate limits
-  if (!force) {
-    const { data: tokenRow } = await supabase
-      .from('whoop_tokens')
-      .select('last_synced_at')
-      .eq('user_id', userId)
-      .single()
-
-    if (tokenRow?.last_synced_at) {
-      const elapsed = Date.now() - new Date(tokenRow.last_synced_at).getTime()
-      if (elapsed < MIN_SYNC_INTERVAL_MS) {
-        const waitSec = Math.ceil((MIN_SYNC_INTERVAL_MS - elapsed) / 1000)
-        return { skipped: true, retryAfterSeconds: waitSec }
-      }
-    }
-  }
 
   const start = new Date()
   start.setDate(start.getDate() - days)
@@ -95,7 +76,7 @@ export async function syncWhoopData(userId: string, days = 7, force = false) {
   try {
     const records = await whoopFetchAll(userId, '/v2/activity/sleep', { start: startStr })
     for (const record of records) {
-      if (record.score_state !== 'SCORED') continue
+      if (!record.score) continue
       const date = new Date(record.start).toISOString().split('T')[0]
       const score = record.score
       const stages = score.stage_summary

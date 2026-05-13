@@ -664,9 +664,14 @@ export default function ProgressPage() {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [lastSynced, setLastSynced] = useState<string | null>(null)
+  const [tokenExpired, setTokenExpired] = useState(false)
 
   useEffect(() => {
     fetchData()
+    fetch('/api/whoop/status')
+      .then(r => r.json())
+      .then(d => { if (d.expired && !d.canRefresh) setTokenExpired(true) })
+      .catch(() => {})
   }, [])
 
   async function fetchData() {
@@ -730,7 +735,32 @@ export default function ProgressPage() {
           </p>
         )}
 
-        {/* Tab bar */}
+        {/* Expired token banner */}
+        {tokenExpired && (
+          <div style={{
+            backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
+            borderRadius: '14px', padding: '12px 14px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            marginBottom: '12px',
+          }}>
+            <div>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: '#fca5a5' }}>WHOOP session expired</p>
+              <p style={{ fontSize: '11px', color: '#71717a', marginTop: '2px' }}>Reconnect to sync fresh data</p>
+            </div>
+            <a
+              href="/api/whoop/login"
+              style={{
+                backgroundColor: '#ef4444', color: '#fff', fontWeight: 700,
+                fontSize: '12px', padding: '8px 14px', borderRadius: '10px',
+                textDecoration: 'none', flexShrink: 0,
+              }}
+            >
+              Reconnect
+            </a>
+          </div>
+        )}
+
+      {/* Tab bar */}
         <div style={{
           display: 'flex', gap: '4px',
           backgroundColor: '#111', borderRadius: '12px', padding: '4px',

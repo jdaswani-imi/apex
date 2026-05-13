@@ -5,6 +5,7 @@ import { getTodayContext } from '@/lib/db'
 import { getDaysToTomorrowland, getTrainingDayType, cn } from '@/lib/utils'
 import { Flame, Zap, Footprints, Scale, ChevronRight, Music2, Dumbbell, Moon, Activity } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { QualitativeCheckin } from '@/components/qualitative-checkin'
 
 export const dynamic = 'force-dynamic'
 
@@ -164,48 +165,51 @@ export default async function TodayPage() {
         ))}
       </div>
 
-      {/* WHOOP — Recovery vitals */}
-      {ctx.recovery && (
+      {/* WHOOP — Recovery vitals (when connected) */}
+      {(ctx.recovery || ctx.cycle) && (
         <div className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <Activity size={13} className="text-violet-400" />
             <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Recovery Vitals</span>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            {ctx.recovery.hrv_rmssd_milli !== null && (
-              <div className="text-center">
-                <p className="text-violet-400 font-bold text-xl leading-none">{Math.round(ctx.recovery.hrv_rmssd_milli)}</p>
-                <p className="text-zinc-600 text-[10px] mt-1">HRV ms</p>
+          <div className="grid grid-cols-2 gap-3">
+            {ctx.recovery?.hrv_rmssd_milli !== null && ctx.recovery?.hrv_rmssd_milli !== undefined && (
+              <div className="bg-violet-500/10 rounded-xl p-3">
+                <p className="text-violet-400 font-bold text-2xl leading-none">{Math.round(ctx.recovery.hrv_rmssd_milli)}</p>
+                <p className="text-zinc-600 text-[10px] mt-1 font-medium">HRV · ms</p>
               </div>
             )}
-            {ctx.recovery.resting_heart_rate !== null && (
-              <div className="text-center">
-                <p className="text-red-400 font-bold text-xl leading-none">{ctx.recovery.resting_heart_rate}</p>
-                <p className="text-zinc-600 text-[10px] mt-1">RHR bpm</p>
+            {ctx.cycle?.strain !== null && ctx.cycle?.strain !== undefined && (
+              <div className={cn('rounded-xl p-3',
+                ctx.cycle.strain >= 18 ? 'bg-red-500/10' :
+                ctx.cycle.strain >= 14 ? 'bg-orange-500/10' :
+                ctx.cycle.strain >= 10 ? 'bg-yellow-500/10' : 'bg-green-500/10'
+              )}>
+                <p className={cn('font-bold text-2xl leading-none',
+                  ctx.cycle.strain >= 18 ? 'text-red-400' :
+                  ctx.cycle.strain >= 14 ? 'text-orange-400' :
+                  ctx.cycle.strain >= 10 ? 'text-yellow-400' : 'text-green-400'
+                )}>{ctx.cycle.strain.toFixed(1)}</p>
+                <p className="text-zinc-600 text-[10px] mt-1 font-medium">Strain · /21</p>
               </div>
             )}
-            {ctx.recovery.spo2_percentage !== null && (
-              <div className="text-center">
-                <p className="text-sky-400 font-bold text-xl leading-none">{ctx.recovery.spo2_percentage}%</p>
-                <p className="text-zinc-600 text-[10px] mt-1">SpO₂</p>
+            {ctx.recovery?.resting_heart_rate !== null && ctx.recovery?.resting_heart_rate !== undefined && (
+              <div className="bg-red-500/10 rounded-xl p-3">
+                <p className="text-red-400 font-bold text-2xl leading-none">{ctx.recovery.resting_heart_rate}</p>
+                <p className="text-zinc-600 text-[10px] mt-1 font-medium">RHR · bpm</p>
+              </div>
+            )}
+            {ctx.recovery?.spo2_percentage !== null && ctx.recovery?.spo2_percentage !== undefined && (
+              <div className="bg-sky-500/10 rounded-xl p-3">
+                <p className="text-sky-400 font-bold text-2xl leading-none">{ctx.recovery.spo2_percentage}%</p>
+                <p className="text-zinc-600 text-[10px] mt-1 font-medium">SpO₂</p>
               </div>
             )}
           </div>
-          {ctx.cycle?.strain !== null && ctx.cycle?.strain !== undefined && (
-            <div className="mt-3 pt-3 border-t border-white/[0.04] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Zap size={12} className="text-orange-400" />
-                <span className="text-zinc-500 text-[11px]">Day strain</span>
-              </div>
-              <span className={cn('font-bold text-sm', ctx.cycle.strain >= 18 ? 'text-red-400' : ctx.cycle.strain >= 14 ? 'text-orange-400' : ctx.cycle.strain >= 10 ? 'text-yellow-400' : 'text-green-400')}>
-                {ctx.cycle.strain.toFixed(1)}
-              </span>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Sleep */}
+      {/* Sleep (when WHOOP connected) */}
       {ctx.sleep && (
         <div className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -226,6 +230,16 @@ export default async function TodayPage() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Qualitative check-in (when no WHOOP data for today) */}
+      {!ctx.recovery && !ctx.sleep && !ctx.cycle && (
+        <QualitativeCheckin
+          initialRecovery={ctx.dailyLog?.feeling_recovery ?? null}
+          initialSleepQuality={ctx.dailyLog?.feeling_sleep_quality ?? null}
+          initialSleepHours={ctx.dailyLog?.feeling_sleep_hours ?? null}
+          initialStrain={ctx.dailyLog?.feeling_strain ?? null}
+        />
       )}
 
       {/* Supplements */}

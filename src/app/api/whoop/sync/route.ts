@@ -12,12 +12,5 @@ export async function POST(request: Request) {
 
   const results = await syncWhoopData(user.id, days)
 
-  if ('skipped' in results && results.skipped) {
-    return NextResponse.json(
-      { error: 'Synced too recently', retryAfterSeconds: results.retryAfterSeconds },
-      { status: 429 }
-    )
-  }
-
   return NextResponse.json({ success: true, results })
 }

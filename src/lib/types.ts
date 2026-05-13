@@ -15,6 +15,10 @@ export interface DailyLog {
   day_rating_nutrition: number | null
   day_rating_sleep: number | null
   day_rating_supplements: number | null
+  feeling_recovery: number | null
+  feeling_sleep_quality: number | null
+  feeling_sleep_hours: number | null
+  feeling_strain: number | null
   created_at: string
 }
 

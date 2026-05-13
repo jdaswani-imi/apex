@@ -6,10 +6,13 @@ import type {
 } from '@/lib/types'
 
 export const DEFAULT_SUPPLEMENTS = [
-  { name: 'Humantra + Concentrace + Creatine 5g', time: 'On wake' },
+  { name: 'Humantra', time: 'On wake' },
+  { name: 'Concentrace', time: 'On wake' },
+  { name: 'Creatine 5g', time: 'On wake' },
   { name: 'Seed DS-01 Daily Synbiotic', time: '12:00 PM' },
-  { name: 'Omega-3 + Multivitamin', time: 'Post-lunch' },
-  { name: 'Ferroglobibin + OJ', time: 'Pre-dinner' },
+  { name: 'Omega-3', time: 'Post-lunch' },
+  { name: 'Multivitamin', time: 'Post-lunch' },
+  { name: 'Ferroglobibin', time: 'Pre-dinner (with OJ)' },
   { name: 'Magnesium Glycinate 360mg', time: 'Before bed' },
   { name: 'Sleep + Restore PM02', time: 'Before bed' },
 ]
@@ -276,12 +279,19 @@ export async function getTodaySleep(date: string): Promise<WhoopSleep | null> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
+  // Sleep starts the night before, so check today and yesterday
+  const yesterday = new Date(date)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const yesterdayStr = yesterday.toISOString().split('T')[0]
+
   const { data } = await supabase
     .from('whoop_sleep')
     .select('*')
     .eq('user_id', user.id)
-    .eq('date', date)
+    .in('date', [date, yesterdayStr])
     .eq('nap', false)
+    .order('date', { ascending: false })
+    .limit(1)
     .single()
 
   return data

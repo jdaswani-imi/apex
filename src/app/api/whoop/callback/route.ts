@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     updated_at: new Date().toISOString(),
   })
 
-  await syncWhoopData(user.id, 14, true).catch(() => {})
+  await syncWhoopData(user.id, 14).catch(() => {})
 
   const response = NextResponse.redirect(`${origin}/?whoop=connected`)
   response.cookies.delete('whoop_oauth_state')
