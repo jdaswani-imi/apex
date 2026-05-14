@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { UtensilsCrossed, Plus, Trash2, ChevronDown, X, Search, Loader2 } from 'lucide-react'
+import { UtensilsCrossed, Plus, Trash2, ChevronDown, X, Search, Loader2, Star, BookmarkPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { FoodLog } from '@/lib/types'
 
@@ -24,6 +24,8 @@ const MEAL_COLORS: Record<MealType, { dot: string; label: string }> = {
   snack: { dot: 'bg-zinc-500', label: 'text-zinc-500' },
 }
 
+const OZ_PER_G = 1 / 28.3495
+
 interface SearchResult {
   code: string | null
   name: string
@@ -35,6 +37,16 @@ interface SearchResult {
     carbs_g: number | null
     fats_g: number | null
   }
+  source?: 'usda' | 'off' | 'custom'
+}
+
+interface RecentFood {
+  name: string
+  calories: number | null
+  protein_g: number | null
+  carbs_g: number | null
+  fats_g: number | null
+  meal_type: string
 }
 
 interface FormState {
@@ -53,6 +65,27 @@ const EMPTY_FORM: FormState = {
   protein_g: '',
   carbs_g: '',
   fats_g: '',
+}
+
+// Custom food creation form
+interface CustomFoodForm {
+  name: string
+  brand: string
+  calories_per_100g: string
+  protein_per_100g: string
+  carbs_per_100g: string
+  fats_per_100g: string
+  serving_g: string
+}
+
+const EMPTY_CUSTOM: CustomFoodForm = {
+  name: '',
+  brand: '',
+  calories_per_100g: '',
+  protein_per_100g: '',
+  carbs_per_100g: '',
+  fats_per_100g: '',
+  serving_g: '100',
 }
 
 function r1(n: number) { return Math.round(n * 10) / 10 }
@@ -76,6 +109,9 @@ interface FoodContentProps {
   calorieTarget: number
 }
 
+type FormTab = 'search' | 'create'
+type ServingUnit = 'g' | 'oz'
+
 export default function FoodContent({ proteinTarget, calorieTarget }: FoodContentProps) {
   const [logs, setLogs] = useState<FoodLog[]>([])
   const [loading, setLoading] = useState(true)
@@ -84,12 +120,28 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
+  // Form tabs: search the DB or create a custom food
+  const [formTab, setFormTab] = useState<FormTab>('search')
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searching, setSearching] = useState(false)
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null)
+
+  // Serving size
   const [servingG, setServingG] = useState('100')
+  const [servingUnit, setServingUnit] = useState<ServingUnit>('g')
+
+  // Recent foods
+  const [recentFoods, setRecentFoods] = useState<RecentFood[]>([])
+  const [recentLoaded, setRecentLoaded] = useState(false)
+
+  // Custom food creation
+  const [customForm, setCustomForm] = useState<CustomFoodForm>(EMPTY_CUSTOM)
+  const [savingCustom, setSavingCustom] = useState(false)
+  const [customSaved, setCustomSaved] = useState(false)
+
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const fetchLogs = useCallback(async () => {
@@ -100,6 +152,15 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
   }, [])
 
   useEffect(() => { fetchLogs() }, [fetchLogs])
+
+  // Fetch recent foods once when form opens
+  useEffect(() => {
+    if (!showForm || recentLoaded) return
+    window.fetch('/api/food/recent')
+      .then(r => r.json())
+      .then(data => { setRecentFoods(data); setRecentLoaded(true) })
+      .catch(() => setRecentLoaded(true))
+  }, [showForm, recentLoaded])
 
   // Debounced search
   useEffect(() => {
@@ -120,10 +181,12 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
     }, 400)
   }, [searchQuery])
 
-  // Recalculate macros when serving size changes
+  // Recalculate macros when serving size or unit changes
   useEffect(() => {
     if (!selectedResult) return
-    const g = parseFloat(servingG)
+    const g = servingUnit === 'oz'
+      ? parseFloat(servingG) / OZ_PER_G
+      : parseFloat(servingG)
     if (isNaN(g) || g <= 0) return
     const m = macrosFromPer100(selectedResult.per100, g)
     setForm(prev => ({
@@ -133,14 +196,18 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
       carbs_g: m.carbs_g !== null ? String(m.carbs_g) : '',
       fats_g: m.fats_g !== null ? String(m.fats_g) : '',
     }))
-  }, [servingG, selectedResult])
+  }, [servingG, servingUnit, selectedResult])
+
+  function displayServing(grams: number): string {
+    if (servingUnit === 'oz') return r1(grams * OZ_PER_G).toString()
+    return String(grams)
+  }
 
   function pickResult(r: SearchResult) {
-    const defaultServing = r.serving_g ?? 100
-    const g = defaultServing
-    const m = macrosFromPer100(r.per100, g)
+    const defaultG = r.serving_g ?? 100
+    const m = macrosFromPer100(r.per100, defaultG)
     setSelectedResult(r)
-    setServingG(String(g))
+    setServingG(servingUnit === 'oz' ? r1(defaultG * OZ_PER_G).toString() : String(defaultG))
     setSearchQuery('')
     setSearchResults([])
     setForm(prev => ({
@@ -153,6 +220,20 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
     }))
   }
 
+  function pickRecent(r: RecentFood) {
+    setSelectedResult(null)
+    setForm({
+      name: r.name,
+      meal_type: (MEAL_TYPES.includes(r.meal_type as MealType) ? r.meal_type : 'snack') as MealType,
+      calories: r.calories !== null ? String(r.calories) : '',
+      protein_g: r.protein_g !== null ? String(r.protein_g) : '',
+      carbs_g: r.carbs_g !== null ? String(r.carbs_g) : '',
+      fats_g: r.fats_g !== null ? String(r.fats_g) : '',
+    })
+    setSearchQuery('')
+    setSearchResults([])
+  }
+
   function clearSelection() {
     setSelectedResult(null)
     setServingG('100')
@@ -162,7 +243,21 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
 
   function closeForm() {
     setShowForm(false)
+    setFormTab('search')
+    setCustomForm(EMPTY_CUSTOM)
+    setCustomSaved(false)
     clearSelection()
+  }
+
+  function switchUnit(unit: ServingUnit) {
+    if (!selectedResult) { setServingUnit(unit); return }
+    const currentG = servingUnit === 'oz'
+      ? parseFloat(servingG) / OZ_PER_G
+      : parseFloat(servingG)
+    setServingUnit(unit)
+    if (!isNaN(currentG)) {
+      setServingG(unit === 'oz' ? r1(currentG * OZ_PER_G).toString() : String(Math.round(currentG)))
+    }
   }
 
   async function submit(e: React.FormEvent) {
@@ -187,12 +282,54 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
     if (res.ok) {
       const item: FoodLog = await res.json()
       setLogs(prev => [...prev, item])
+      setRecentLoaded(false) // refresh recent on next open
       clearSelection()
       setForm(EMPTY_FORM)
       setShowForm(false)
     }
 
     setSaving(false)
+  }
+
+  async function saveCustomFood() {
+    if (!customForm.name.trim()) return
+    setSavingCustom(true)
+    const res = await window.fetch('/api/food/custom', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: customForm.name.trim(),
+        brand: customForm.brand.trim() || null,
+        calories_per_100g: num(customForm.calories_per_100g),
+        protein_per_100g: num(customForm.protein_per_100g),
+        carbs_per_100g: num(customForm.carbs_per_100g),
+        fats_per_100g: num(customForm.fats_per_100g),
+        serving_g: num(customForm.serving_g) ?? 100,
+      }),
+    })
+    if (res.ok) {
+      setCustomSaved(true)
+      // Auto-select the new custom food so user can log it immediately
+      const saved = await res.json()
+      const serving = saved.serving_g ?? 100
+      const per100 = {
+        calories: saved.calories_per_100g,
+        protein_g: saved.protein_per_100g,
+        carbs_g: saved.carbs_per_100g,
+        fats_g: saved.fats_per_100g,
+      }
+      setFormTab('search')
+      setCustomForm(EMPTY_CUSTOM)
+      pickResult({
+        code: `custom:${saved.id}`,
+        name: saved.name,
+        brand: saved.brand,
+        serving_g: serving,
+        per100,
+        source: 'custom',
+      })
+    }
+    setSavingCustom(false)
   }
 
   async function remove(id: string) {
@@ -219,6 +356,8 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
   const grouped = MEAL_TYPES
     .map(type => ({ type, items: logs.filter(l => l.meal_type === type) }))
     .filter(g => g.items.length > 0)
+
+  const showRecent = searchQuery.length < 2 && !selectedResult && recentFoods.length > 0
 
   return (
     <div className="px-4 pt-14 pb-8">
@@ -301,160 +440,322 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
 
       {/* Add food form */}
       {showForm && (
-        <form
-          onSubmit={submit}
-          className="bg-zinc-900/80 border border-white/[0.08] rounded-2xl p-4 mb-4 space-y-3"
-        >
-          <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">Add Food</p>
-
-          {/* Search bar */}
-          {!selectedResult ? (
-            <div className="space-y-2">
-              <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search food database…"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-9 pr-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors"
-                  autoFocus
-                />
-                {searching && (
-                  <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 animate-spin" />
+        <div className="bg-zinc-900/80 border border-white/[0.08] rounded-2xl p-4 mb-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">Add Food</p>
+            {/* Tab switcher */}
+            <div className="flex bg-white/[0.04] rounded-lg p-0.5 gap-0.5">
+              <button
+                type="button"
+                onClick={() => { setFormTab('search'); setCustomForm(EMPTY_CUSTOM); setCustomSaved(false) }}
+                className={cn(
+                  'text-[10px] font-semibold px-2.5 py-1 rounded-md transition-all',
+                  formTab === 'search' ? 'bg-orange-500 text-black' : 'text-zinc-500 hover:text-zinc-300',
                 )}
-              </div>
-
-              {/* Search results */}
-              {searchResults.length > 0 && (
-                <div className="bg-zinc-950/80 border border-white/[0.06] rounded-xl overflow-hidden max-h-56 overflow-y-auto">
-                  {searchResults.map((r, i) => (
-                    <button
-                      key={r.code ?? i}
-                      type="button"
-                      onClick={() => pickResult(r)}
-                      className="w-full text-left px-3 py-2.5 hover:bg-white/[0.04] transition-colors border-b border-white/[0.04] last:border-b-0"
-                    >
-                      <p className="text-sm text-zinc-100 truncate leading-snug">{r.name}</p>
-                      <p className="text-[10px] text-zinc-600 mt-0.5">
-                        {[
-                          r.brand,
-                          r.per100.calories !== null && `${Math.round(r.per100.calories)} kcal`,
-                          r.per100.protein_g !== null && `${r1(r.per100.protein_g)}g P`,
-                          r.per100.carbs_g !== null && `${r1(r.per100.carbs_g)}g C`,
-                          r.per100.fats_g !== null && `${r1(r.per100.fats_g)}g F`,
-                        ].filter(Boolean).join(' · ')}
-                        <span className="text-zinc-700"> per 100g</span>
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {searchQuery.length >= 2 && !searching && searchResults.length === 0 && (
-                <p className="text-zinc-700 text-xs px-1">No results — fill in manually below</p>
-              )}
-
-              {/* Manual name entry divider */}
-              <div className="flex items-center gap-2">
-                <div className="h-px flex-1 bg-white/[0.04]" />
-                <span className="text-[10px] text-zinc-700 uppercase tracking-wider">or enter manually</span>
-                <div className="h-px flex-1 bg-white/[0.04]" />
-              </div>
-
-              <input
-                type="text"
-                placeholder="Food name"
-                value={form.name}
-                onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors"
-              />
+              >
+                Search
+              </button>
+              <button
+                type="button"
+                onClick={() => { setFormTab('create'); clearSelection() }}
+                className={cn(
+                  'flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-md transition-all',
+                  formTab === 'create' ? 'bg-orange-500 text-black' : 'text-zinc-500 hover:text-zinc-300',
+                )}
+              >
+                <BookmarkPlus size={10} />
+                Custom
+              </button>
             </div>
-          ) : (
-            /* Selected food — show with serving size adjuster */
-            <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-zinc-100 leading-snug truncate">{selectedResult.name}</p>
-                  {selectedResult.brand && (
-                    <p className="text-[11px] text-zinc-600 mt-0.5">{selectedResult.brand}</p>
+          </div>
+
+          {formTab === 'search' ? (
+            <form onSubmit={submit} className="space-y-3">
+              {/* Search bar */}
+              {!selectedResult ? (
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Search food database…"
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-9 pr-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors"
+                      autoFocus
+                    />
+                    {searching && (
+                      <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 animate-spin" />
+                    )}
+                  </div>
+
+                  {/* Recent foods (shown when not searching) */}
+                  {showRecent && (
+                    <div>
+                      <p className="text-[9px] text-zinc-700 uppercase tracking-wider font-semibold px-1 mb-1.5">Recent</p>
+                      <div className="bg-zinc-950/80 border border-white/[0.06] rounded-xl overflow-hidden">
+                        {recentFoods.map((r, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => pickRecent(r)}
+                            className="w-full text-left px-3 py-2.5 hover:bg-white/[0.04] transition-colors border-b border-white/[0.04] last:border-b-0"
+                          >
+                            <p className="text-sm text-zinc-100 truncate leading-snug">{r.name}</p>
+                            <p className="text-[10px] text-zinc-600 mt-0.5">
+                              {[
+                                r.calories !== null && `${r.calories} kcal`,
+                                r.protein_g !== null && `${r.protein_g}g P`,
+                                r.carbs_g !== null && `${r.carbs_g}g C`,
+                                r.fats_g !== null && `${r.fats_g}g F`,
+                              ].filter(Boolean).join(' · ')}
+                            </p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   )}
+
+                  {/* Search results */}
+                  {searchResults.length > 0 && (
+                    <div className="bg-zinc-950/80 border border-white/[0.06] rounded-xl overflow-hidden max-h-56 overflow-y-auto">
+                      {searchResults.map((r, i) => (
+                        <button
+                          key={r.code ?? i}
+                          type="button"
+                          onClick={() => pickResult(r)}
+                          className="w-full text-left px-3 py-2.5 hover:bg-white/[0.04] transition-colors border-b border-white/[0.04] last:border-b-0"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm text-zinc-100 truncate leading-snug flex-1">{r.name}</p>
+                            {r.source === 'custom' && (
+                              <span className="shrink-0 text-[8px] font-bold uppercase tracking-wider text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded-full">Mine</span>
+                            )}
+                            {r.source === 'usda' && (
+                              <span className="shrink-0 text-[8px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded-full">USDA</span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-zinc-600 mt-0.5">
+                            {[
+                              r.brand,
+                              r.per100.calories !== null && `${Math.round(r.per100.calories)} kcal`,
+                              r.per100.protein_g !== null && `${r1(r.per100.protein_g)}g P`,
+                              r.per100.carbs_g !== null && `${r1(r.per100.carbs_g)}g C`,
+                              r.per100.fats_g !== null && `${r1(r.per100.fats_g)}g F`,
+                            ].filter(Boolean).join(' · ')}
+                            <span className="text-zinc-700"> per 100g</span>
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {searchQuery.length >= 2 && !searching && searchResults.length === 0 && (
+                    <p className="text-zinc-700 text-xs px-1">
+                      No results — fill in manually below or{' '}
+                      <button type="button" className="text-orange-500 underline" onClick={() => { setFormTab('create'); setCustomForm(f => ({ ...f, name: searchQuery })) }}>
+                        create a custom food
+                      </button>
+                    </p>
+                  )}
+
+                  {/* Manual name entry divider */}
+                  <div className="flex items-center gap-2">
+                    <div className="h-px flex-1 bg-white/[0.04]" />
+                    <span className="text-[10px] text-zinc-700 uppercase tracking-wider">or enter manually</span>
+                    <div className="h-px flex-1 bg-white/[0.04]" />
+                  </div>
+
+                  <input
+                    type="text"
+                    placeholder="Food name"
+                    value={form.name}
+                    onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors"
+                  />
                 </div>
-                <button
-                  type="button"
-                  onClick={clearSelection}
-                  className="text-zinc-700 hover:text-zinc-400 transition-colors shrink-0 mt-0.5"
+              ) : (
+                /* Selected food — serving size adjuster */
+                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-semibold text-zinc-100 leading-snug truncate">{selectedResult.name}</p>
+                        {selectedResult.source === 'custom' && (
+                          <Star size={11} className="text-orange-400 shrink-0 fill-orange-400" />
+                        )}
+                      </div>
+                      {selectedResult.brand && (
+                        <p className="text-[11px] text-zinc-600 mt-0.5">{selectedResult.brand}</p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={clearSelection}
+                      className="text-zinc-700 hover:text-zinc-400 transition-colors shrink-0 mt-0.5"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+
+                  {/* Serving size + unit toggle */}
+                  <div className="flex items-center gap-2 mt-3">
+                    <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold shrink-0">Serving</p>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="0.1"
+                      step="any"
+                      value={servingG}
+                      onChange={e => setServingG(e.target.value)}
+                      className="w-20 bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 py-1 text-sm text-zinc-200 outline-none focus:border-orange-500/50 transition-colors text-center"
+                    />
+                    {/* g / oz toggle */}
+                    <div className="flex bg-white/[0.04] rounded-lg p-0.5 gap-0.5">
+                      {(['g', 'oz'] as ServingUnit[]).map(u => (
+                        <button
+                          key={u}
+                          type="button"
+                          onClick={() => switchUnit(u)}
+                          className={cn(
+                            'text-[10px] font-semibold px-2 py-0.5 rounded-md transition-all',
+                            servingUnit === u ? 'bg-orange-500 text-black' : 'text-zinc-500 hover:text-zinc-300',
+                          )}
+                        >
+                          {u}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-zinc-700 text-[10px] ml-auto">
+                      {selectedResult.per100.calories !== null && `${Math.round(selectedResult.per100.calories)} kcal/100g`}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Meal type */}
+              <div className="relative">
+                <select
+                  value={form.meal_type}
+                  onChange={e => setForm(p => ({ ...p, meal_type: e.target.value as MealType }))}
+                  className="w-full appearance-none bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-zinc-300 outline-none focus:border-orange-500/50 transition-colors pr-8"
                 >
-                  <X size={14} />
-                </button>
+                  {MEAL_TYPES.map(t => (
+                    <option key={t} value={t}>{MEAL_LABELS[t]}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" />
               </div>
 
-              {/* Serving size */}
-              <div className="flex items-center gap-2 mt-3">
-                <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold shrink-0">Serving</p>
+              {/* Macros row */}
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { key: 'calories' as const, label: 'Cal', placeholder: 'kcal' },
+                  { key: 'protein_g' as const, label: 'Protein', placeholder: '0g' },
+                  { key: 'carbs_g' as const, label: 'Carbs', placeholder: '0g' },
+                  { key: 'fats_g' as const, label: 'Fat', placeholder: '0g' },
+                ].map(({ key, label, placeholder }) => (
+                  <div key={key}>
+                    <p className="text-[9px] text-zinc-700 uppercase tracking-wider font-semibold mb-1 px-1">{label}</p>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="any"
+                      placeholder={placeholder}
+                      value={form[key]}
+                      onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
+                      className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-2 py-2 text-sm text-zinc-300 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors text-center"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="submit"
+                disabled={saving || (!form.name.trim() && !selectedResult)}
+                className="w-full bg-orange-500 text-black font-bold py-2.5 rounded-xl text-sm disabled:opacity-40 hover:bg-orange-400 transition-colors active:scale-[0.98]"
+              >
+                {saving ? 'Adding…' : 'Add to Log'}
+              </button>
+            </form>
+          ) : (
+            /* Create custom food tab */
+            <div className="space-y-3">
+              <p className="text-[10px] text-zinc-600">Save a food once — it'll appear in your personal search results.</p>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="col-span-2">
+                  <p className="text-[9px] text-zinc-700 uppercase tracking-wider font-semibold mb-1 px-1">Food Name *</p>
+                  <input
+                    type="text"
+                    placeholder="e.g. My Protein Shake"
+                    value={customForm.name}
+                    onChange={e => setCustomForm(p => ({ ...p, name: e.target.value }))}
+                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors"
+                    autoFocus
+                  />
+                </div>
+                <div className="col-span-2">
+                  <p className="text-[9px] text-zinc-700 uppercase tracking-wider font-semibold mb-1 px-1">Brand (optional)</p>
+                  <input
+                    type="text"
+                    placeholder="Brand name"
+                    value={customForm.brand}
+                    onChange={e => setCustomForm(p => ({ ...p, brand: e.target.value }))}
+                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <p className="text-[9px] text-zinc-600 uppercase tracking-wider font-semibold px-1">Macros per 100g</p>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { key: 'calories_per_100g' as const, label: 'Cal' },
+                  { key: 'protein_per_100g' as const, label: 'Protein' },
+                  { key: 'carbs_per_100g' as const, label: 'Carbs' },
+                  { key: 'fats_per_100g' as const, label: 'Fat' },
+                ].map(({ key, label }) => (
+                  <div key={key}>
+                    <p className="text-[9px] text-zinc-700 uppercase tracking-wider font-semibold mb-1 px-1">{label}</p>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="any"
+                      placeholder="0"
+                      value={customForm[key]}
+                      onChange={e => setCustomForm(p => ({ ...p, [key]: e.target.value }))}
+                      className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-2 py-2 text-sm text-zinc-300 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors text-center"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <p className="text-[9px] text-zinc-700 uppercase tracking-wider font-semibold mb-1 px-1">Default Serving (g)</p>
                 <input
                   type="number"
                   inputMode="decimal"
                   min="1"
                   step="any"
-                  value={servingG}
-                  onChange={e => setServingG(e.target.value)}
-                  className="w-20 bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 py-1 text-sm text-zinc-200 outline-none focus:border-orange-500/50 transition-colors text-center"
+                  value={customForm.serving_g}
+                  onChange={e => setCustomForm(p => ({ ...p, serving_g: e.target.value }))}
+                  className="w-28 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-zinc-300 outline-none focus:border-orange-500/50 transition-colors"
                 />
-                <span className="text-zinc-600 text-xs">g</span>
-                <span className="text-zinc-700 text-[10px] ml-auto">
-                  {selectedResult.per100.calories !== null && `${Math.round(selectedResult.per100.calories)} kcal / 100g`}
-                </span>
               </div>
+
+              <button
+                type="button"
+                onClick={saveCustomFood}
+                disabled={savingCustom || !customForm.name.trim()}
+                className="w-full bg-orange-500 text-black font-bold py-2.5 rounded-xl text-sm disabled:opacity-40 hover:bg-orange-400 transition-colors active:scale-[0.98]"
+              >
+                {savingCustom ? 'Saving…' : customSaved ? 'Saved! ✓' : 'Save & Log Food'}
+              </button>
             </div>
           )}
-
-          {/* Meal type */}
-          <div className="relative">
-            <select
-              value={form.meal_type}
-              onChange={e => setForm(p => ({ ...p, meal_type: e.target.value as MealType }))}
-              className="w-full appearance-none bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-zinc-300 outline-none focus:border-orange-500/50 transition-colors pr-8"
-            >
-              {MEAL_TYPES.map(t => (
-                <option key={t} value={t}>{MEAL_LABELS[t]}</option>
-              ))}
-            </select>
-            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" />
-          </div>
-
-          {/* Macros row */}
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { key: 'calories' as const, label: 'Cal', placeholder: 'kcal' },
-              { key: 'protein_g' as const, label: 'Protein', placeholder: '0g' },
-              { key: 'carbs_g' as const, label: 'Carbs', placeholder: '0g' },
-              { key: 'fats_g' as const, label: 'Fat', placeholder: '0g' },
-            ].map(({ key, label, placeholder }) => (
-              <div key={key}>
-                <p className="text-[9px] text-zinc-700 uppercase tracking-wider font-semibold mb-1 px-1">{label}</p>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="any"
-                  placeholder={placeholder}
-                  value={form[key]}
-                  onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-2 py-2 text-sm text-zinc-300 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors text-center"
-                />
-              </div>
-            ))}
-          </div>
-
-          <button
-            type="submit"
-            disabled={saving || (!form.name.trim() && !selectedResult)}
-            className="w-full bg-orange-500 text-black font-bold py-2.5 rounded-xl text-sm disabled:opacity-40 hover:bg-orange-400 transition-colors active:scale-[0.98]"
-          >
-            {saving ? 'Adding…' : 'Add to Log'}
-          </button>
-        </form>
+        </div>
       )}
 
       {/* Meal groups */}
