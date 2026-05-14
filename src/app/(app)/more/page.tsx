@@ -1,10 +1,12 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   Pill, Moon, TrendingUp, Sparkles, Wind,
-  Settings, ChevronRight, UserCircle,
+  Settings, ChevronRight, UserCircle, LogOut,
 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 const sections = [
   {
@@ -32,6 +34,15 @@ const sections = [
 ]
 
 export default function MorePage() {
+  const router = useRouter()
+
+  const handleSignOut = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
+
   return (
     <div style={{ padding: '48px 20px 24px' }}>
       <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#fff', marginBottom: '4px' }}>More</h1>
@@ -79,6 +90,28 @@ export default function MorePage() {
           </div>
         </div>
       ))}
+
+      <button
+        onClick={handleSignOut}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '14px',
+          backgroundColor: '#0f0f0f', border: '1px solid #1c1c1c',
+          borderRadius: '16px', padding: '14px 16px',
+          width: '100%', cursor: 'pointer', textAlign: 'left',
+        }}
+      >
+        <div style={{
+          width: '40px', height: '40px', borderRadius: '12px', flexShrink: 0,
+          backgroundColor: '#ef444418',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <LogOut size={18} color="#ef4444" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '15px', fontWeight: 600, color: '#ef4444' }}>Sign out</div>
+          <div style={{ fontSize: '12px', color: '#52525b' }}>Sign out of your account</div>
+        </div>
+      </button>
     </div>
   )
 }
