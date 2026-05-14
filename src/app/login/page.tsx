@@ -9,6 +9,7 @@ export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [error, setError] = useState('')
@@ -16,6 +17,10 @@ export default function LoginPage() {
 
   const handleSubmit = async () => {
     if (!email || !password) return
+    if (mode === 'signup' && password !== confirmPassword) {
+      setError('Passwords do not match')
+      return
+    }
     setLoading(true)
     setError('')
     const supabase = createClient()
@@ -30,7 +35,12 @@ export default function LoginPage() {
         router.refresh()
       }
     } else {
-      const { data, error } = await supabase.auth.signUp({ email, password })
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${appUrl}/api/auth/callback` },
+      })
       if (error) {
         setError(error.message)
         setLoading(false)
@@ -69,7 +79,7 @@ export default function LoginPage() {
           {(['login', 'signup'] as const).map((m) => (
             <button
               key={m}
-              onClick={() => { setMode(m); setError(''); setConfirmEmail(false) }}
+              onClick={() => { setMode(m); setError(''); setConfirmEmail(false); setConfirmPassword('') }}
               aria-label={m === 'login' ? 'Sign in' : 'Sign up'}
               className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
                 mode === m
@@ -111,6 +121,22 @@ export default function LoginPage() {
             />
           </div>
 
+          {mode === 'signup' && (
+            <div>
+              <label htmlFor="confirm-password" className="sr-only">Confirm Password</label>
+              <input
+                id="confirm-password"
+                type="password"
+                placeholder="Confirm password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                autoComplete="new-password"
+                className="w-full bg-zinc-900/80 border border-white/[0.08] rounded-2xl px-4 py-4 text-white placeholder-zinc-600 focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/30 transition-all text-sm"
+              />
+            </div>
+          )}
+
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
               <p className="text-red-400 text-sm">{error}</p>
@@ -125,7 +151,7 @@ export default function LoginPage() {
 
           <button
             onClick={handleSubmit}
-            disabled={loading || !email || !password}
+            disabled={loading || !email || !password || (mode === 'signup' && !confirmPassword)}
             aria-label={mode === 'login' ? 'Sign in' : 'Create account'}
             className="w-full bg-orange-500 text-black font-bold py-4 rounded-2xl hover:bg-orange-400 active:scale-[0.98] transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2 glow-orange cursor-pointer mt-1"
           >
