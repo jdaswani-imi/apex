@@ -1859,6 +1859,7 @@ export default function OnboardingPage() {
     setAnimKey(k => k + 1)
     if (dir === 'forward') setStepIndex(i => Math.min(i + 1, STEPS.length - 1))
     else setStepIndex(i => Math.max(i - 1, 0))
+    window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
   async function handleNext() {
