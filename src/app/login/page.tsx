@@ -10,6 +10,8 @@ import { Loader2, Zap } from 'lucide-react'
 const authErrorMessages: Record<string, string> = {
   otp_expired: 'Your confirmation link has expired. Please sign up again to receive a new one.',
   access_denied: 'Access denied. Please try signing in again.',
+  auth_failed: 'Confirmation failed — your link may have expired. Please sign up again.',
+  bad_oauth_callback: 'Auth callback failed. Please try again.',
 }
 
 function LoginForm() {

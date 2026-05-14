@@ -11,7 +11,9 @@ export async function GET(request: Request) {
     if (!error) {
       return NextResponse.redirect(`${origin}/`)
     }
+    const errorCode = error.code ?? 'auth_failed'
+    return NextResponse.redirect(`${origin}/login?error_code=${errorCode}`)
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth_failed`)
+  return NextResponse.redirect(`${origin}/login?error_code=auth_failed`)
 }
