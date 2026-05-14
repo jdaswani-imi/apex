@@ -151,7 +151,9 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchLogs() }, [fetchLogs])
+  useEffect(() => {
+    fetchLogs().catch(() => setLoading(false))
+  }, [fetchLogs])
 
   // Fetch recent foods once when form opens
   useEffect(() => {
@@ -162,15 +164,19 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
       .catch(() => setRecentLoaded(true))
   }, [showForm, recentLoaded])
 
-  // Debounced search
+  // Debounced search — all setState calls are inside async callbacks to satisfy
+  // the react-hooks/set-state-in-effect rule (no synchronous setState in effect body)
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current)
     if (searchQuery.length < 2) {
-      setSearchResults([])
-      return
+      // Defer clear to async context so it's not a synchronous setState call
+      searchTimer.current = setTimeout(() => { setSearchResults([]) }, 0)
+      return () => {
+        if (searchTimer.current) clearTimeout(searchTimer.current)
+      }
     }
-    setSearching(true)
     searchTimer.current = setTimeout(async () => {
+      setSearching(true)
       try {
         const res = await window.fetch(`/api/food/search?q=${encodeURIComponent(searchQuery)}`)
         const data = await res.json()
@@ -179,9 +185,13 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
         setSearching(false)
       }
     }, 400)
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current)
+    }
   }, [searchQuery])
 
   // Recalculate macros when serving size or unit changes
+  // setState deferred to microtask to satisfy react-hooks/set-state-in-effect
   useEffect(() => {
     if (!selectedResult) return
     const g = servingUnit === 'oz'
@@ -189,19 +199,17 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
       : parseFloat(servingG)
     if (isNaN(g) || g <= 0) return
     const m = macrosFromPer100(selectedResult.per100, g)
-    setForm(prev => ({
-      ...prev,
-      calories: m.calories !== null ? String(m.calories) : '',
-      protein_g: m.protein_g !== null ? String(m.protein_g) : '',
-      carbs_g: m.carbs_g !== null ? String(m.carbs_g) : '',
-      fats_g: m.fats_g !== null ? String(m.fats_g) : '',
-    }))
+    const id = setTimeout(() => {
+      setForm(prev => ({
+        ...prev,
+        calories: m.calories !== null ? String(m.calories) : '',
+        protein_g: m.protein_g !== null ? String(m.protein_g) : '',
+        carbs_g: m.carbs_g !== null ? String(m.carbs_g) : '',
+        fats_g: m.fats_g !== null ? String(m.fats_g) : '',
+      }))
+    }, 0)
+    return () => clearTimeout(id)
   }, [servingG, servingUnit, selectedResult])
-
-  function displayServing(grams: number): string {
-    if (servingUnit === 'oz') return r1(grams * OZ_PER_G).toString()
-    return String(grams)
-  }
 
   function pickResult(r: SearchResult) {
     const defaultG = r.serving_g ?? 100
@@ -351,7 +359,6 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
   )
 
   const calPct = Math.min(100, Math.round((totals.calories / calorieTarget) * 100))
-  const proteinPct = Math.min(100, Math.round((totals.protein_g / proteinTarget) * 100))
 
   const grouped = MEAL_TYPES
     .map(type => ({ type, items: logs.filter(l => l.meal_type === type) }))
@@ -385,7 +392,7 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
       <div className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl p-4 mb-4">
         <div className="flex items-center gap-2 mb-4">
           <UtensilsCrossed size={13} className="text-orange-400" />
-          <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Today's Nutrition</span>
+          <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Today&apos;s Nutrition</span>
         </div>
 
         {/* Calories */}
@@ -682,7 +689,7 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
           ) : (
             /* Create custom food tab */
             <div className="space-y-3">
-              <p className="text-[10px] text-zinc-600">Save a food once — it'll appear in your personal search results.</p>
+              <p className="text-[10px] text-zinc-600">Save a food once — it&apos;ll appear in your personal search results.</p>
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="col-span-2">

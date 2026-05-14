@@ -22,7 +22,7 @@ export async function GET() {
   })
 
   const text = await res.text()
-  let raw: any
+  let raw: unknown
   try { raw = JSON.parse(text) } catch { raw = text }
 
   return NextResponse.json({ status: res.status, raw })

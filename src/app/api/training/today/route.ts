@@ -28,7 +28,7 @@ export async function GET() {
     sessionType.toLowerCase().includes(k)
   )?.[1] ?? null
 
-  let exercises: any[] = []
+  let exercises: Record<string, unknown>[] = []
   if (baselineType && !['cardio', 'cricket', 'rest'].includes(baselineType)) {
     const { data: baselines } = await supabase
       .from('exercise_baselines')
@@ -37,28 +37,35 @@ export async function GET() {
       .eq('session_type', baselineType)
       .order('exercise_name', { ascending: true })
 
-    exercises = await Promise.all((baselines ?? []).map(async (b) => {
-      const { data: lastEx } = await supabase
-        .from('exercises')
-        .select('weight_kg, reps, sets, training_sessions!inner(date, user_id)')
-        .eq('training_sessions.user_id', user.id)
-        .ilike('name', `%${b.exercise_name}%`)
-        .order('training_sessions(date)', { ascending: false })
-        .limit(1)
-        .single()
+    // Batch-fetch recent exercises for all baselines in a single query to avoid N+1.
+    const { data: recentExercises } = await supabase
+      .from('exercises')
+      .select('name, weight_kg, reps, sets, training_sessions!inner(date, user_id)')
+      .eq('training_sessions.user_id', user.id)
+      .order('training_sessions(date)', { ascending: false })
+      .limit(200)
+
+    // Map each baseline to its most recent matching exercise (case-insensitive)
+    exercises = (baselines ?? []).map((b) => {
+      const nameLower = (b.exercise_name as string).toLowerCase()
+      const lastEx = (recentExercises ?? []).find(
+        e => e.name.toLowerCase().includes(nameLower)
+      ) ?? null
 
       let progressStatus = 'hold'
       if (lastEx) {
-        if (lastEx.weight_kg > b.current_weight_kg ||
-          (lastEx.weight_kg === b.current_weight_kg && lastEx.reps >= b.target_reps)) {
+        if (
+          (lastEx.weight_kg ?? 0) > (b.current_weight_kg as number) ||
+          ((lastEx.weight_kg ?? 0) === (b.current_weight_kg as number) && (lastEx.reps ?? 0) >= (b.target_reps as number))
+        ) {
           progressStatus = 'progress'
-        } else if (lastEx.reps < b.current_reps) {
+        } else if ((lastEx.reps ?? 0) < (b.current_reps as number)) {
           progressStatus = 'regression'
         }
       }
 
       return { ...b, lastPerformance: lastEx, progressStatus }
-    }))
+    })
   }
 
   const { data: todaySession } = await supabase

@@ -14,7 +14,7 @@ const typeColors: Record<string, string> = {
 }
 
 export default function SessionHistory() {
-  const [sessions, setSessions] = useState<any[]>([])
+  const [sessions, setSessions] = useState<Record<string, unknown>[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [expanded, setExpanded] = useState<string | null>(null)
@@ -61,38 +61,45 @@ export default function SessionHistory() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {filtered.map(session => {
-            const color = typeColors[session.session_type] ?? '#52525b'
-            const isExpanded = expanded === session.id
+            const sessionType = session.session_type as string
+            const sessionId = session.id as string
+            const sessionGym = session.gym as string | null | undefined
+            const sessionVolumeKg = session.volume_kg as number | null | undefined
+            const sessionDurationMin = session.duration_min as number | null | undefined
+            const sessionPrs = session.prs as number | null | undefined
+            const sessionNotes = session.notes as string | null | undefined
+            const color = typeColors[sessionType] ?? '#52525b'
+            const isExpanded = expanded === sessionId
 
             return (
-              <div key={session.id} style={{ backgroundColor: '#111', border: '1px solid #1c1c1c', borderRadius: '16px', overflow: 'hidden' }}>
+              <div key={sessionId} style={{ backgroundColor: '#111', border: '1px solid #1c1c1c', borderRadius: '16px', overflow: 'hidden' }}>
                 <div
                   style={{ padding: '16px', cursor: 'pointer' }}
-                  onClick={() => setExpanded(isExpanded ? null : session.id)}
+                  onClick={() => setExpanded(isExpanded ? null : sessionId)}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
                       <div>
                         <div style={{ fontSize: '15px', fontWeight: 600, color: '#fff', textTransform: 'capitalize' }}>
-                          {session.session_type}
+                          {sessionType}
                         </div>
                         <div style={{ fontSize: '12px', color: '#52525b', marginTop: '2px' }}>
-                          {new Date(session.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-                          {session.gym && ` · ${session.gym}`}
+                          {new Date(session.date as string).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          {sessionGym && ` · ${sessionGym}`}
                         </div>
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <div style={{ textAlign: 'right' }}>
-                        {session.volume_kg && (
+                        {sessionVolumeKg != null && (
                           <div style={{ fontSize: '14px', fontWeight: 600, color: '#e4e4e7' }}>
-                            {session.volume_kg.toLocaleString()}kg
+                            {sessionVolumeKg.toLocaleString()}kg
                           </div>
                         )}
                         <div style={{ fontSize: '11px', color: '#52525b' }}>
-                          {session.duration_min ? `${session.duration_min}min` : ''}
-                          {session.prs ? ` · ${session.prs} PRs` : ''}
+                          {sessionDurationMin ? `${sessionDurationMin}min` : ''}
+                          {sessionPrs ? ` · ${sessionPrs} PRs` : ''}
                         </div>
                       </div>
                       {isExpanded ? <ChevronUp size={16} color="#52525b" /> : <ChevronDown size={16} color="#52525b" />}
@@ -100,22 +107,22 @@ export default function SessionHistory() {
                   </div>
                 </div>
 
-                {isExpanded && session.exercises?.length > 0 && (
+                {isExpanded && (session.exercises as unknown[])?.length > 0 && (
                   <div style={{ padding: '0 16px 16px', borderTop: '1px solid #1c1c1c' }}>
                     <div style={{ paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {session.exercises.map((ex: any, i: number) => (
+                      {(session.exercises as Record<string, unknown>[]).map((ex, i) => (
                         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '13px', color: '#a1a1aa' }}>{ex.name}</span>
+                          <span style={{ fontSize: '13px', color: '#a1a1aa' }}>{ex.name as string}</span>
                           <span style={{ fontSize: '13px', color: ex.is_pr ? '#f59e0b' : '#52525b', fontWeight: ex.is_pr ? 600 : 400 }}>
-                            {ex.weight_kg}kg × {ex.reps}
-                            {ex.is_pr && ' 🏆'}
+                            {ex.weight_kg as number}kg × {ex.reps as number}
+                            {ex.is_pr ? ' 🏆' : null}
                           </span>
                         </div>
                       ))}
                     </div>
-                    {session.notes && (
+                    {sessionNotes && (
                       <div style={{ marginTop: '10px', fontSize: '12px', color: '#52525b', fontStyle: 'italic' }}>
-                        {session.notes}
+                        {sessionNotes}
                       </div>
                     )}
                   </div>

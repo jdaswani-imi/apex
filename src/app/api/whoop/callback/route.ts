@@ -37,7 +37,9 @@ export async function GET(request: NextRequest) {
   })
 
   if (!tokenRes.ok) {
-    console.error('Whoop token exchange failed:', await tokenRes.text())
+    // Log only the HTTP status — the response body may contain OAuth error details
+    // that should not be written to logs in production.
+    console.error('Whoop token exchange failed with status:', tokenRes.status)
     return NextResponse.redirect(`${origin}/?error=whoop_token_failed`)
   }
 

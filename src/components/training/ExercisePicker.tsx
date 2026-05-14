@@ -179,6 +179,7 @@ export default function ExercisePicker({ onSelect, onClose, gender = 'male' }: P
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {ex.display_gif ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={ex.display_gif}
               alt={ex.name}

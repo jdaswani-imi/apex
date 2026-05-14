@@ -170,7 +170,7 @@ export function QualitativeCheckin({
           <div className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-3">
               <Moon size={13} className="text-indigo-400" />
-              <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Last Night's Sleep</span>
+              <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Last Night&apos;s Sleep</span>
             </div>
             <div className="grid grid-cols-2 gap-4">
               {sleepHours !== null && (
@@ -244,7 +244,7 @@ export function QualitativeCheckin({
       </div>
 
       <div className="space-y-1">
-        <p className="text-zinc-500 text-xs font-medium">Today's exertion</p>
+        <p className="text-zinc-500 text-xs font-medium">Today&apos;s exertion</p>
         <EmojiPicker options={STRAIN_OPTIONS} value={strain} onChange={setStrain} />
       </div>
 

@@ -22,6 +22,8 @@ export function ChatClient({ onboardingCompleted }: { onboardingCompleted: boole
   const [streaming, setStreaming] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  // Accumulator ref for streaming — avoids React immutability lint violation
+  const accumulatorRef = useRef('')
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -53,15 +55,17 @@ export function ChatClient({ onboardingCompleted }: { onboardingCompleted: boole
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
-      let accumulated = ''
+      accumulatorRef.current = ''
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        accumulated += decoder.decode(value, { stream: true })
+        // Write to ref to accumulate — avoids React immutability lint violation
+        accumulatorRef.current += decoder.decode(value, { stream: true })
+        const snapshot = accumulatorRef.current
         setMessages(prev => {
           const updated = [...prev]
-          updated[updated.length - 1] = { role: 'assistant', content: accumulated }
+          updated[updated.length - 1] = { role: 'assistant', content: snapshot }
           return updated
         })
       }

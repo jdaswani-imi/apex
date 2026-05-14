@@ -3,21 +3,27 @@
 import { useEffect, useState } from 'react'
 import { ChevronRight, Plus, Trash2, UserCircle } from 'lucide-react'
 
-type Section = 'profile' | 'goals' | 'training' | 'supplements' | 'lifestyle' | 'baselines' | null
+import { getCyclePhase } from '@/lib/types'
+
+type Section = 'profile' | 'goals' | 'training' | 'supplements' | 'lifestyle' | 'baselines' | 'cycle' | null
 
 export default function SettingsPage() {
   const [section, setSection] = useState<Section>(null)
-  const [profile, setProfile] = useState<any>(null)
-  const [goals, setGoals] = useState<any>(null)
-  const [training, setTraining] = useState<any>(null)
-  const [supplements, setSupplements] = useState<any[]>([])
-  const [lifestyle, setLifestyle] = useState<any>(null)
-  const [baselines, setBaselines] = useState<any[]>([])
+  // Settings data shapes come from multiple Supabase tables without generated types;
+  // using Record<string, unknown> provides type safety over bare `any`
+  const [profile, setProfile] = useState<Record<string, unknown> | null>(null)
+  const [goals, setGoals] = useState<Record<string, unknown> | null>(null)
+  const [training, setTraining] = useState<Record<string, unknown> | null>(null)
+  const [supplements, setSupplements] = useState<Record<string, unknown>[]>([])
+  const [lifestyle, setLifestyle] = useState<Record<string, unknown> | null>(null)
+  const [baselines, setBaselines] = useState<Record<string, unknown>[]>([])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [whoopConnected, setWhoopConnected] = useState(false)
+  const [cycles, setCycles] = useState<Record<string, unknown>[]>([])
+  const [newCycle, setNewCycle] = useState({ period_start_date: '', period_end_date: '', cycle_length_days: 28, notes: '' })
 
-  useEffect(() => { loadAll() }, [])
+  useEffect(() => { loadAll(); loadCycles() }, [])
 
   useEffect(() => {
     fetch('/api/whoop/status').then(r => r.json()).then(d => setWhoopConnected(d.connected))
@@ -34,7 +40,31 @@ export default function SettingsPage() {
     setBaselines(data.baselines ?? [])
   }
 
-  async function save(table: string, payload: any) {
+  async function loadCycles() {
+    const res = await fetch('/api/cycle')
+    const data = await res.json()
+    setCycles(data ?? [])
+  }
+
+  async function logCycle() {
+    if (!newCycle.period_start_date) return
+    setSaving(true)
+    await fetch('/api/cycle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newCycle),
+    })
+    setSaving(false)
+    setNewCycle({ period_start_date: '', period_end_date: '', cycle_length_days: 28, notes: '' })
+    await loadCycles()
+  }
+
+  async function deleteCycle(id: string) {
+    await fetch(`/api/cycle?id=${id}`, { method: 'DELETE' })
+    await loadCycles()
+  }
+
+  async function save(table: string, payload: Record<string, unknown>) {
     setSaving(true)
     await fetch('/api/settings', {
       method: 'POST',
@@ -46,7 +76,7 @@ export default function SettingsPage() {
     setTimeout(() => setSaved(false), 2000)
   }
 
-  async function saveSupplement(supp: any) {
+  async function saveSupplement(supp: Record<string, unknown>) {
     setSaving(true)
     await fetch('/api/settings/supplement', {
       method: 'POST',
@@ -62,7 +92,7 @@ export default function SettingsPage() {
     await loadAll()
   }
 
-  async function saveBaseline(b: any) {
+  async function saveBaseline(b: Record<string, unknown>) {
     setSaving(true)
     await fetch('/api/settings/baseline', {
       method: 'POST',
@@ -80,6 +110,7 @@ export default function SettingsPage() {
     { key: 'supplements', label: 'Supplement Stack', desc: 'Your full supplement list' },
     { key: 'lifestyle', label: 'Lifestyle', desc: 'Sleep, coffee, diet preferences' },
     { key: 'baselines', label: 'Exercise Baselines', desc: 'Current PRs and targets' },
+    { key: 'cycle', label: 'Cycle Tracking', desc: 'Period log & phase-aware coaching' },
   ]
 
   if (section === null) {
@@ -196,7 +227,7 @@ export default function SettingsPage() {
 
   const fieldStyle: React.CSSProperties = { marginBottom: '16px' }
 
-  const saveBtn = (table: string, payload: any) => (
+  const saveBtn = (table: string, payload: Record<string, unknown>) => (
     <button
       onClick={() => save(table, payload)}
       disabled={saving}
@@ -234,7 +265,7 @@ export default function SettingsPage() {
               <label style={labelStyle}>{f.label}</label>
               <input
                 type={f.type}
-                value={profile[f.key] ?? ''}
+                value={(profile[f.key] as string | number) ?? ''}
                 onChange={e => setProfile({ ...profile, [f.key]: f.type === 'number' ? Number(e.target.value) : e.target.value })}
                 style={inputStyle}
               />
@@ -243,9 +274,9 @@ export default function SettingsPage() {
           <div style={fieldStyle}>
             <label style={labelStyle}>Gender</label>
             <select
-              value={profile.gender ?? 'male'}
+              value={(profile.gender as string) ?? 'male'}
               onChange={e => setProfile({ ...profile, gender: e.target.value })}
-              style={{ ...inputStyle, appearance: 'none' as any }}
+              style={{ ...inputStyle, appearance: 'none' as React.CSSProperties['appearance'] }}
             >
               <option value="male">Male</option>
               <option value="female">Female</option>
@@ -275,7 +306,7 @@ export default function SettingsPage() {
               <label style={labelStyle}>{f.label}</label>
               <input
                 type={f.type}
-                value={goals[f.key] ?? ''}
+                value={(goals[f.key] as string | number) ?? ''}
                 onChange={e => setGoals({ ...goals, [f.key]: f.type === 'number' ? Number(e.target.value) : e.target.value })}
                 style={inputStyle}
               />
@@ -299,7 +330,7 @@ export default function SettingsPage() {
               <label style={labelStyle}>{f.label}</label>
               <input
                 type={f.type}
-                value={training[f.key] ?? ''}
+                value={(training[f.key] as string | number) ?? ''}
                 onChange={e => setTraining({ ...training, [f.key]: f.type === 'number' ? Number(e.target.value) : e.target.value })}
                 style={inputStyle}
               />
@@ -312,10 +343,10 @@ export default function SettingsPage() {
                 <span style={{ fontSize: '12px', color: '#71717a', width: '80px', flexShrink: 0 }}>{day}</span>
                 <input
                   type="text"
-                  value={training?.training_split?.[String(i)] ?? ''}
+                  value={((training?.training_split as Record<string, string> | null)?.[String(i)]) ?? ''}
                   onChange={e => setTraining({
                     ...training,
-                    training_split: { ...training.training_split, [String(i)]: e.target.value }
+                    training_split: { ...(training?.training_split as Record<string, string> | null), [String(i)]: e.target.value }
                   })}
                   style={{ ...inputStyle, marginBottom: 0 }}
                 />
@@ -332,12 +363,12 @@ export default function SettingsPage() {
           <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', marginBottom: '20px' }}>Supplement Stack</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
             {supplements.map((s, i) => (
-              <div key={s.id ?? i} style={{ backgroundColor: '#111', border: '1px solid #1c1c1c', borderRadius: '14px', padding: '14px' }}>
+              <div key={(s.id as string) ?? i} style={{ backgroundColor: '#111', border: '1px solid #1c1c1c', borderRadius: '14px', padding: '14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ flex: 1, marginRight: '10px' }}>
                     <input
                       type="text"
-                      value={s.name}
+                      value={(s.name as string) ?? ''}
                       onChange={e => {
                         const updated = [...supplements]
                         updated[i] = { ...s, name: e.target.value }
@@ -348,7 +379,7 @@ export default function SettingsPage() {
                     />
                     <input
                       type="text"
-                      value={s.dose ?? ''}
+                      value={(s.dose as string) ?? ''}
                       onChange={e => {
                         const updated = [...supplements]
                         updated[i] = { ...s, dose: e.target.value }
@@ -359,7 +390,7 @@ export default function SettingsPage() {
                     />
                     <input
                       type="text"
-                      value={s.timing_notes ?? ''}
+                      value={(s.timing_notes as string) ?? ''}
                       onChange={e => {
                         const updated = [...supplements]
                         updated[i] = { ...s, timing_notes: e.target.value }
@@ -369,9 +400,9 @@ export default function SettingsPage() {
                       placeholder="Timing notes (e.g. 30 min before lunch)"
                     />
                   </div>
-                  {s.id && (
+                  {s.id != null && (
                     <button
-                      onClick={() => deleteSupplement(s.id)}
+                      onClick={() => deleteSupplement(s.id as string)}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }}
                     >
                       <Trash2 size={16} />
@@ -430,13 +461,121 @@ export default function SettingsPage() {
               <label style={labelStyle}>{f.label}</label>
               <input
                 type={f.type}
-                value={lifestyle[f.key] ?? ''}
+                value={(lifestyle[f.key] as string) ?? ''}
                 onChange={e => setLifestyle({ ...lifestyle, [f.key]: e.target.value })}
                 style={inputStyle}
               />
             </div>
           ))}
           {saveBtn('user_lifestyle', lifestyle)}
+        </div>
+      )}
+
+      {/* CYCLE TRACKING */}
+      {section === 'cycle' && (
+        <div>
+          <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>Cycle Tracking</h2>
+          <p style={{ fontSize: '13px', color: '#52525b', marginBottom: '20px' }}>Log your period so Apex can factor your cycle phase into coaching.</p>
+
+          {/* Current phase banner */}
+          {cycles.length > 0 && (() => {
+            const latest = cycles[0]
+            const info = getCyclePhase(
+              latest.period_start_date as string,
+              /* cycle_length_days is a number stored in the DB row */ latest.cycle_length_days as number,
+            )
+            const phaseColors: Record<string, string> = {
+              menstrual: '#ef4444', follicular: '#22c55e', ovulatory: '#f59e0b', luteal: '#8b5cf6',
+            }
+            const phaseLabels: Record<string, string> = {
+              menstrual: 'Menstrual', follicular: 'Follicular', ovulatory: 'Ovulatory', luteal: 'Luteal',
+            }
+            const phaseNotes: Record<string, string> = {
+              menstrual: 'Lower intensity, prioritise recovery. Iron-rich foods help.',
+              follicular: 'Rising energy and strength. Good time to push harder.',
+              ovulatory: 'Peak strength and confidence — best time for PRs.',
+              luteal: 'Progesterone rising. Moderate intensity. Extra magnesium helps.',
+            }
+            const color = phaseColors[info.phase]
+            return (
+              <div style={{
+                backgroundColor: `${color}10`, border: `1px solid ${color}30`,
+                borderRadius: '16px', padding: '16px 20px', marginBottom: '20px',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    {phaseLabels[info.phase]} phase
+                  </span>
+                  <span style={{ fontSize: '12px', color: '#71717a' }}>Day {info.cycleDay} of {info.cycleLength}</span>
+                </div>
+                <p style={{ fontSize: '13px', color: '#a1a1aa', margin: 0 }}>{phaseNotes[info.phase]}</p>
+                <p style={{ fontSize: '11px', color: '#52525b', margin: '6px 0 0' }}>
+                  ~{info.daysUntilNextPeriod} days until next period
+                </p>
+              </div>
+            )
+          })()}
+
+          {/* Log new period */}
+          <div style={{ backgroundColor: '#111', border: '1px solid #1c1c1c', borderRadius: '16px', padding: '16px', marginBottom: '16px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#e4e4e7', marginBottom: '12px' }}>Log a period</div>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Period start date</label>
+              <input type="date" value={newCycle.period_start_date}
+                onChange={e => setNewCycle({ ...newCycle, period_start_date: e.target.value })}
+                style={inputStyle} />
+            </div>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Period end date (optional)</label>
+              <input type="date" value={newCycle.period_end_date}
+                onChange={e => setNewCycle({ ...newCycle, period_end_date: e.target.value })}
+                style={inputStyle} />
+            </div>
+            <div style={fieldStyle}>
+              <label style={labelStyle}>Average cycle length (days)</label>
+              <input type="number" value={newCycle.cycle_length_days}
+                onChange={e => setNewCycle({ ...newCycle, cycle_length_days: Number(e.target.value) })}
+                style={inputStyle} min={21} max={40} />
+            </div>
+            <button
+              onClick={logCycle}
+              disabled={saving || !newCycle.period_start_date}
+              style={{
+                width: '100%', backgroundColor: newCycle.period_start_date ? '#fff' : '#27272a',
+                color: newCycle.period_start_date ? '#000' : '#52525b',
+                fontWeight: 600, padding: '12px', borderRadius: '12px',
+                border: 'none', cursor: newCycle.period_start_date ? 'pointer' : 'default', fontSize: '14px',
+              }}
+            >
+              {saving ? 'Saving...' : 'Log period'}
+            </button>
+          </div>
+
+          {/* History */}
+          {cycles.length > 0 && (
+            <div>
+              <div style={{ fontSize: '12px', color: '#52525b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>History</div>
+              {cycles.map((c) => (
+                <div key={c.id as string} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  backgroundColor: '#111', border: '1px solid #1c1c1c', borderRadius: '12px',
+                  padding: '12px 16px', marginBottom: '8px',
+                }}>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#e4e4e7' }}>{c.period_start_date as string}</div>
+                    {c.period_end_date != null && (
+                      <div style={{ fontSize: '12px', color: '#71717a' }}>Ended {c.period_end_date as string}</div>
+                    )}
+                    <div style={{ fontSize: '12px', color: '#52525b' }}>{c.cycle_length_days as number}d cycle</div>
+                  </div>
+                  <button onClick={() => deleteCycle(c.id as string)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }}>
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -453,8 +592,8 @@ export default function SettingsPage() {
                   {type}
                 </div>
                 {group.map((b) => (
-                  <div key={b.id} style={{ backgroundColor: '#111', border: '1px solid #1c1c1c', borderRadius: '12px', padding: '14px', marginBottom: '8px' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#e4e4e7', marginBottom: '10px' }}>{b.exercise_name}</div>
+                  <div key={b.id as string} style={{ backgroundColor: '#111', border: '1px solid #1c1c1c', borderRadius: '12px', padding: '14px', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#e4e4e7', marginBottom: '10px' }}>{b.exercise_name as string}</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
                       {[
                         { key: 'current_weight_kg', label: 'Weight' },
@@ -466,7 +605,7 @@ export default function SettingsPage() {
                           <label style={{ ...labelStyle, fontSize: '10px' }}>{f.label}</label>
                           <input
                             type="number"
-                            value={b[f.key] ?? ''}
+                            value={(b[f.key] as number) ?? ''}
                             onChange={e => {
                               const updated = baselines.map(x =>
                                 x.id === b.id ? { ...x, [f.key]: Number(e.target.value) } : x

@@ -51,7 +51,6 @@ export default async function WeekPage({
 
   const weekDays = getWeekDays(anchorDate)
   const weekStart = weekDays[0]
-  const weekEnd = weekDays[6]
 
   // Previous / next week anchor dates
   const prevWeekAnchor = (() => {

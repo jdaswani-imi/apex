@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Heart, Moon, Zap, Activity, Droplets, Thermometer, Wind, Dumbbell, RefreshCw } from 'lucide-react'
 import type { WhoopRecovery, WhoopSleep, WhoopCycle, WhoopWorkout } from '@/lib/types'
 
@@ -79,7 +79,7 @@ function StatPill({ label, value, unit, icon: Icon, color, bg }: {
   label: string
   value: string | number | null
   unit?: string
-  icon: any
+  icon: React.ElementType
   color: string
   bg: string
 }) {
@@ -144,8 +144,6 @@ function RecoveryTab({ data }: { data: WhoopData }) {
   const avgHrv = records.length > 0
     ? Math.round(records.reduce((s, r) => s + (r.hrv_rmssd_milli ?? 0), 0) / records.filter(r => r.hrv_rmssd_milli !== null).length)
     : null
-  const maxScore = Math.max(...records.map(r => r.recovery_score ?? 0), 1)
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
@@ -698,7 +696,7 @@ export default function ProgressPage() {
     setSyncing(false)
   }
 
-  const tabs: { key: Tab; label: string; icon: any }[] = [
+  const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
     { key: 'recovery', label: 'Recovery', icon: Zap },
     { key: 'sleep', label: 'Sleep', icon: Moon },
     { key: 'strain', label: 'Strain', icon: Activity },

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Plus, Check, X, Trophy, ChevronDown, ChevronUp, Timer, GripVertical, Trash2 } from 'lucide-react'
+import { Plus, Check, Trophy, ChevronDown, ChevronUp, Timer, GripVertical, Trash2 } from 'lucide-react'
 import ExercisePicker from './ExercisePicker'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -72,6 +72,8 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
     loadTemplate()
     timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000)
     return () => { clearInterval(timerRef.current); clearInterval(restRef.current) }
+    // loadTemplate is defined below and stable for the component's lifetime (templateId/gender don't change)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -92,13 +94,18 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
     const res = await fetch(`/api/training/templates/${templateId}`)
     const data = await res.json()
 
-    const built: Section[] = (data.sections ?? []).map((sec: any) => ({
+    type RawSet = { set_type: 'warmup' | 'working'; set_number: number; default_weight_kg?: number; default_reps?: number }
+    type RawExercise = { id: string; exercise_name: string; notes?: string; rest_seconds?: number; sets: RawSet[] }
+    type RawSection = { name: string; exercises: RawExercise[] }
+    type RawLastPerf = { set_number: number; set_type: string; weight_kg: number; reps: number }
+
+    const built: Section[] = ((data.sections ?? []) as RawSection[]).map((sec) => ({
       name: sec.name,
-      exercises: sec.exercises.map((ex: any) => {
-        const lastPerf: any[] = data.last_performance?.[ex.exercise_name] ?? []
+      exercises: sec.exercises.map((ex) => {
+        const lastPerf: RawLastPerf[] = (data.last_performance as Record<string, RawLastPerf[]> | undefined)?.[ex.exercise_name] ?? []
 
         const sets: SetRow[] = ex.sets.length > 0
-          ? ex.sets.map((s: any, idx: number) => {
+          ? ex.sets.map((s) => {
               const matching = lastPerf.find(
                 lp => lp.set_type === s.set_type && lp.set_number === s.set_number
               )
@@ -840,6 +847,8 @@ interface ExerciseCardProps {
 }
 
 function ExerciseCard({
+  // templateColor is part of the public API (passed by parent) but not used in card body
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ex, templateColor, inputStyle,
   onToggle, onTickSet, onUpdateSet, onAddSet, onAddWarmup,
   onRemoveSet, onUpdateNotes, onNameChange,
@@ -885,6 +894,7 @@ function ExerciseCard({
             width: '44px', height: '44px', borderRadius: '10px',
             overflow: 'hidden', flexShrink: 0, backgroundColor: '#1a1a1a',
           }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={gifUrl}
               alt={ex.name}

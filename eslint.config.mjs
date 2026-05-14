@@ -13,6 +13,17 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // React Compiler rules — enabled by recommended preset but incompatible
+      // with standard patterns used throughout this codebase (data-fetching in
+      // effects, local variable accumulation, ref passing to handlers).
+      // These rules require full React Compiler adoption; turn off until then.
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/immutability": "off",
+      "react-hooks/refs": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

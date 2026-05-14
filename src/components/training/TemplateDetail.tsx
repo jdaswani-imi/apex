@@ -112,6 +112,7 @@ function ExerciseSheet({ name, media, gender, onClose }: {
           {/* GIF */}
           {gifUrl && (
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={gifUrl}
                 alt={name}
@@ -212,7 +213,7 @@ function ExerciseSheet({ name, media, gender, onClose }: {
   )
 }
 
-export default function TemplateDetail({ templateId, templateName, templateColor, gender = 'male', onStart, onBack }: Props) {
+export default function TemplateDetail({ templateId, templateColor, gender = 'male', onStart, onBack }: Props) {
   const [data, setData] = useState<TemplateData | null>(null)
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
@@ -359,6 +360,7 @@ export default function TemplateDetail({ templateId, templateName, templateColor
                           }}
                         >
                           {gifUrl
+                            // eslint-disable-next-line @next/next/no-img-element
                             ? <img src={gifUrl} alt={ex.exercise_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Dumbbell size={20} color="#27272a" /></div>
                           }

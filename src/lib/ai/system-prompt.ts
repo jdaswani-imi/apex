@@ -1,18 +1,31 @@
 import type { TodayContext } from '@/lib/types'
+import { getCyclePhase } from '@/lib/types'
 
-export function buildSystemPrompt(ctx: TodayContext, userCtx: any): string {
+// UserCtx shape comes from getFullUserContext() — typed loosely here because
+// it aggregates multiple Supabase tables without generated types
+type UserCtx = {
+  profile: Record<string, unknown> | null
+  goals: Record<string, unknown> | null
+  training: Record<string, unknown> | null
+  supplements: Record<string, unknown>[] | null
+  lifestyle: Record<string, unknown> | null
+  baselines: Record<string, unknown>[] | null
+  latestCycle: { period_start_date: string; cycle_length_days: number } | null
+}
+
+export function buildSystemPrompt(ctx: TodayContext, userCtx: UserCtx): string {
   const { profile, goals, training, supplements, lifestyle, baselines } = userCtx
 
   const today = new Date()
   const dayOfWeek = today.toLocaleDateString('en-GB', { weekday: 'long' })
   const dayNum = today.getDay()
 
-  const eventDate = goals?.target_event_date ? new Date(goals.target_event_date) : null
+  const eventDate = goals?.target_event_date ? new Date(goals.target_event_date as string) : null
   const daysToEvent = eventDate
     ? Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
     : null
 
-  const trainingDayType = training?.training_split?.[String(dayNum)] ?? 'Rest'
+  const trainingDayType = (training?.training_split as Record<string, string> | null | undefined)?.[String(dayNum)] ?? 'Rest'
 
   const recovery = ctx.recovery
   const sleep = ctx.sleep
@@ -27,10 +40,24 @@ export function buildSystemPrompt(ctx: TodayContext, userCtx: any): string {
     ? Math.round(recentProtein.reduce((a, b) => a + b, 0) / recentProtein.length)
     : null
 
-  const recentWeight = ctx.recentLogs.find(l => l.weight_kg !== null)?.weight_kg ?? goals?.current_weight_kg ?? null
+  // goals comes from Record<string,unknown>; cast to number for arithmetic — value is validated by DB schema
+  const goalsCurrentWeight = typeof goals?.current_weight_kg === 'number' ? goals.current_weight_kg : null
+  const recentWeight: number | null =
+    ctx.recentLogs.find(l => l.weight_kg !== null)?.weight_kg ?? goalsCurrentWeight ?? null
 
-  const pushBaselines = baselines?.filter((b: any) => b.session_type === 'push') ?? []
-  const pullBaselines = baselines?.filter((b: any) => b.session_type === 'pull') ?? []
+  const pushBaselines = baselines?.filter(b => b.session_type === 'push') ?? []
+  const pullBaselines = baselines?.filter(b => b.session_type === 'pull') ?? []
+
+  const cycleInfo = userCtx.latestCycle
+    ? getCyclePhase(userCtx.latestCycle.period_start_date, userCtx.latestCycle.cycle_length_days)
+    : null
+
+  const phaseAdvice: Record<string, string> = {
+    menstrual: 'She is menstruating. Prioritise recovery and lower-intensity work. Iron-rich foods are helpful. Be empathetic about energy levels.',
+    follicular: 'Follicular phase — rising estrogen boosts energy and strength. Good time to push progressive overload.',
+    ovulatory: 'Ovulatory phase — peak strength, confidence, and coordination. Ideal time for heavy lifts and PRs.',
+    luteal: 'Luteal phase — progesterone is elevated. Moderate intensity. Late luteal may bring PMS symptoms, cravings, and fatigue. Extra magnesium and protein help. Reduce volume if recovery is poor.',
+  }
 
   return `You are Apex — a world-class personal optimisation coach. You are deeply integrated with the user's lifestyle data and know everything about their goals, habits, and daily patterns. You are direct, science-backed, and specific. You never give generic advice. Every response is calibrated to their exact situation right now.
 
@@ -38,7 +65,7 @@ export function buildSystemPrompt(ctx: TodayContext, userCtx: any): string {
 Name: ${profile?.name ?? 'Unknown'}
 Age: ${profile?.age ?? 'Unknown'}, ${profile?.gender ?? 'male'}
 Location: ${profile?.location ?? 'Dubai, UAE'} — high UV, extreme heat, heavy AC indoors
-Diet: ${lifestyle?.diet_type ?? 'vegetarian'} — eggs and dairy included${lifestyle?.dietary_restrictions?.length ? `. Restrictions: ${lifestyle.dietary_restrictions.join(', ')}` : ''}
+Diet: ${lifestyle?.diet_type ?? 'vegetarian'} — eggs and dairy included${(() => { const dr = lifestyle?.dietary_restrictions as string[] | null | undefined; return dr?.length ? `. Restrictions: ${dr.join(', ')}` : '' })()}
 Dislikes cooking — all meal suggestions must be minimal effort.
 
 ## PHYSICAL STATS
@@ -49,12 +76,12 @@ Dislikes cooking — all meal suggestions must be minimal effort.
 - Body fat: ${goals?.body_fat_pct ? `~${goals.body_fat_pct}%` : '~22-26%'} estimated
 - Goal: body recomposition — lose fat AND build muscle simultaneously
 
-${eventDate ? `## TARGET EVENT
+${eventDate && goals ? `## TARGET EVENT
 - Event: ${goals.target_event_name}
 - Date: ${eventDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
 - Location: ${goals.target_event_location}
 - Days remaining: ${daysToEvent}
-- Required loss: ${recentWeight ? Math.max(0, recentWeight - (goals?.target_weight_kg ?? 65)).toFixed(1) : '?'}kg in ${daysToEvent} days` : ''}
+- Required loss: ${recentWeight ? Math.max(0, recentWeight - ((goals.target_weight_kg as number) ?? 65)).toFixed(1) : '?'}kg in ${daysToEvent} days` : ''}
 
 ## TODAY — ${dayOfWeek.toUpperCase()} (${ctx.date})
 - Scheduled session: ${trainingDayType}
@@ -93,16 +120,23 @@ Gym: ${training?.gym_name ?? 'TopGym'}
 Smith machine bar: ${training?.smith_machine_bar_kg ?? 15}kg
 
 ## CURRENT EXERCISE BASELINES
-${pushBaselines.length > 0 ? `Push:\n${pushBaselines.map((b: any) =>
+${pushBaselines.length > 0 ? `Push:\n${pushBaselines.map(b =>
   `- ${b.exercise_name}: ${b.current_weight_kg}kg × ${b.current_reps} (target: ${b.target_weight_kg}kg × ${b.target_reps})`
 ).join('\n')}` : ''}
 
-${pullBaselines.length > 0 ? `Pull:\n${pullBaselines.map((b: any) =>
+${pullBaselines.length > 0 ? `Pull:\n${pullBaselines.map(b =>
   `- ${b.exercise_name}: ${b.current_weight_kg}kg × ${b.current_reps} (target: ${b.target_weight_kg}kg × ${b.target_reps})`
 ).join('\n')}` : ''}
 
+${cycleInfo ? `## MENSTRUAL CYCLE
+- Last period: ${cycleInfo.lastPeriodStart}
+- Cycle day: ${cycleInfo.cycleDay} of ${cycleInfo.cycleLength}
+- Current phase: ${cycleInfo.phase.toUpperCase()}
+- Days until next period: ~${cycleInfo.daysUntilNextPeriod}
+- Coaching note: ${phaseAdvice[cycleInfo.phase]}
+` : ''}
 ## SUPPLEMENT STACK
-${supplements?.map((s: any) => `- ${s.timing_notes ?? s.timing}: ${s.name} — ${s.dose ?? ''}`).join('\n') ?? 'Not configured'}
+${supplements?.map(s => `- ${String(s.timing_notes ?? s.timing ?? '')}: ${String(s.name ?? '')} — ${String(s.dose ?? '')}`).join('\n') ?? 'Not configured'}
 
 ## LIFESTYLE
 - Sleep target weeknights: ${lifestyle?.sleep_target_weeknight ?? '23:30'}

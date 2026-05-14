@@ -32,16 +32,20 @@ export async function GET(
 
   if (!template) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  // Sort sections and exercises
-  const sections = (template.template_sections ?? [])
-    .sort((a: any, b: any) => a.sort_order - b.sort_order)
-    .map((section: any) => ({
+  // Sort sections and exercises — Supabase nested query returns untyped arrays
+  type RawSet = { set_type: string; set_number: number; [k: string]: unknown }
+  type RawExercise = { exercise_name: string; sort_order: number; template_sets?: RawSet[]; [k: string]: unknown }
+  type RawSection = { sort_order: number; template_exercises?: RawExercise[]; [k: string]: unknown }
+
+  const sections = ((template.template_sections ?? []) as RawSection[])
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map(section => ({
       ...section,
-      exercises: (section.template_exercises ?? [])
-        .sort((a: any, b: any) => a.sort_order - b.sort_order)
-        .map((ex: any) => ({
+      exercises: ((section.template_exercises ?? []) as RawExercise[])
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map(ex => ({
           ...ex,
-          sets: (ex.template_sets ?? []).sort((a: any, b: any) => {
+          sets: ((ex.template_sets ?? []) as RawSet[]).sort((a, b) => {
             if (a.set_type === 'warmup' && b.set_type !== 'warmup') return -1
             if (a.set_type !== 'warmup' && b.set_type === 'warmup') return 1
             return a.set_number - b.set_number
@@ -60,7 +64,7 @@ export async function GET(
     .limit(1)
     .single()
 
-  let lastExercises: any[] = []
+  let lastExercises: Record<string, unknown>[] = []
   if (lastSession) {
     const { data: exs } = await supabase
       .from('exercises')
@@ -72,15 +76,16 @@ export async function GET(
   }
 
   // Group last exercises by name
-  const lastPerf: Record<string, any[]> = {}
+  const lastPerf: Record<string, Record<string, unknown>[]> = {}
   for (const ex of lastExercises) {
-    if (!lastPerf[ex.name]) lastPerf[ex.name] = []
-    lastPerf[ex.name].push(ex)
+    const exName = ex.name as string
+    if (!lastPerf[exName]) lastPerf[exName] = []
+    lastPerf[exName].push(ex)
   }
 
   // Fetch gif URLs for all unique exercise names
   const exerciseNames = [
-    ...new Set(sections.flatMap((s: any) => s.exercises.map((e: any) => e.exercise_name))),
+    ...new Set(sections.flatMap(s => s.exercises.map(e => e.exercise_name as string))),
   ]
   const mediaByName: Record<string, {
     gif_url: string | null; gif_url_female: string | null

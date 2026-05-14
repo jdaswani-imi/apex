@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import type {
   DailyLog, TrainingSession, Exercise,
   SupplementLog, WhoopRecovery, WhoopSleep,
-  WhoopCycle, WhoopWorkout, TodayContext,
+  WhoopCycle, WhoopWorkout, TodayContext, MenstrualCycle,
 } from '@/lib/types'
 
 
@@ -137,12 +137,14 @@ export async function getExerciseHistory(
 
   if (!data) return []
 
-  return (data as any[])
+  // Supabase join type inference is limited — cast to access nested relation field
+  // The actual runtime shape from the inner join is validated by the query itself
+  return (data as unknown as { weight_kg: number | null; reps: number | null; sets: number | null; training_sessions: { date: string } }[])
     .map(e => ({
-      date: e.training_sessions.date as string,
-      weight_kg: e.weight_kg as number | null,
-      reps: e.reps as number | null,
-      sets: e.sets as number | null,
+      date: e.training_sessions.date,
+      weight_kg: e.weight_kg,
+      reps: e.reps,
+      sets: e.sets,
     }))
     .sort((a, b) => b.date.localeCompare(a.date))
 }
@@ -473,7 +475,11 @@ export async function getExerciseBaselines() {
   return data ?? []
 }
 
-export async function updateUserProfile(updates: any) {
+// These update functions accept partial row shapes that differ per table.
+// Using Record<string, unknown> instead of any to preserve type safety at call sites
+// while allowing arbitrary column updates without generating Supabase schema types.
+
+export async function updateUserProfile(updates: Record<string, unknown>) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -484,7 +490,7 @@ export async function updateUserProfile(updates: any) {
   return data
 }
 
-export async function updateUserGoals(updates: any) {
+export async function updateUserGoals(updates: Record<string, unknown>) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -495,7 +501,7 @@ export async function updateUserGoals(updates: any) {
   return data
 }
 
-export async function updateUserLifestyle(updates: any) {
+export async function updateUserLifestyle(updates: Record<string, unknown>) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -506,7 +512,7 @@ export async function updateUserLifestyle(updates: any) {
   return data
 }
 
-export async function upsertUserSupplement(supp: any) {
+export async function upsertUserSupplement(supp: Record<string, unknown>) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -522,7 +528,7 @@ export async function deleteUserSupplement(id: string) {
   await supabase.from('user_supplements').delete().eq('id', id)
 }
 
-export async function updateExerciseBaseline(id: string, updates: any) {
+export async function updateExerciseBaseline(id: string, updates: Record<string, unknown>) {
   const supabase = await createClient()
   const { data } = await supabase
     .from('exercise_baselines')
@@ -533,15 +539,70 @@ export async function updateExerciseBaseline(id: string, updates: any) {
 }
 
 export async function getFullUserContext() {
-  const [profile, goals, training, supplements, lifestyle, baselines] = await Promise.all([
+  const [profile, goals, training, supplements, lifestyle, baselines, latestCycle] = await Promise.all([
     getUserProfile(),
     getUserGoals(),
     getUserTraining(),
     getUserSupplements(),
     getUserLifestyle(),
     getExerciseBaselines(),
+    getLatestCycle(),
   ])
-  return { profile, goals, training, supplements, lifestyle, baselines }
+  return { profile, goals, training, supplements, lifestyle, baselines, latestCycle }
+}
+
+// ─── Menstrual Cycle ──────────────────────────────────────────────────────────
+
+export async function getLatestCycle(): Promise<MenstrualCycle | null> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data } = await supabase
+    .from('menstrual_cycles')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('period_start_date', { ascending: false })
+    .limit(1)
+    .single()
+
+  return data
+}
+
+export async function getRecentMenstrualCycles(limit = 6): Promise<MenstrualCycle[]> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data } = await supabase
+    .from('menstrual_cycles')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('period_start_date', { ascending: false })
+    .limit(limit)
+
+  return data ?? []
+}
+
+export async function upsertMenstrualCycle(
+  updates: Pick<MenstrualCycle, 'period_start_date'> & Partial<Omit<MenstrualCycle, 'id' | 'user_id' | 'created_at'>>,
+): Promise<MenstrualCycle | null> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data } = await supabase
+    .from('menstrual_cycles')
+    .upsert({ user_id: user.id, ...updates }, { onConflict: 'user_id,period_start_date' })
+    .select()
+    .single()
+
+  return data
+}
+
+export async function deleteMenstrualCycle(id: string): Promise<void> {
+  const supabase = await createClient()
+  await supabase.from('menstrual_cycles').delete().eq('id', id)
 }
 
 // ─── Full today context (used by AI and dashboard) ────────────────────────────

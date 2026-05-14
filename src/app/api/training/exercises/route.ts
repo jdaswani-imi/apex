@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     .from('exercise_library')
     .select(selectCols)
 
-  function withGender(rows: any[] | null) {
+  function withGender(rows: Record<string, unknown>[] | null) {
     return (rows ?? []).map(r => ({
       ...r,
       display_gif:

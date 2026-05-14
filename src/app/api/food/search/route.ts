@@ -40,9 +40,13 @@ async function searchUSDA(q: string): Promise<SearchItem[]> {
     if (!res.ok) return []
     const data = await res.json()
 
-    return ((data.foods ?? []) as any[])
-      .filter((f: any) => f.description?.trim())
-      .map((f: any): SearchItem => {
+    type USDAFood = {
+      fdcId: number; description: string; brandOwner?: string; brandName?: string
+      servingSize?: number; servingSizeUnit?: string; foodNutrients?: { nutrientId: number; value: number }[]
+    }
+    return ((data.foods ?? []) as USDAFood[])
+      .filter(f => f.description?.trim())
+      .map((f): SearchItem => {
         const nutrients: Record<number, number> = {}
         for (const n of (f.foodNutrients ?? [])) {
           if (n.nutrientId && n.value != null) nutrients[n.nutrientId] = n.value
@@ -113,10 +117,14 @@ async function searchOFF(q: string, queryWords: string[]): Promise<SearchItem[]>
 
     const data = await res.json()
 
-    return ((data.products ?? []) as any[])
-      .filter((p: any) => p.product_name?.trim())
-      .map((p: any): SearchItem & { _score: number } => {
-        const n = p.nutriments ?? {}
+    type OFFProduct = {
+      product_name?: string; code?: string; brands?: string
+      serving_quantity?: unknown; nutriments?: Record<string, unknown>
+    }
+    return ((data.products ?? []) as OFFProduct[])
+      .filter(p => p.product_name?.trim())
+      .map((p): SearchItem & { _score: number } => {
+        const n = (p.nutriments ?? {}) as Record<string, unknown>
         const name = (p.product_name as string).trim()
         const brand = p.brands ? (p.brands as string).split(',')[0].trim() : null
         const haystack = `${name} ${brand ?? ''}`.toLowerCase()
@@ -136,8 +144,9 @@ async function searchOFF(q: string, queryWords: string[]): Promise<SearchItem[]>
         }
       })
       .filter(r => (r.per100.calories !== null || r.per100.protein_g !== null) && r._score > 0)
-      .sort((a: any, b: any) => b._score - a._score)
-      .map(({ _score: _, ...r }: any) => r)
+      .sort((a, b) => b._score - a._score)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      .map(({ _score, ...r }) => r)
   } catch {
     return []
   }
@@ -158,7 +167,7 @@ async function searchCustomFoods(q: string): Promise<SearchItem[]> {
       .order('created_at', { ascending: false })
       .limit(10)
 
-    return (data ?? []).map((f: any): SearchItem => ({
+    return (data ?? []).map((f): SearchItem => ({
       code: `custom:${f.id}`,
       name: f.name,
       brand: f.brand ?? null,

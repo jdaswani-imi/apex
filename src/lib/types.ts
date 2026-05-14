@@ -136,6 +136,48 @@ export interface FoodLog {
   created_at: string
 }
 
+export interface MenstrualCycle {
+  id: string
+  user_id: string
+  period_start_date: string
+  period_end_date: string | null
+  cycle_length_days: number
+  notes: string | null
+  created_at: string
+}
+
+export type CyclePhase = 'menstrual' | 'follicular' | 'ovulatory' | 'luteal'
+
+export interface CyclePhaseInfo {
+  phase: CyclePhase
+  cycleDay: number
+  cycleLength: number
+  lastPeriodStart: string
+  daysUntilNextPeriod: number
+}
+
+export function getCyclePhase(lastPeriodStart: string, cycleLength = 28): CyclePhaseInfo {
+  const start = new Date(lastPeriodStart + 'T12:00:00')
+  const today = new Date()
+  today.setHours(12, 0, 0, 0)
+  const cycleDay = Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+  const normalizedDay = ((cycleDay - 1) % cycleLength) + 1
+  const daysUntilNextPeriod = cycleLength - normalizedDay + 1
+
+  let phase: CyclePhase
+  if (normalizedDay <= 5) {
+    phase = 'menstrual'
+  } else if (normalizedDay <= Math.floor(cycleLength / 2) - 1) {
+    phase = 'follicular'
+  } else if (normalizedDay <= Math.floor(cycleLength / 2) + 1) {
+    phase = 'ovulatory'
+  } else {
+    phase = 'luteal'
+  }
+
+  return { phase, cycleDay: normalizedDay, cycleLength, lastPeriodStart, daysUntilNextPeriod }
+}
+
 export interface ChatMessage {
   id: string
   user_id: string

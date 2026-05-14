@@ -1,14 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronRight, Zap, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { Zap, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
 interface Props {
   onStartSession: (sessionId: string) => void
 }
 
 export default function TodaySession({ onStartSession }: Props) {
-  const [data, setData] = useState<any>(null)
+  // TodaySession data is an aggregated API response without a generated type
+  const [data, setData] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(true)
   const [starting, setStarting] = useState(false)
 
@@ -28,8 +29,8 @@ export default function TodaySession({ onStartSession }: Props) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         date: new Date().toISOString().split('T')[0],
-        session_type: data?.sessionType ?? 'push',
-        gym: data?.gymName ?? 'TopGym',
+        session_type: (data?.sessionType as string) ?? 'push',
+        gym: (data?.gymName as string) ?? 'TopGym',
         started_at: new Date().toISOString(),
       }),
     })
@@ -40,7 +41,7 @@ export default function TodaySession({ onStartSession }: Props) {
 
   if (loading) return <div style={{ color: '#52525b', paddingTop: '20px' }}>Loading...</div>
 
-  const recovery = data?.recovery
+  const recovery = data?.recovery as number | null
   const recoveryColor = recovery
     ? recovery >= 67 ? '#22c55e' : recovery >= 34 ? '#eab308' : '#ef4444'
     : '#52525b'
@@ -48,7 +49,8 @@ export default function TodaySession({ onStartSession }: Props) {
     ? recovery >= 67 ? 'Train hard' : recovery >= 34 ? 'Train smart · RPE 7–8' : 'Rest or Zone 2 only'
     : 'Connect Whoop'
 
-  const existingSession = data?.todaySession
+  const existingSession = data?.todaySession as Record<string, unknown> | undefined
+  const exercises = (data?.exercises as Record<string, unknown>[] | undefined) ?? []
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -61,11 +63,11 @@ export default function TodaySession({ onStartSession }: Props) {
               {new Date().toLocaleDateString('en-GB', { weekday: 'long' })}
             </div>
             <div style={{ fontSize: '24px', fontWeight: 700, color: '#fff', marginTop: '4px' }}>
-              {data?.sessionType ?? 'Rest'}
+              {(data?.sessionType as string) ?? 'Rest'}
             </div>
-            {data?.lastSession && (
+            {data?.lastSession != null && (
               <div style={{ fontSize: '12px', color: '#52525b', marginTop: '4px' }}>
-                Last: {new Date(data.lastSession.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {data.lastSession.volume_kg?.toLocaleString()}kg
+                Last: {new Date((data.lastSession as Record<string, unknown>).date as string).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {((data.lastSession as Record<string, unknown>).volume_kg as number)?.toLocaleString()}kg
               </div>
             )}
           </div>
@@ -92,13 +94,13 @@ export default function TodaySession({ onStartSession }: Props) {
       </div>
 
       {/* Exercises for today */}
-      {data?.exercises?.length > 0 && (
+      {exercises.length > 0 && (
         <div style={{ backgroundColor: '#111', border: '1px solid #1c1c1c', borderRadius: '20px', padding: '20px' }}>
           <div style={{ fontSize: '12px', color: '#52525b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px' }}>
-            Today's Exercises
+            Today&apos;s Exercises
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            {data.exercises.map((ex: any, i: number) => {
+            {exercises.map((ex, i) => {
               const status = ex.progressStatus
               const StatusIcon = status === 'progress' ? TrendingUp : status === 'regression' ? TrendingDown : Minus
               const statusColor = status === 'progress' ? '#22c55e' : status === 'regression' ? '#ef4444' : '#eab308'
@@ -107,16 +109,16 @@ export default function TodaySession({ onStartSession }: Props) {
                 <div key={i} style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: '12px 0',
-                  borderBottom: i < data.exercises.length - 1 ? '1px solid #18181b' : 'none',
+                  borderBottom: i < exercises.length - 1 ? '1px solid #18181b' : 'none',
                 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#e4e4e7' }}>{ex.exercise_name}</div>
+                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#e4e4e7' }}>{ex.exercise_name as string}</div>
                     <div style={{ fontSize: '12px', color: '#52525b', marginTop: '2px' }}>
-                      Target: {ex.target_weight_kg}kg × {ex.target_reps} · {ex.current_sets ?? 3} sets
+                      Target: {ex.target_weight_kg as number}kg × {ex.target_reps as number} · {(ex.current_sets as number) ?? 3} sets
                     </div>
-                    {ex.lastPerformance && (
+                    {ex.lastPerformance != null && (
                       <div style={{ fontSize: '11px', color: '#3f3f46', marginTop: '1px' }}>
-                        Last: {ex.lastPerformance.weight_kg}kg × {ex.lastPerformance.reps}
+                        Last: {(ex.lastPerformance as Record<string, unknown>).weight_kg as number}kg × {(ex.lastPerformance as Record<string, unknown>).reps as number}
                       </div>
                     )}
                   </div>
@@ -135,7 +137,7 @@ export default function TodaySession({ onStartSession }: Props) {
           borderRadius: '16px', padding: '14px 16px',
           fontSize: '13px', color: '#4ade80',
         }}>
-          ✓ Session already logged today · {existingSession.volume_kg?.toLocaleString()}kg · {existingSession.prs} PRs
+          ✓ Session already logged today · {(existingSession.volume_kg as number)?.toLocaleString()}kg · {existingSession.prs as number} PRs
         </div>
       )}
 

@@ -26,8 +26,9 @@ export async function GET(request: Request) {
 
     const data = await res.json()
 
+    type DSLDHit = { _id: string; _source?: { ProductName?: string; BrandName?: string; ServingSize?: string; ProductType?: string } }
     // Normalize to a simple shape
-    const results = (data.hits ?? []).map((hit: any) => ({
+    const results = ((data.hits ?? []) as DSLDHit[]).map(hit => ({
       id: hit._id,
       name: hit._source?.ProductName ?? hit._source?.BrandName ?? 'Unknown',
       brand: hit._source?.BrandName ?? null,

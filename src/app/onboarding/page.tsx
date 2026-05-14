@@ -459,7 +459,7 @@ function EveningCommitmentsRepeater({
 
 // ─── Summary generator ────────────────────────────────────────────────────────
 
-function generateSummary(sectionData: Record<string, any>): string {
+function generateSummary(sectionData: Record<string, StepData | undefined>): string {
   const p = sectionData.physical ?? {}
   const l = sectionData.lifestyle_ext ?? {}
   const tr = sectionData.training_ext ?? {}
@@ -473,7 +473,9 @@ function generateSummary(sectionData: Record<string, any>): string {
   const tech = sectionData.tech_prefs ?? {}
   const c = sectionData.coaching ?? {}
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const arr = (v: any) => Array.isArray(v) ? v.join(', ') : (v ?? '—')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const val = (v: any) => v !== undefined && v !== null && v !== '' ? String(v) : '—'
 
   return `APEX — PROFILE SUMMARY
@@ -503,8 +505,8 @@ Bedtime (weeknights): ${val(l.sleep_target_weeknight)}
 Social frequency: ${val(l.social_frequency)}
 Social night: ${val(l.social_night)}
 Daily self-care time: ${val(l.daily_self_care_time)}
-Evening commitments: ${l.evening_commitments_list && l.evening_commitments_list.length > 0
-    ? l.evening_commitments_list.map((ec: EveningCommitment) => `${ec.activity} (${ec.days.join(',')}) ${ec.start}–${ec.end}`).join('; ')
+Evening commitments: ${Array.isArray(l.evening_commitments_list) && (l.evening_commitments_list as EveningCommitment[]).length > 0
+    ? (l.evening_commitments_list as EveningCommitment[]).map(ec => `${ec.activity} (${ec.days.join(',')}) ${ec.start}–${ec.end}`).join('; ')
     : '—'}
 
 TRAINING & GYM
@@ -530,7 +532,7 @@ Tracks calories: ${val(n.tracks_calories)}${n.tracking_app ? ' (' + n.tracking_a
 Nutritional weaknesses: ${arr(n.weaknesses)}
 Alcohol frequency: ${val(n.alcohol_frequency)}${n.alcohol_type ? ' — ' + n.alcohol_type : ''}
 Non-negotiables: ${arr(n.non_negotiable_list)}${n.non_negotiable_other ? ', ' + n.non_negotiable_other : ''}
-Coffee: ${val(n.coffee_daily)} cups/day, cut-off ${val(n.coffee_cutoff)}
+Caffeine: ${((n.coffee_daily as number) ?? 2) > 0 ? `${val(n.coffee_daily)} cups/day, cut-off ${val(n.coffee_cutoff)}` : 'None'}
 Lunch location: ${val(n.lunch_location)}
 Cuisines: ${arr(n.cuisine_list)}
 Water: ${val(n.water_liters)}L/day
@@ -601,9 +603,50 @@ End of profile summary
 `
 }
 
+// ─── Time helpers ─────────────────────────────────────────────────────────────
+
+function subtractHours(timeStr: string, hours: number): string {
+  const [h, m] = timeStr.split(':').map(Number)
+  let totalMins = h * 60 + m - hours * 60
+  if (totalMins < 0) totalMins += 24 * 60
+  const hh = Math.floor(totalMins / 60) % 24
+  const mm = totalMins % 60
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
+}
+
+function timeDiffHours(from: string, to: string): number {
+  const [fh, fm] = from.split(':').map(Number)
+  const [th, tm] = to.split(':').map(Number)
+  let diff = (th * 60 + tm) - (fh * 60 + fm)
+  if (diff < 0) diff += 24 * 60
+  return Math.round(diff / 60 * 10) / 10
+}
+
+function avgTimeStr(times: string[]): string {
+  const mins = times.map(t => { const [h, m] = t.split(':').map(Number); return h * 60 + m })
+  const avg = Math.round(mins.reduce((a, b) => a + b, 0) / mins.length)
+  return `${String(Math.floor(avg / 60) % 24).padStart(2, '0')}:${String(avg % 60).padStart(2, '0')}`
+}
+
+function estimateBodyFat(sex: string, fitnessLevel: string): number {
+  if (sex === 'Female') {
+    if (fitnessLevel === 'Advanced' || fitnessLevel === 'Athlete') return 20
+    if (fitnessLevel === 'Intermediate') return 24
+    return 28
+  }
+  if (fitnessLevel === 'Advanced' || fitnessLevel === 'Athlete') return 12
+  if (fitnessLevel === 'Intermediate') return 17
+  return 22
+}
+
 // ─── Step content components ───────────────────────────────────────────────────
 
-function PhysicalStep({ data, set }: { data: any; set: (k: string, v: any) => void }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type StepData = Record<string, any>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type StepSetter = (k: string, v: any) => void
+
+function PhysicalStep({ data, set, trainingData }: { data: StepData; set: StepSetter; trainingData?: StepData }) {
   const goalOptions = ['Fat Loss', 'Muscle Gain', 'Recomposition', 'Performance', 'General Health']
   const primaryGoal = data.primary_goal ?? ''
   const secondaryOptions = goalOptions.filter(o => o !== primaryGoal)
@@ -654,6 +697,32 @@ function PhysicalStep({ data, set }: { data: any; set: (k: string, v: any) => vo
           onChange={v => set('sex', v)}
         />
       </Field>
+
+      {data.sex === 'Female' && (
+        <>
+          <Field label="Last period start date" hint="Used to track your cycle phase and personalise coaching">
+            <input
+              type="date"
+              value={data.last_period_date ?? ''}
+              onChange={e => set('last_period_date', e.target.value)}
+              style={{
+                width: '100%', backgroundColor: '#111', border: '1px solid #27272a',
+                borderRadius: '10px', padding: '10px 14px', fontSize: '14px',
+                color: data.last_period_date ? '#fff' : '#52525b', outline: 'none', fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+            />
+          </Field>
+          <Field label="Average cycle length" hint="Most cycles are 21–35 days">
+            <Stepper
+              value={data.avg_cycle_length_days ?? 28}
+              onChange={v => set('avg_cycle_length_days', v)}
+              min={21} max={40} suffix=" days"
+            />
+          </Field>
+        </>
+      )}
+
       <Field label="Age">
         <Stepper value={data.age ?? 25} onChange={v => set('age', v)} min={16} max={80} suffix=" yrs" />
       </Field>
@@ -665,10 +734,40 @@ function PhysicalStep({ data, set }: { data: any; set: (k: string, v: any) => vo
       </Field>
       <Field label="Target weight">
         <Stepper value={data.target_weight_kg ?? 70} onChange={v => set('target_weight_kg', v)} min={40} max={200} suffix=" kg" />
+        {data.primary_goal === 'Fat Loss' && (data.target_weight_kg ?? 70) >= (data.current_weight_kg ?? 75) && (
+          <div style={{ marginTop: '8px', fontSize: '12px', color: '#f97316', backgroundColor: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: '8px', padding: '8px 12px' }}>
+            For fat loss, target weight should be below your current weight.
+          </div>
+        )}
+        {data.primary_goal === 'Muscle Gain' && (data.target_weight_kg ?? 70) <= (data.current_weight_kg ?? 75) && (
+          <div style={{ marginTop: '8px', fontSize: '12px', color: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '8px', padding: '8px 12px' }}>
+            For muscle gain, your target is typically above your current weight.
+          </div>
+        )}
       </Field>
 
       <Field label="Estimated body fat %" hint="Rough estimate is fine">
-        <Stepper value={data.body_fat_pct ?? 20} onChange={v => set('body_fat_pct', v)} min={5} max={50} suffix="%" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+          <span style={{ fontSize: '13px', color: '#71717a' }}>Not sure?</span>
+          <Toggle
+            value={data.body_fat_not_sure ?? false}
+            labelOn="Estimate for me"
+            labelOff="I'll enter it"
+            onChange={v => {
+              set('body_fat_not_sure', v)
+              if (v) {
+                const est = estimateBodyFat(data.sex ?? 'Male', (trainingData ?? {}).fitness_level ?? '')
+                set('body_fat_pct', est)
+              }
+            }}
+          />
+        </div>
+        <div style={{ opacity: data.body_fat_not_sure ? 0.5 : 1, pointerEvents: data.body_fat_not_sure ? 'none' : 'auto' }}>
+          <Stepper value={data.body_fat_pct ?? 20} onChange={v => { set('body_fat_pct', v); set('body_fat_not_sure', false) }} min={5} max={50} suffix="%" />
+        </div>
+        {data.body_fat_not_sure && (
+          <div style={{ marginTop: '6px', fontSize: '12px', color: '#52525b' }}>Estimated from your sex &amp; fitness level — tap the stepper to override.</div>
+        )}
         <BodyFatVisual sex={data.sex ?? 'Male'} value={data.body_fat_pct ?? 20} />
       </Field>
 
@@ -771,7 +870,7 @@ function PhysicalStep({ data, set }: { data: any; set: (k: string, v: any) => vo
   )
 }
 
-function LifestyleStep({ data, set }: { data: any; set: (k: string, v: any) => void }) {
+function LifestyleStep({ data, set }: { data: StepData; set: StepSetter }) {
   const ALL_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   const weekdayDays: string[] = data.weekday_days ?? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
   const weekendDays = ALL_DAYS.filter(d => !weekdayDays.includes(d))
@@ -856,18 +955,35 @@ function LifestyleStep({ data, set }: { data: any; set: (k: string, v: any) => v
           onChange={v => set('daily_self_care_time', v)}
         />
       </Field>
-      <Field label="Do you travel often?">
-        <Chips
-          options={['Rarely', '1–2x per month', 'Weekly', 'Constantly']}
-          value={data.travel_frequency ?? ''}
-          onChange={v => set('travel_frequency', v)}
-        />
-      </Field>
     </>
   )
 }
 
-function TrainingStep({ data, set }: { data: any; set: (k: string, v: any) => void }) {
+function TrainingStep({ data, set }: { data: StepData; set: StepSetter }) {
+  // Auto-sync sessions_per_week when training days are selected
+  useEffect(() => {
+    const days: string[] = data.training_days ?? []
+    if (days.length > 0 && days.length !== (data.sessions_per_week ?? 4)) {
+      set('sessions_per_week', days.length)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.training_days])
+
+  // Auto-suggest fitness level from training experience (only if not yet set)
+  useEffect(() => {
+    if (data.fitness_level || !data.training_experience) return
+    const map: Record<string, string> = {
+      '< 1 year': 'Beginner',
+      '1–2 years': 'Intermediate',
+      '2–5 years': 'Intermediate',
+      '5–10 years': 'Advanced',
+      '10+ years': 'Advanced',
+    }
+    const suggested = map[data.training_experience]
+    if (suggested) set('fitness_level', suggested)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.training_experience])
+
   const sportsOptions = [
     'Football', 'Cricket', 'Basketball', 'Tennis', 'Padel', 'Golf', 'Swimming',
     'Cycling', 'Running', 'Martial Arts', 'Boxing', 'Yoga', 'Pilates', 'Dance',
@@ -1011,8 +1127,32 @@ function TrainingStep({ data, set }: { data: any; set: (k: string, v: any) => vo
   )
 }
 
-function NutritionStep({ data, set }: { data: any; set: (k: string, v: any) => void }) {
+function NutritionStep({ data, set, lifestyleData }: { data: StepData; set: StepSetter; lifestyleData?: StepData }) {
   const dietType = data.diet_type ?? ''
+
+  // Auto-fill caffeine cutoff based on target bedtime (6 hrs before sleep)
+  useEffect(() => {
+    const bedtime = lifestyleData?.sleep_target_weeknight
+    const coffeeDaily = data.coffee_daily ?? 2
+    if (coffeeDaily > 0 && bedtime && (!data.coffee_cutoff || data.coffee_cutoff === '16:00')) {
+      set('coffee_cutoff', subtractHours(bedtime, 6))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lifestyleData?.sleep_target_weeknight, data.coffee_daily])
+
+  // Auto-add/remove "Drinking too much" weakness based on alcohol frequency
+  useEffect(() => {
+    const freq = data.alcohol_frequency
+    const current: string[] = data.weaknesses ?? []
+    const tag = 'Drinking too much'
+    const highFreq = freq === '2–3x per week' || freq === 'Daily'
+    if (highFreq && !current.includes(tag)) {
+      set('weaknesses', [...current, tag])
+    } else if (!highFreq && current.includes(tag)) {
+      set('weaknesses', current.filter(w => w !== tag))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.alcohol_frequency])
 
   // Filter protein sources by dietary style
   let proteinSources = ['Chicken', 'Beef', 'Fish', 'Eggs', 'Greek yoghurt', 'Cottage cheese', 'Tofu', 'Legumes', 'Protein powder']
@@ -1041,7 +1181,7 @@ function NutritionStep({ data, set }: { data: any; set: (k: string, v: any) => v
 
   const nonNegotiableOptions = [
     'Dark chocolate', 'Pizza (weekly)', 'Ice cream', 'Chips / crisps', 'Bread / toast',
-    'Pasta', 'Rice', 'Cheese', 'Alcohol', 'Desserts', 'Coffee / caffeine', 'Fruit',
+    'Pasta', 'Rice', 'Cheese', 'Alcohol', 'Desserts', 'Caffeine', 'Fruit',
     'Peanut butter', 'Protein bars', 'Fast food (weekly)', 'Takeaway', 'None', 'Other',
   ]
 
@@ -1148,12 +1288,14 @@ function NutritionStep({ data, set }: { data: any; set: (k: string, v: any) => v
         )}
       </Field>
 
-      <Field label="Coffee — cups per day">
+      <Field label="Caffeine — cups per day">
         <Stepper value={data.coffee_daily ?? 2} onChange={v => set('coffee_daily', v)} min={0} max={10} suffix=" cups" />
       </Field>
-      <Field label="Coffee cut-off time">
-        <input type="time" value={data.coffee_cutoff ?? '16:00'} onChange={e => set('coffee_cutoff', e.target.value)} style={inputStyle} />
-      </Field>
+      {(data.coffee_daily ?? 2) > 0 && (
+        <Field label="Caffeine cut-off time" hint="Last caffeine intake — helps protect your sleep">
+          <input type="time" value={data.coffee_cutoff ?? '16:00'} onChange={e => set('coffee_cutoff', e.target.value)} style={inputStyle} />
+        </Field>
+      )}
       <Field label="Where do you typically eat lunch?">
         <Chips
           options={['Home', 'Office (packed)', 'Office canteen', 'Restaurants', 'Takeaway']}
@@ -1181,7 +1323,26 @@ function NutritionStep({ data, set }: { data: any; set: (k: string, v: any) => v
   )
 }
 
-function SupplementsStep({ data, set }: { data: any; set: (k: string, v: any) => void }) {
+function SupplementsStep({ data, set }: { data: StepData; set: StepSetter }) {
+  // Auto-add supplements matched to known deficiencies
+  useEffect(() => {
+    const deficiencyMap: Record<string, string> = {
+      'Vitamin D': 'Vitamin D3',
+      'Magnesium': 'Magnesium glycinate',
+      'Zinc': 'Zinc',
+      'Omega-3': 'Omega-3 / Fish oil',
+    }
+    const deficiencies: string[] = data.deficiencies_list ?? []
+    const current: string[] = data.considering_list ?? []
+    const toAdd = deficiencies
+      .map(d => deficiencyMap[d])
+      .filter((s): s is string => !!s && !current.includes(s))
+    if (toAdd.length > 0) {
+      set('considering_list', [...current, ...toAdd])
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.deficiencies_list])
+
   const consideringOptions = [
     'Creatine', 'Whey protein', 'Collagen', 'Omega-3 / Fish oil', 'Vitamin D3',
     'Magnesium glycinate', 'Zinc', 'Ashwagandha', "Lion's mane", 'NMN / NR', 'CoQ10',
@@ -1264,7 +1425,23 @@ function SupplementsStep({ data, set }: { data: any; set: (k: string, v: any) =>
   )
 }
 
-function SleepStep({ data, set }: { data: any; set: (k: string, v: any) => void }) {
+function SleepStep({ data, set, lifestyleData }: { data: StepData; set: StepSetter; lifestyleData?: StepData }) {
+  // Auto-suggest avg sleep hours from bedtime + wake times (if still at default 7)
+  useEffect(() => {
+    const bedtime = lifestyleData?.sleep_target_weeknight
+    const wakeTimes = lifestyleData?.wake_times
+    if (bedtime && wakeTimes && (data.avg_sleep_hours === undefined || data.avg_sleep_hours === 7)) {
+      const times: string[] = Object.values(wakeTimes)
+      if (times.length > 0) {
+        const wake = avgTimeStr(times)
+        const hrs = timeDiffHours(bedtime, wake)
+        const clamped = Math.round(Math.min(12, Math.max(3, hrs)))
+        if (clamped !== 7) set('avg_sleep_hours', clamped)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lifestyleData?.sleep_target_weeknight, lifestyleData?.wake_times])
+
   const sleepSupplementOptions = [
     'Magnesium glycinate', 'Magnesium threonate', 'Melatonin', 'L-theanine', 'Ashwagandha',
     'CBD oil', 'Valerian root', 'Tart cherry juice', 'Sleep mask', 'White noise machine',
@@ -1347,7 +1524,7 @@ function SleepStep({ data, set }: { data: any; set: (k: string, v: any) => void 
   )
 }
 
-function SkincareStep({ data, set }: { data: any; set: (k: string, v: any) => void }) {
+function SkincareStep({ data, set }: { data: StepData; set: StepSetter }) {
   return (
     <>
       <Field label="Skin type">
@@ -1425,7 +1602,7 @@ function SkincareStep({ data, set }: { data: any; set: (k: string, v: any) => vo
   )
 }
 
-function HairStep({ data, set }: { data: any; set: (k: string, v: any) => void }) {
+function HairStep({ data, set }: { data: StepData; set: StepSetter }) {
   return (
     <>
       <Field label="Hair type">
@@ -1489,7 +1666,7 @@ function HairStep({ data, set }: { data: any; set: (k: string, v: any) => void }
   )
 }
 
-function MentalStep({ data, set }: { data: any; set: (k: string, v: any) => void }) {
+function MentalStep({ data, set }: { data: StepData; set: StepSetter }) {
   return (
     <>
       <Field label="Current work stress level" hint="1 = very relaxed, 10 = extremely stressed">
@@ -1531,7 +1708,7 @@ function MentalStep({ data, set }: { data: any; set: (k: string, v: any) => void
   )
 }
 
-function TravelStep({ data, set }: { data: any; set: (k: string, v: any) => void }) {
+function TravelStep({ data, set }: { data: StepData; set: StepSetter }) {
   return (
     <>
       <Field label="How often do you travel?">
@@ -1583,7 +1760,34 @@ function TravelStep({ data, set }: { data: any; set: (k: string, v: any) => void
   )
 }
 
-function TechStep({ data, set }: { data: any; set: (k: string, v: any) => void }) {
+function TechStep({ data, set, mentalData }: { data: StepData; set: StepSetter; mentalData?: StepData }) {
+  // Auto-suggest biometrics based on owned wearables
+  useEffect(() => {
+    const wearableMetrics: Record<string, string[]> = {
+      'WHOOP':        ['HRV', 'RHR', 'Sleep stages'],
+      'Apple Watch':  ['Steps', 'RHR', 'SPO2'],
+      'Oura Ring':    ['HRV', 'Sleep stages', 'RHR'],
+      'Garmin':       ['Steps', 'RHR', 'Sleep stages', 'SPO2'],
+      'Fitbit':       ['Steps', 'RHR', 'Sleep stages'],
+      'Smart scale':  ['Body weight', 'Body composition'],
+      'CGM':          ['Blood glucose'],
+    }
+    const wearables: string[] = data.wearables ?? []
+    const current: string[] = data.tracked_biometrics ?? []
+    const toAdd = wearables
+      .flatMap(w => wearableMetrics[w] ?? [])
+      .filter(m => !current.includes(m))
+    const unique = [...new Set(toAdd)]
+    if (unique.length > 0) {
+      set('tracked_biometrics', [...current, ...unique])
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.wearables])
+
+  const meditates = mentalData?.meditates
+  const apps: string[] = data.apps ?? []
+  const showMeditationHint = meditates && !apps.includes('Calm') && !apps.includes('Headspace')
+
   return (
     <>
       <Field label="Wearables you own">
@@ -1601,6 +1805,18 @@ function TechStep({ data, set }: { data: any; set: (k: string, v: any) => void }
           onChange={v => set('apps', v)}
           multi
         />
+        {showMeditationHint && (
+          <div style={{ marginTop: '10px', backgroundColor: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '10px', padding: '10px 12px' }}>
+            <div style={{ fontSize: '12px', color: '#818cf8', marginBottom: '8px' }}>You meditate — want to add a meditation app?</div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {['Calm', 'Headspace'].filter(a => !apps.includes(a)).map(a => (
+                <button key={a} onClick={() => set('apps', [...apps, a])} style={{ padding: '6px 14px', borderRadius: '100px', border: '1.5px solid rgba(99,102,241,0.4)', backgroundColor: 'rgba(99,102,241,0.1)', color: '#818cf8', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
+                  + {a}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </Field>
       <Field label="Open to investing in health tech?">
         <Chips
@@ -1630,7 +1846,7 @@ function TechStep({ data, set }: { data: any; set: (k: string, v: any) => void }
   )
 }
 
-function CoachingStep({ data, set }: { data: any; set: (k: string, v: any) => void }) {
+function CoachingStep({ data, set }: { data: StepData; set: StepSetter }) {
   const planPref = data.plan_setup_preference ?? ''
 
   return (
@@ -1707,19 +1923,24 @@ function CoachingStep({ data, set }: { data: any; set: (k: string, v: any) => vo
 
 // ─── Step renderer ─────────────────────────────────────────────────────────────
 
-function StepContent({ stepId, data, set }: { stepId: StepId; data: any; set: (k: string, v: any) => void }) {
+function StepContent({ stepId, data, set, sectionData }: {
+  stepId: StepId
+  data: StepData
+  set: StepSetter
+  sectionData: Record<string, StepData>
+}) {
   switch (stepId) {
-    case 'physical':    return <PhysicalStep data={data} set={set} />
+    case 'physical':    return <PhysicalStep data={data} set={set} trainingData={sectionData.training_ext} />
     case 'lifestyle':   return <LifestyleStep data={data} set={set} />
     case 'training':    return <TrainingStep data={data} set={set} />
-    case 'nutrition':   return <NutritionStep data={data} set={set} />
+    case 'nutrition':   return <NutritionStep data={data} set={set} lifestyleData={sectionData.lifestyle_ext} />
     case 'supplements': return <SupplementsStep data={data} set={set} />
-    case 'sleep':       return <SleepStep data={data} set={set} />
+    case 'sleep':       return <SleepStep data={data} set={set} lifestyleData={sectionData.lifestyle_ext} />
     case 'skincare':    return <SkincareStep data={data} set={set} />
     case 'hair':        return <HairStep data={data} set={set} />
     case 'mental':      return <MentalStep data={data} set={set} />
     case 'travel':      return <TravelStep data={data} set={set} />
-    case 'tech':        return <TechStep data={data} set={set} />
+    case 'tech':        return <TechStep data={data} set={set} mentalData={sectionData.mental} />
     case 'coaching':    return <CoachingStep data={data} set={set} />
     default:            return null
   }
@@ -1727,7 +1948,7 @@ function StepContent({ stepId, data, set }: { stepId: StepId; data: any; set: (k
 
 // ─── Done screen ───────────────────────────────────────────────────────────────
 
-function DoneScreen({ sectionData }: { sectionData: Record<string, any> }) {
+function DoneScreen({ sectionData }: { sectionData: Record<string, StepData | undefined> }) {
   function handleDownload() {
     const summary = generateSummary(sectionData)
     const blob = new Blob([summary], { type: 'text/plain' })
@@ -1754,7 +1975,7 @@ function DoneScreen({ sectionData }: { sectionData: Record<string, any> }) {
         <Check size={36} color="#22c55e" />
       </div>
       <h1 style={{ fontSize: '32px', fontWeight: 800, color: '#fff', marginBottom: '12px' }}>
-        You're all set
+        You&apos;re all set
       </h1>
       <p style={{ fontSize: '15px', color: '#71717a', lineHeight: 1.7, marginBottom: '16px', maxWidth: '300px' }}>
         Your profile is saved. Your AI coach now has full context to personalise everything — training, nutrition, recovery, and more.
@@ -1787,7 +2008,7 @@ export default function OnboardingPage() {
   const [saving, setSaving] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
-  const [sectionData, setSectionData] = useState<Record<string, any>>({
+  const [sectionData, setSectionData] = useState<Record<string, StepData>>({
     physical: {}, lifestyle_ext: {}, training_ext: {}, nutrition_ext: {},
     supplements_ext: {}, sleep_ext: {}, skincare: {}, hair: {},
     mental: {}, travel: {}, tech_prefs: {}, coaching: {},
@@ -1829,7 +2050,7 @@ export default function OnboardingPage() {
   const currentSection = step.section
   const currentData = currentSection ? (sectionData[currentSection] ?? {}) : {}
 
-  const setField = useCallback((k: string, v: any) => {
+  const setField = useCallback<StepSetter>((k, v) => {
     if (!currentSection) return
     setSectionData(prev => ({
       ...prev,
@@ -2060,7 +2281,7 @@ export default function OnboardingPage() {
               Discard all answers?
             </div>
             <div style={{ fontSize: '14px', color: '#71717a', lineHeight: 1.6, marginBottom: '24px' }}>
-              This will permanently delete everything you've entered. You'll need to start from scratch.
+              This will permanently delete everything you&apos;ve entered. You&apos;ll need to start from scratch.
             </div>
             <button
               onClick={handleDiscard}
@@ -2103,10 +2324,10 @@ export default function OnboardingPage() {
               <Flame size={36} color="#f97316" />
             </div>
             <h1 style={{ fontSize: '32px', fontWeight: 800, color: '#fff', marginBottom: '12px', lineHeight: 1.15 }}>
-              Let's build your profile
+              Let&apos;s build your profile
             </h1>
             <p style={{ fontSize: '15px', color: '#71717a', lineHeight: 1.7, marginBottom: '40px', maxWidth: '320px' }}>
-              Answer a few questions so your AI coach knows exactly who you are, how you live, and what you're working towards. Takes about 5–10 minutes. You can skip anything and come back later.
+              Answer a few questions so your AI coach knows exactly who you are, how you live, and what you&apos;re working towards. Takes about 5&ndash;10 minutes. You can skip anything and come back later.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', maxWidth: '320px' }}>
               {CONTENT_STEPS.map((s, i) => {
@@ -2159,7 +2380,7 @@ export default function OnboardingPage() {
               </h2>
             </div>
 
-            <StepContent stepId={step.id} data={currentData} set={setField} />
+            <StepContent stepId={step.id} data={currentData} set={setField} sectionData={sectionData} />
           </div>
         )}
       </div>

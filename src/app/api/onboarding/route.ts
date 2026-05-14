@@ -50,6 +50,14 @@ export async function POST(request: Request) {
 
   // Mirror core fields to existing settings tables
   if (section === 'physical' && data) {
+    if (data.sex === 'Female' && data.last_period_date) {
+      await supabase.from('menstrual_cycles').upsert({
+        user_id: user.id,
+        period_start_date: data.last_period_date,
+        cycle_length_days: data.avg_cycle_length_days ?? 28,
+      }, { onConflict: 'user_id,period_start_date' })
+    }
+
     await supabase.from('user_profile').upsert({
       user_id: user.id,
       ...(data.location && { location: data.location }),

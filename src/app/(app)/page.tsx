@@ -385,7 +385,7 @@ export default async function TodayPage({
         <div className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <Moon size={13} className="text-indigo-400" />
-            <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Last Night's Sleep</span>
+            <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Last Night&apos;s Sleep</span>
           </div>
           <div className="grid grid-cols-4 gap-2">
             {[

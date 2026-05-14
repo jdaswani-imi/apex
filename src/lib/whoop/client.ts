@@ -51,7 +51,7 @@ export async function whoopFetch(
   userId: string,
   endpoint: string,
   params?: Record<string, string>
-): Promise<any> {
+): Promise<unknown> {
   const token = await getWhoopToken(userId)
   if (!token) throw new Error('No Whoop token')
 
@@ -72,11 +72,11 @@ export async function whoopFetchAll(
   userId: string,
   endpoint: string,
   params?: Record<string, string>
-): Promise<any[]> {
+): Promise<unknown[]> {
   const token = await getWhoopToken(userId)
   if (!token) throw new Error('No Whoop token')
 
-  const records: any[] = []
+  const records: unknown[] = []
   let nextToken: string | null = null
   let pages = 0
 

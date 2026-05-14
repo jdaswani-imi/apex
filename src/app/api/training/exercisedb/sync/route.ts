@@ -28,7 +28,7 @@ export async function POST() {
   let hasMore = true
 
   while (hasMore && nameMap.size > 0) {
-    let data: any[] = []
+    let data: Record<string, unknown>[] = []
     let nextCursor: string | null = null
     try {
       const endpoint: string = cursor
@@ -36,7 +36,7 @@ export async function POST() {
         : `${EXERCISEDB_BASE}/exercises?limit=${BATCH_SIZE}`
       const res: Response = await fetch(endpoint, { signal: AbortSignal.timeout(10000) })
       if (!res.ok) break
-      const json: any = await res.json()
+      const json = await res.json() as { data?: Record<string, unknown>[]; meta?: { nextCursor?: string; hasNextPage?: boolean } }
       data = json.data ?? []
       nextCursor = json.meta?.nextCursor ?? null
       hasMore = json.meta?.hasNextPage ?? false
@@ -50,11 +50,11 @@ export async function POST() {
     const updates: { id: string; gif_url: string; gif_url_female: string }[] = []
 
     for (const ex of data) {
-      const normalizedName = (ex.name ?? '').toLowerCase().trim()
+      const normalizedName = ((ex.name as string | null | undefined) ?? '').toLowerCase().trim()
       const localId = nameMap.get(normalizedName)
       if (!localId) continue
 
-      const gif = ex.gifUrl ?? null
+      const gif = (ex.gifUrl as string | null | undefined) ?? null
       if (!gif) continue
 
       updates.push({ id: localId, gif_url: gif, gif_url_female: gif })
