@@ -1,12 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, Zap } from 'lucide-react'
 
+const authErrorMessages: Record<string, string> = {
+  otp_expired: 'Your confirmation link has expired. Please sign up again to receive a new one.',
+  access_denied: 'Access denied. Please try signing in again.',
+}
+
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const authError = searchParams.get('error_code')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -73,6 +80,12 @@ export default function LoginPage() {
             Personal Optimisation
           </p>
         </div>
+
+        {authError && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-5">
+            <p className="text-red-400 text-sm">{authErrorMessages[authError] ?? 'Something went wrong. Please try again.'}</p>
+          </div>
+        )}
 
         {/* Mode tabs */}
         <div className="flex bg-zinc-900/80 border border-white/[0.06] rounded-2xl p-1 mb-5">

@@ -30,6 +30,11 @@ export async function updateSession(request: NextRequest) {
   if (!user && !request.nextUrl.pathname.startsWith('/login')) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
+    // Forward Supabase auth error params so the login page can show a message
+    const errorCode = request.nextUrl.searchParams.get('error_code')
+    if (errorCode) {
+      url.searchParams.set('error_code', errorCode)
+    }
     return NextResponse.redirect(url)
   }
 
