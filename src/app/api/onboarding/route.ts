@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 const ONBOARDING_SECTIONS = [
-  'physical', 'lifestyle_ext', 'training_ext', 'nutrition_ext',
+  'interests', 'physical', 'lifestyle_ext', 'training_ext', 'nutrition_ext',
   'supplements_ext', 'sleep_ext', 'skincare', 'hair',
   'mental', 'travel', 'tech_prefs', 'coaching',
 ]

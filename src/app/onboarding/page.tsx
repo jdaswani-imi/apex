@@ -6,13 +6,13 @@ import {
   ChevronLeft, ChevronRight, Check,
   User, Calendar, Dumbbell, UtensilsCrossed, Pill,
   Moon, Sparkles, Wind, Brain, Plane, Cpu, Target,
-  Plus, Minus, Flame, X,
+  Plus, Minus, Flame, X, Star,
 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type StepId =
-  | 'welcome' | 'physical' | 'lifestyle' | 'training' | 'nutrition'
+  | 'welcome' | 'interests' | 'physical' | 'lifestyle' | 'training' | 'nutrition'
   | 'supplements' | 'sleep' | 'skincare' | 'hair' | 'mental'
   | 'travel' | 'tech' | 'coaching' | 'done'
 
@@ -28,6 +28,7 @@ interface StepMeta {
 
 const STEPS: StepMeta[] = [
   { id: 'welcome',     label: 'Welcome',               icon: null,              color: '#f97316', section: null },
+  { id: 'interests',   label: 'Your Priorities',       icon: Star,              color: '#f97316', section: 'interests' },
   { id: 'physical',   label: 'Physical Profile',       icon: User,              color: '#f97316', section: 'physical' },
   { id: 'lifestyle',  label: 'Lifestyle & Schedule',   icon: Calendar,          color: '#8b5cf6', section: 'lifestyle_ext' },
   { id: 'training',   label: 'Training & Gym',         icon: Dumbbell,          color: '#3b82f6', section: 'training_ext' },
@@ -44,7 +45,19 @@ const STEPS: StepMeta[] = [
 ]
 
 const CONTENT_STEPS = STEPS.filter(s => s.id !== 'welcome' && s.id !== 'done')
-const TOTAL = CONTENT_STEPS.length
+
+const OPTIONAL_STEP_IDS = new Set<StepId>(['lifestyle', 'supplements', 'sleep', 'skincare', 'hair', 'mental', 'travel', 'tech'])
+
+function getNextIndex(from: number, dir: 'forward' | 'back', focusedSections: string[]): number {
+  const inc = dir === 'forward' ? 1 : -1
+  let next = from + inc
+  while (next > 0 && next < STEPS.length - 1) {
+    const s = STEPS[next]
+    if (!OPTIONAL_STEP_IDS.has(s.id) || focusedSections.includes(s.id)) return next
+    next += inc
+  }
+  return Math.max(0, Math.min(next, STEPS.length - 1))
+}
 
 // ─── Country → City map ───────────────────────────────────────────────────────
 
@@ -1921,6 +1934,104 @@ function CoachingStep({ data, set }: { data: StepData; set: StepSetter }) {
   )
 }
 
+// ─── Interests step ────────────────────────────────────────────────────────────
+
+const COMPULSORY_INTEREST_OPTIONS = [
+  { id: 'physical',  label: 'Physical Profile',     icon: User,            color: '#f97316' },
+  { id: 'training',  label: 'Training & Gym',       icon: Dumbbell,        color: '#3b82f6' },
+  { id: 'nutrition', label: 'Nutrition & Diet',     icon: UtensilsCrossed, color: '#10b981' },
+  { id: 'coaching',  label: 'Coaching Preferences', icon: Target,          color: '#f97316' },
+]
+
+const OPTIONAL_INTEREST_OPTIONS = [
+  { id: 'lifestyle',   label: 'Lifestyle & Schedule', icon: Calendar, color: '#8b5cf6' },
+  { id: 'supplements', label: 'Supplements',          icon: Pill,     color: '#f59e0b' },
+  { id: 'sleep',       label: 'Sleep & Recovery',     icon: Moon,     color: '#6366f1' },
+  { id: 'skincare',    label: 'Skincare',             icon: Sparkles, color: '#ec4899' },
+  { id: 'hair',        label: 'Hair',                 icon: Wind,     color: '#14b8a6' },
+  { id: 'mental',      label: 'Mental & Stress',      icon: Brain,    color: '#f43f5e' },
+  { id: 'travel',      label: 'Travel & Social',      icon: Plane,    color: '#06b6d4' },
+  { id: 'tech',        label: 'Tech & Wearables',     icon: Cpu,      color: '#84cc16' },
+]
+
+function InterestsStep({ data, set }: { data: StepData; set: StepSetter }) {
+  const selected: string[] = (data.focused_sections as string[]) ?? []
+
+  function toggle(id: string) {
+    set('focused_sections', selected.includes(id)
+      ? selected.filter(x => x !== id)
+      : [...selected, id])
+  }
+
+  return (
+    <>
+      {/* Compulsory — locked */}
+      <p style={{ fontSize: '11px', color: '#52525b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px' }}>
+        Always included
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '24px' }}>
+        {COMPULSORY_INTEREST_OPTIONS.map(({ id, label, icon: Icon, color }) => (
+          <div key={id} style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '10px 12px', borderRadius: '12px',
+            border: '1.5px solid #1c1c1c', backgroundColor: '#0a0a0a', opacity: 0.55,
+          }}>
+            <div style={{
+              width: '26px', height: '26px', borderRadius: '8px', flexShrink: 0,
+              backgroundColor: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Icon size={13} color={color} />
+            </div>
+            <span style={{ fontSize: '11px', color: '#71717a', lineHeight: 1.3 }}>{label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Optional — selectable */}
+      <p style={{ fontSize: '11px', color: '#52525b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px' }}>
+        Optional — select what applies to you
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
+        {OPTIONAL_INTEREST_OPTIONS.map(({ id, label, icon: Icon, color }) => {
+          const active = selected.includes(id)
+          return (
+            <button key={id} onClick={() => toggle(id)} style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+              gap: '10px', padding: '14px', borderRadius: '14px', cursor: 'pointer',
+              border: active ? `1.5px solid ${color}` : '1.5px solid #27272a',
+              backgroundColor: active ? `${color}12` : '#0a0a0a',
+              transition: 'all 0.15s ease', textAlign: 'left', position: 'relative',
+            }}>
+              <div style={{
+                width: '32px', height: '32px', borderRadius: '10px', flexShrink: 0,
+                backgroundColor: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Icon size={15} color={color} />
+              </div>
+              <span style={{ fontSize: '12px', fontWeight: active ? 600 : 400, color: active ? '#fff' : '#a1a1aa', lineHeight: 1.3 }}>
+                {label}
+              </span>
+              {active && (
+                <div style={{
+                  position: 'absolute', top: '10px', right: '10px',
+                  width: '16px', height: '16px', borderRadius: '50%',
+                  backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Check size={10} color="#000" strokeWidth={3} />
+                </div>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      <p style={{ fontSize: '12px', color: '#3f3f46', lineHeight: 1.6, textAlign: 'center' }}>
+        Skipped sections can be turned on anytime in <span style={{ color: '#52525b' }}>Settings → Profile</span>.
+      </p>
+    </>
+  )
+}
+
 // ─── Step renderer ─────────────────────────────────────────────────────────────
 
 function StepContent({ stepId, data, set, sectionData }: {
@@ -1930,6 +2041,7 @@ function StepContent({ stepId, data, set, sectionData }: {
   sectionData: Record<string, StepData>
 }) {
   switch (stepId) {
+    case 'interests':   return <InterestsStep data={data} set={set} />
     case 'physical':    return <PhysicalStep data={data} set={set} trainingData={sectionData.training_ext} />
     case 'lifestyle':   return <LifestyleStep data={data} set={set} />
     case 'training':    return <TrainingStep data={data} set={set} />
@@ -2009,7 +2121,7 @@ export default function OnboardingPage() {
   const [showMenu, setShowMenu] = useState(false)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
   const [sectionData, setSectionData] = useState<Record<string, StepData>>({
-    physical: {}, lifestyle_ext: {}, training_ext: {}, nutrition_ext: {},
+    interests: {}, physical: {}, lifestyle_ext: {}, training_ext: {}, nutrition_ext: {},
     supplements_ext: {}, sleep_ext: {}, skincare: {}, hair: {},
     mental: {}, travel: {}, tech_prefs: {}, coaching: {},
   })
@@ -2017,7 +2129,10 @@ export default function OnboardingPage() {
   const step = STEPS[stepIndex]
   const isWelcome = step.id === 'welcome'
   const isDone = step.id === 'done'
-  const contentIndex = CONTENT_STEPS.findIndex(s => s.id === step.id)
+  const focusedSections = (sectionData.interests?.focused_sections as string[]) ?? []
+  const includedSteps = CONTENT_STEPS.filter(s => !OPTIONAL_STEP_IDS.has(s.id) || focusedSections.includes(s.id))
+  const contentIndex = includedSteps.findIndex(s => s.id === step.id)
+  const total = includedSteps.length
 
   // Load existing data
   useEffect(() => {
@@ -2026,6 +2141,7 @@ export default function OnboardingPage() {
       .then(d => {
         if (d && Object.keys(d).length > 0) {
           setSectionData(prev => ({
+            interests: d.interests ?? prev.interests,
             physical: d.physical ?? prev.physical,
             lifestyle_ext: d.lifestyle_ext ?? prev.lifestyle_ext,
             training_ext: d.training_ext ?? prev.training_ext,
@@ -2076,10 +2192,10 @@ export default function OnboardingPage() {
   }
 
   function navigate(dir: 'forward' | 'back') {
+    const focused = (sectionData.interests?.focused_sections as string[]) ?? []
     setDirection(dir)
     setAnimKey(k => k + 1)
-    if (dir === 'forward') setStepIndex(i => Math.min(i + 1, STEPS.length - 1))
-    else setStepIndex(i => Math.max(i - 1, 0))
+    setStepIndex(i => getNextIndex(i, dir, focused))
     window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
@@ -2182,7 +2298,7 @@ export default function OnboardingPage() {
             <div
               style={{
                 height: '100%',
-                width: `${((contentIndex + 1) / TOTAL) * 100}%`,
+                width: `${((contentIndex + 1) / total) * 100}%`,
                 backgroundColor: step.color,
                 transition: 'width 0.4s cubic-bezier(0.22,1,0.36,1)',
               }}
@@ -2372,7 +2488,7 @@ export default function OnboardingPage() {
                   </div>
                 )}
                 <span style={{ fontSize: '12px', color: step.color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>
-                  {contentIndex + 1} of {TOTAL}
+                  {contentIndex + 1} of {total}
                 </span>
               </div>
               <h2 style={{ fontSize: '26px', fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>

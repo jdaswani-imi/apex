@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Barlow, Barlow_Condensed } from 'next/font/google'
 import './globals.css'
 import { cn } from '@/lib/utils'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 const barlow = Barlow({
   subsets: ['latin'],
@@ -37,7 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={cn('dark', barlow.variable, barlowCondensed.variable)}>
       <body className="bg-black text-white antialiased font-sans">
-        {children}
+        <TooltipProvider delay={200}>{children}</TooltipProvider>
       </body>
     </html>
   )

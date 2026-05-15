@@ -100,7 +100,7 @@ export default async function WeekPage({
     : null
 
   return (
-    <div className="px-4 pt-14 pb-8 space-y-4">
+    <div className="px-4 md:px-6 pt-4 md:pt-6 pb-8 space-y-4">
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -215,7 +215,7 @@ export default async function WeekPage({
                   : 'border-white/[0.06] bg-zinc-900/60 hover:border-white/10'
               )}
             >
-              <div className="p-4 flex items-center gap-4">
+              <div className="p-5 flex items-center gap-4">
                 {/* Date column */}
                 <div className="flex flex-col items-center min-w-[36px]">
                   <span className={cn(

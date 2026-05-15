@@ -705,10 +705,10 @@ export default function ProgressPage() {
   const noData = !loading && (!data || (data.recovery.length === 0 && data.sleep.length === 0 && data.cycles.length === 0))
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#000', paddingBottom: '24px' }}>
+    <div className="flex flex-col min-h-screen bg-background pb-8">
 
       {/* Header */}
-      <div style={{ padding: '52px 20px 0' }}>
+      <div className="px-4 md:px-6 pt-4 md:pt-6">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
           <div>
             <p style={{ fontSize: '10px', color: '#52525b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Whoop</p>
@@ -782,7 +782,7 @@ export default function ProgressPage() {
         </div>
       </div>
 
-      <div style={{ padding: '0 20px' }}>
+      <div className="px-4 md:px-6">
         {loading && (
           <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '60px' }}>
             <div style={{ width: '24px', height: '24px', borderRadius: '50%', border: '2px solid #f97316', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />

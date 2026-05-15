@@ -120,8 +120,8 @@ export function QualitativeCheckin({
     return (
       <>
         {/* Recovery-equivalent vitals */}
-        <div className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-3">
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Activity size={13} className="text-violet-400" />
               <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">How You Feel · Today</span>
@@ -133,23 +133,19 @@ export function QualitativeCheckin({
               <Pencil size={12} />
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
             {recOpt && (
-              <div className="bg-violet-500/10 rounded-xl p-3">
+              <div>
                 <p className="text-violet-400 font-bold text-2xl leading-none">
                   {recoveryPct[recovery! - 1]}%
                 </p>
-                <p className="text-zinc-600 text-[10px] mt-1 font-medium">
-                  Recovery · {recOpt.emoji} {recOpt.label}
+                <p className="text-zinc-600 text-[10px] mt-1">
+                  Recovery · {recOpt.label}
                 </p>
               </div>
             )}
             {strainOpt && (
-              <div className={cn('rounded-xl p-3',
-                strain! >= 5 ? 'bg-red-500/10' :
-                strain! >= 4 ? 'bg-orange-500/10' :
-                strain! >= 3 ? 'bg-yellow-500/10' : 'bg-green-500/10'
-              )}>
+              <div>
                 <p className={cn('font-bold text-2xl leading-none',
                   strain! >= 5 ? 'text-red-400' :
                   strain! >= 4 ? 'text-orange-400' :
@@ -157,8 +153,8 @@ export function QualitativeCheckin({
                 )}>
                   {strainVal[strain! - 1].toFixed(1)}
                 </p>
-                <p className="text-zinc-600 text-[10px] mt-1 font-medium">
-                  Strain · {strainOpt.emoji} {strainOpt.label}
+                <p className="text-zinc-600 text-[10px] mt-1">
+                  Strain · {strainOpt.label}
                 </p>
               </div>
             )}
@@ -167,22 +163,22 @@ export function QualitativeCheckin({
 
         {/* Sleep-equivalent */}
         {(sleepOpt || sleepHours !== null) && (
-          <div className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-3">
+          <div className="bg-card border border-border rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-4">
               <Moon size={13} className="text-indigo-400" />
               <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Last Night&apos;s Sleep</span>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-x-4">
               {sleepHours !== null && (
-                <div className="text-center">
-                  <p className="text-white font-semibold text-lg leading-none">{sleepHours}h</p>
+                <div>
+                  <p className="text-foreground font-bold text-2xl leading-none">{sleepHours}h</p>
                   <p className="text-zinc-600 text-[10px] mt-1">Duration</p>
                 </div>
               )}
               {sleepOpt && (
-                <div className="text-center">
-                  <p className="text-white font-semibold text-lg leading-none">{sleepOpt.emoji}</p>
-                  <p className="text-zinc-600 text-[10px] mt-1">{sleepOpt.label}</p>
+                <div>
+                  <p className="text-foreground font-bold text-lg leading-none">{sleepOpt.label}</p>
+                  <p className="text-zinc-600 text-[10px] mt-1">Sleep quality</p>
                 </div>
               )}
             </div>
@@ -194,7 +190,7 @@ export function QualitativeCheckin({
 
   // ── Input form ────────────────────────────────────────────────────────────
   return (
-    <div className="bg-zinc-900/60 border border-violet-500/20 rounded-2xl p-4 space-y-4">
+    <div className="bg-card border border-violet-500/20 rounded-2xl p-4 space-y-4">
       <div className="flex items-center gap-2">
         <Activity size={13} className="text-violet-400" />
         <span className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">

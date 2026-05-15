@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { UtensilsCrossed, Plus, Trash2, ChevronDown, X, Search, Loader2, Star, BookmarkPlus } from 'lucide-react'
+import { UtensilsCrossed, Plus, Trash2, ChevronDown, X, Search, Loader2, Star, BookmarkPlus, Sparkles, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { FoodLog } from '@/lib/types'
+import { AITipButton } from '@/components/ai-tip-button'
 
 const today = new Date().toISOString().split('T')[0]
 
@@ -104,21 +105,47 @@ function macrosFromPer100(per100: SearchResult['per100'], grams: number) {
   }
 }
 
+interface MealPlanItem {
+  meal_type: 'breakfast' | 'lunch' | 'dinner' | 'snack'
+  name: string
+  description: string
+  calories: number
+  protein_g: number
+  carbs_g: number
+  fats_g: number
+  prep_note: string
+}
+
+interface MealPlan {
+  date: string
+  total_calories: number
+  total_protein_g: number
+  meals: MealPlanItem[]
+}
+
 interface FoodContentProps {
   proteinTarget: number
   calorieTarget: number
+  isTrainingDay?: boolean
 }
 
 type FormTab = 'search' | 'create'
 type ServingUnit = 'g' | 'oz'
 
-export default function FoodContent({ proteinTarget, calorieTarget }: FoodContentProps) {
+export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDay = false }: FoodContentProps) {
   const [logs, setLogs] = useState<FoodLog[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  // Meal plan state
+  const [showMealPlan, setShowMealPlan] = useState(false)
+  const [mealPlan, setMealPlan] = useState<MealPlan | null>(null)
+  const [generatingPlan, setGeneratingPlan] = useState(false)
+  const [addedMeals, setAddedMeals] = useState<Set<number>>(new Set())
+  const [addingMealIdx, setAddingMealIdx] = useState<number | null>(null)
 
   // Form tabs: search the DB or create a custom food
   const [formTab, setFormTab] = useState<FormTab>('search')
@@ -143,6 +170,7 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
   const [customSaved, setCustomSaved] = useState(false)
 
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const formRef = useRef<HTMLDivElement | null>(null)
 
   const fetchLogs = useCallback(async () => {
     const res = await window.fetch(`/api/food?date=${today}`)
@@ -290,10 +318,11 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
     if (res.ok) {
       const item: FoodLog = await res.json()
       setLogs(prev => [...prev, item])
-      setRecentLoaded(false) // refresh recent on next open
+      setRecentLoaded(false)
+      // Stay open for the same meal — just clear the food selection
+      const keepMeal = form.meal_type
       clearSelection()
-      setForm(EMPTY_FORM)
-      setShowForm(false)
+      setForm({ ...EMPTY_FORM, meal_type: keepMeal })
     }
 
     setSaving(false)
@@ -340,11 +369,62 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
     setSavingCustom(false)
   }
 
+  function openFormForMeal(meal: MealType) {
+    clearSelection()
+    setForm({ ...EMPTY_FORM, meal_type: meal })
+    setFormTab('search')
+    setShowForm(true)
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
+  }
+
   async function remove(id: string) {
     setDeletingId(id)
     await window.fetch(`/api/food/${id}`, { method: 'DELETE' })
     setLogs(prev => prev.filter(l => l.id !== id))
     setDeletingId(null)
+  }
+
+  async function generateMealPlan() {
+    setGeneratingPlan(true)
+    setMealPlan(null)
+    setAddedMeals(new Set())
+    setShowMealPlan(true)
+    try {
+      const res = await window.fetch('/api/ai/meal-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_training_day: isTrainingDay }),
+      })
+      const plan = await res.json() as MealPlan
+      setMealPlan(plan)
+    } finally {
+      setGeneratingPlan(false)
+    }
+  }
+
+  async function addMealToLog(item: MealPlanItem, idx: number) {
+    setAddingMealIdx(idx)
+    const res = await window.fetch('/api/food', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        date: today,
+        meal_type: item.meal_type,
+        name: item.name,
+        calories: item.calories,
+        protein_g: item.protein_g,
+        carbs_g: item.carbs_g,
+        fats_g: item.fats_g,
+      }),
+    })
+    if (res.ok) {
+      const logged: FoodLog = await res.json()
+      setLogs(prev => [...prev, logged])
+      setAddedMeals(prev => new Set([...prev, idx]))
+    }
+    setAddingMealIdx(null)
   }
 
   // Totals
@@ -362,12 +442,11 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
 
   const grouped = MEAL_TYPES
     .map(type => ({ type, items: logs.filter(l => l.meal_type === type) }))
-    .filter(g => g.items.length > 0)
 
   const showRecent = searchQuery.length < 2 && !selectedResult && recentFoods.length > 0
 
   return (
-    <div className="px-4 pt-14 pb-8">
+    <div className="px-4 md:px-6 pt-4 md:pt-6 pb-8">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -375,24 +454,36 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
           <h1 className="font-condensed text-3xl font-bold text-white uppercase tracking-wide">Food Log</h1>
           <p className="text-zinc-500 text-sm mt-1">{today}</p>
         </div>
-        <button
-          onClick={() => showForm ? closeForm() : setShowForm(true)}
-          className={cn(
-            'w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-200',
-            showForm
-              ? 'bg-zinc-800 text-zinc-400'
-              : 'bg-orange-500 text-black hover:bg-orange-400',
-          )}
-        >
-          {showForm ? <X size={18} /> : <Plus size={18} strokeWidth={2.5} />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={generateMealPlan}
+            title="Generate AI meal plan"
+            className="w-10 h-10 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 hover:bg-orange-500/20 transition-all duration-200"
+          >
+            <Sparkles size={16} />
+          </button>
+          <button
+            onClick={() => showForm ? closeForm() : setShowForm(true)}
+            className={cn(
+              'w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-200',
+              showForm
+                ? 'bg-zinc-800 text-zinc-400'
+                : 'bg-orange-500 text-black hover:bg-orange-400',
+            )}
+          >
+            {showForm ? <X size={18} /> : <Plus size={18} strokeWidth={2.5} />}
+          </button>
+        </div>
       </div>
 
       {/* Daily Totals */}
       <div className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl p-4 mb-4">
-        <div className="flex items-center gap-2 mb-4">
-          <UtensilsCrossed size={13} className="text-orange-400" />
-          <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Today&apos;s Nutrition</span>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <UtensilsCrossed size={13} className="text-orange-400" />
+            <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Today&apos;s Nutrition</span>
+          </div>
+          <AITipButton page="food" />
         </div>
 
         {/* Calories */}
@@ -447,7 +538,7 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
 
       {/* Add food form */}
       {showForm && (
-        <div className="bg-zinc-900/80 border border-white/[0.08] rounded-2xl p-4 mb-4 space-y-3">
+        <div ref={formRef} className="bg-zinc-900/80 border border-white/[0.08] rounded-2xl p-4 mb-4 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">Add Food</p>
             {/* Tab switcher */}
@@ -772,14 +863,6 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
             <div key={i} className="h-16 bg-zinc-900/60 rounded-2xl animate-pulse" />
           ))}
         </div>
-      ) : logs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/15 flex items-center justify-center mb-4">
-            <UtensilsCrossed size={22} className="text-orange-500/50" />
-          </div>
-          <p className="text-zinc-500 text-sm font-medium">Nothing logged yet</p>
-          <p className="text-zinc-700 text-xs mt-1">Tap + to add your first meal</p>
-        </div>
       ) : (
         <div className="space-y-5">
           {grouped.map(({ type, items }) => {
@@ -794,41 +877,210 @@ export default function FoodContent({ proteinTarget, calorieTarget }: FoodConten
                       {MEAL_LABELS[type]}
                     </p>
                   </div>
-                  {groupCals > 0 && (
-                    <span className="text-zinc-600 text-[10px] font-medium">{groupCals} kcal</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {groupCals > 0 && (
+                      <span className="text-zinc-600 text-[10px] font-medium">{groupCals} kcal</span>
+                    )}
+                    <button
+                      onClick={() => openFormForMeal(type)}
+                      className="w-5 h-5 rounded-md bg-white/[0.06] flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.10] transition-all"
+                      title={`Add to ${MEAL_LABELS[type]}`}
+                    >
+                      <Plus size={11} strokeWidth={2.5} />
+                    </button>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  {items.map(item => (
-                    <div
-                      key={item.id}
-                      className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl px-4 py-3 flex items-center gap-3"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-zinc-100 truncate">{item.name}</p>
-                        <p className="text-zinc-600 text-xs mt-0.5">
-                          {[
-                            item.calories !== null && `${item.calories} kcal`,
-                            item.protein_g !== null && `${item.protein_g}g P`,
-                            item.carbs_g !== null && `${item.carbs_g}g C`,
-                            item.fats_g !== null && `${item.fats_g}g F`,
-                          ].filter(Boolean).join(' · ') || 'No macros logged'}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => remove(item.id)}
-                        disabled={deletingId === item.id}
-                        className="w-8 h-8 rounded-xl flex items-center justify-center text-zinc-700 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150 shrink-0 disabled:opacity-40"
+                {items.length === 0 ? (
+                  <button
+                    onClick={() => openFormForMeal(type)}
+                    className="w-full bg-zinc-900/40 border border-dashed border-white/[0.06] rounded-2xl px-4 py-3 flex items-center gap-2 text-zinc-700 hover:text-zinc-500 hover:border-white/[0.10] transition-all"
+                  >
+                    <Plus size={13} strokeWidth={2} />
+                    <span className="text-xs">Add {MEAL_LABELS[type].toLowerCase()}</span>
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    {items.map(item => (
+                      <div
+                        key={item.id}
+                        className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl px-4 py-3 flex items-center gap-3"
                       >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-zinc-100 truncate">{item.name}</p>
+                          <p className="text-zinc-600 text-xs mt-0.5">
+                            {[
+                              item.calories !== null && `${item.calories} kcal`,
+                              item.protein_g !== null && `${item.protein_g}g P`,
+                              item.carbs_g !== null && `${item.carbs_g}g C`,
+                              item.fats_g !== null && `${item.fats_g}g F`,
+                            ].filter(Boolean).join(' · ') || 'No macros logged'}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => remove(item.id)}
+                          disabled={deletingId === item.id}
+                          className="w-8 h-8 rounded-xl flex items-center justify-center text-zinc-700 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150 shrink-0 disabled:opacity-40"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Meal Plan Sheet */}
+      {showMealPlan && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 50,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowMealPlan(false) }}
+        >
+          <div style={{
+            backgroundColor: '#0a0a0a',
+            borderTop: '1px solid #1c1c1c',
+            borderRadius: '24px 24px 0 0',
+            maxHeight: '88dvh',
+            display: 'flex', flexDirection: 'column',
+          }}>
+            {/* Sheet header */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '16px 16px 12px',
+              borderBottom: '1px solid #111', flexShrink: 0,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={14} color="#f97316" />
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>Today&apos;s Meal Plan</span>
+              </div>
+              <button
+                onClick={() => setShowMealPlan(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#52525b' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Sheet body */}
+            <div style={{ overflowY: 'auto', padding: '16px', flex: 1 }}>
+              {generatingPlan ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px 0', color: '#52525b' }}>
+                  <Loader2 size={22} style={{ animation: 'spin 1s linear infinite', color: '#f97316' }} />
+                  <span style={{ fontSize: '13px' }}>Generating your personalised plan…</span>
+                </div>
+              ) : mealPlan ? (
+                <>
+                  {/* Totals pill */}
+                  <div style={{
+                    display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px',
+                  }}>
+                    {[
+                      { label: 'kcal', value: mealPlan.total_calories },
+                      { label: 'protein', value: `${mealPlan.total_protein_g}g` },
+                    ].map(({ label, value }) => (
+                      <div key={label} style={{
+                        backgroundColor: '#111', border: '1px solid #1c1c1c',
+                        borderRadius: '10px', padding: '5px 12px',
+                        fontSize: '12px', color: '#a1a1aa',
+                      }}>
+                        <span style={{ fontWeight: 700, color: '#fff' }}>{value}</span> {label}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Meal items */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {mealPlan.meals.map((item, idx) => {
+                      const added = addedMeals.has(idx)
+                      const adding = addingMealIdx === idx
+                      const MEAL_DOT: Record<string, string> = {
+                        breakfast: '#fbbf24', lunch: '#4ade80',
+                        dinner: '#60a5fa', snack: '#71717a',
+                      }
+                      return (
+                        <div key={idx} style={{
+                          backgroundColor: '#111', border: '1px solid #1c1c1c',
+                          borderRadius: '16px', padding: '14px',
+                          opacity: added ? 0.5 : 1,
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                                <span style={{
+                                  width: '6px', height: '6px', borderRadius: '50%', flexShrink: 0,
+                                  backgroundColor: MEAL_DOT[item.meal_type] ?? '#71717a',
+                                }} />
+                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#52525b', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                                  {item.meal_type}
+                                </span>
+                                <span style={{ fontSize: '10px', color: '#3f3f46' }}>· {item.prep_note}</span>
+                              </div>
+                              <p style={{ fontSize: '14px', fontWeight: 600, color: '#e4e4e7', margin: '0 0 4px' }}>{item.name}</p>
+                              <p style={{ fontSize: '12px', color: '#52525b', margin: '0 0 8px', lineHeight: '1.4' }}>{item.description}</p>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                {[
+                                  { label: 'P', value: item.protein_g, color: '#f97316' },
+                                  { label: 'C', value: item.carbs_g, color: '#facc15' },
+                                  { label: 'F', value: item.fats_g, color: '#60a5fa' },
+                                ].map(({ label, value, color }) => (
+                                  <span key={label} style={{ fontSize: '11px', color: '#52525b' }}>
+                                    <span style={{ fontWeight: 700, color }}>{value}</span>{label}
+                                  </span>
+                                ))}
+                                <span style={{ fontSize: '11px', color: '#3f3f46' }}>{item.calories} kcal</span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => !added && addMealToLog(item, idx)}
+                              disabled={added || adding}
+                              style={{
+                                width: '32px', height: '32px', borderRadius: '10px', flexShrink: 0,
+                                backgroundColor: added ? 'rgba(74,222,128,0.1)' : 'rgba(249,115,22,0.1)',
+                                border: `1px solid ${added ? 'rgba(74,222,128,0.2)' : 'rgba(249,115,22,0.2)'}`,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                cursor: added ? 'default' : 'pointer',
+                              }}
+                            >
+                              {adding ? (
+                                <Loader2 size={13} color="#f97316" style={{ animation: 'spin 1s linear infinite' }} />
+                              ) : added ? (
+                                <Check size={13} color="#4ade80" />
+                              ) : (
+                                <Plus size={13} color="#f97316" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Regenerate */}
+                  <button
+                    onClick={generateMealPlan}
+                    style={{
+                      marginTop: '16px', width: '100%',
+                      backgroundColor: 'transparent', border: '1px solid #1c1c1c',
+                      borderRadius: '12px', padding: '10px',
+                      fontSize: '13px', color: '#52525b', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                    }}
+                  >
+                    <Sparkles size={12} /> Generate new plan
+                  </button>
+                </>
+              ) : null}
+            </div>
+          </div>
+          <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         </div>
       )}
     </div>

@@ -64,7 +64,7 @@ export default function SupplementsPage() {
   const allDone = taken === total && total > 0
 
   return (
-    <div className="px-4 pt-14 pb-8">
+    <div className="px-4 md:px-6 pt-4 md:pt-6 pb-8">
 
       {/* Header */}
       <div className="mb-6">

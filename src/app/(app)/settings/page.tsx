@@ -115,7 +115,7 @@ export default function SettingsPage() {
 
   if (section === null) {
     return (
-      <div style={{ padding: '48px 20px 24px' }}>
+      <div className="px-4 md:px-6 pt-4 md:pt-6 pb-8">
         <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#fff', marginBottom: '8px' }}>Settings</h1>
         <p style={{ fontSize: '14px', color: '#52525b', marginBottom: '24px' }}>Everything the AI uses to coach you</p>
 
@@ -242,7 +242,7 @@ export default function SettingsPage() {
   )
 
   return (
-    <div style={{ padding: '48px 20px 24px' }}>
+    <div className="px-4 md:px-6 pt-4 md:pt-6 pb-8">
       <button
         onClick={() => setSection(null)}
         style={{ background: 'none', border: 'none', color: '#7c3aed', fontSize: '14px', cursor: 'pointer', marginBottom: '20px', padding: 0 }}

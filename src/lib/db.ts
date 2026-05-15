@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getAuthUser } from '@/lib/supabase/server'
 import type {
   DailyLog, TrainingSession, Exercise,
   SupplementLog, WhoopRecovery, WhoopSleep,
@@ -10,7 +10,7 @@ import type {
 
 export async function getDailyLog(date: string): Promise<DailyLog | null> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return null
 
   const { data } = await supabase
@@ -18,7 +18,7 @@ export async function getDailyLog(date: string): Promise<DailyLog | null> {
     .select('*')
     .eq('user_id', user.id)
     .eq('date', date)
-    .single()
+    .maybeSingle()
 
   return data
 }
@@ -28,7 +28,7 @@ export async function upsertDailyLog(
   updates: Partial<Omit<DailyLog, 'id' | 'user_id' | 'created_at'>>,
 ): Promise<DailyLog | null> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return null
 
   const { data } = await supabase
@@ -42,7 +42,7 @@ export async function upsertDailyLog(
 
 export async function getRecentDailyLogs(days = 14): Promise<DailyLog[]> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return []
 
   const { data } = await supabase
@@ -59,7 +59,7 @@ export async function getRecentDailyLogs(days = 14): Promise<DailyLog[]> {
 
 export async function getTodayTraining(date: string): Promise<TrainingSession[]> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return []
 
   const { data } = await supabase
@@ -74,7 +74,7 @@ export async function getTodayTraining(date: string): Promise<TrainingSession[]>
 
 export async function getRecentTraining(days = 30): Promise<TrainingSession[]> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return []
 
   const from = new Date()
@@ -94,7 +94,7 @@ export async function createTrainingSession(
   session: Omit<TrainingSession, 'id' | 'user_id' | 'created_at' | 'exercises'>,
 ): Promise<TrainingSession | null> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return null
 
   const { data } = await supabase
@@ -125,7 +125,7 @@ export async function getExerciseHistory(
   limit = 10,
 ): Promise<{ date: string; weight_kg: number | null; reps: number | null; sets: number | null }[]> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return []
 
   const { data } = await supabase
@@ -153,7 +153,7 @@ export async function getExerciseHistory(
 
 export async function getTodaySupplements(date: string): Promise<SupplementLog[]> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return []
 
   const todayStr = new Date().toISOString().split('T')[0]
@@ -236,7 +236,7 @@ export async function markSupplementTaken(
   timeTaken?: string,
 ): Promise<void> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return
 
   await supabase
@@ -254,7 +254,7 @@ export async function getSupplementAdherence(days = 7): Promise<{
   pct: number
 }[]> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return []
 
   const from = new Date()
@@ -287,7 +287,7 @@ export async function getSupplementAdherence(days = 7): Promise<{
 
 export async function getTodayRecovery(date: string): Promise<WhoopRecovery | null> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return null
 
   const { data } = await supabase
@@ -295,14 +295,14 @@ export async function getTodayRecovery(date: string): Promise<WhoopRecovery | nu
     .select('*')
     .eq('user_id', user.id)
     .eq('date', date)
-    .single()
+    .maybeSingle()
 
   return data
 }
 
 export async function getTodaySleep(date: string): Promise<WhoopSleep | null> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return null
 
   // Sleep starts the night before, so check today and yesterday
@@ -318,14 +318,14 @@ export async function getTodaySleep(date: string): Promise<WhoopSleep | null> {
     .eq('nap', false)
     .order('date', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   return data
 }
 
 export async function getTodayCycle(date: string): Promise<WhoopCycle | null> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return null
 
   const { data } = await supabase
@@ -333,14 +333,14 @@ export async function getTodayCycle(date: string): Promise<WhoopCycle | null> {
     .select('*')
     .eq('user_id', user.id)
     .eq('date', date)
-    .single()
+    .maybeSingle()
 
   return data
 }
 
 export async function getRecentRecovery(days = 14): Promise<WhoopRecovery[]> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return []
 
   const { data } = await supabase
@@ -355,7 +355,7 @@ export async function getRecentRecovery(days = 14): Promise<WhoopRecovery[]> {
 
 export async function getRecentSleep(days = 14): Promise<WhoopSleep[]> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return []
 
   const { data } = await supabase
@@ -371,7 +371,7 @@ export async function getRecentSleep(days = 14): Promise<WhoopSleep[]> {
 
 export async function getRecentCycles(days = 30): Promise<WhoopCycle[]> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return []
 
   const { data } = await supabase
@@ -386,7 +386,7 @@ export async function getRecentCycles(days = 30): Promise<WhoopCycle[]> {
 
 export async function getRecentWorkouts(days = 30): Promise<WhoopWorkout[]> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return []
 
   const from = new Date()
@@ -420,7 +420,7 @@ export async function getWeightHistory(days = 30): Promise<{ date: string; weigh
 
 export async function getUserProfile() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return null
   const { data } = await supabase.from('user_profile').select('*').eq('user_id', user.id).single()
   return data
@@ -428,7 +428,7 @@ export async function getUserProfile() {
 
 export async function getUserGoals() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return null
   const { data } = await supabase.from('user_goals').select('*').eq('user_id', user.id).single()
   return data
@@ -436,7 +436,7 @@ export async function getUserGoals() {
 
 export async function getUserTraining() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return null
   const { data } = await supabase.from('user_training').select('*').eq('user_id', user.id).single()
   return data
@@ -444,7 +444,7 @@ export async function getUserTraining() {
 
 export async function getUserSupplements() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return []
   const { data } = await supabase
     .from('user_supplements')
@@ -457,7 +457,7 @@ export async function getUserSupplements() {
 
 export async function getUserLifestyle() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return null
   const { data } = await supabase.from('user_lifestyle').select('*').eq('user_id', user.id).single()
   return data
@@ -465,7 +465,7 @@ export async function getUserLifestyle() {
 
 export async function getExerciseBaselines() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return []
   const { data } = await supabase
     .from('exercise_baselines')
@@ -481,7 +481,7 @@ export async function getExerciseBaselines() {
 
 export async function updateUserProfile(updates: Record<string, unknown>) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return null
   const { data } = await supabase
     .from('user_profile')
@@ -492,7 +492,7 @@ export async function updateUserProfile(updates: Record<string, unknown>) {
 
 export async function updateUserGoals(updates: Record<string, unknown>) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return null
   const { data } = await supabase
     .from('user_goals')
@@ -503,7 +503,7 @@ export async function updateUserGoals(updates: Record<string, unknown>) {
 
 export async function updateUserLifestyle(updates: Record<string, unknown>) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return null
   const { data } = await supabase
     .from('user_lifestyle')
@@ -514,7 +514,7 @@ export async function updateUserLifestyle(updates: Record<string, unknown>) {
 
 export async function upsertUserSupplement(supp: Record<string, unknown>) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return null
   const { data } = await supabase
     .from('user_supplements')
@@ -555,7 +555,7 @@ export async function getFullUserContext() {
 
 export async function getLatestCycle(): Promise<MenstrualCycle | null> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return null
 
   const { data } = await supabase
@@ -564,14 +564,14 @@ export async function getLatestCycle(): Promise<MenstrualCycle | null> {
     .eq('user_id', user.id)
     .order('period_start_date', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   return data
 }
 
 export async function getRecentMenstrualCycles(limit = 6): Promise<MenstrualCycle[]> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return []
 
   const { data } = await supabase
@@ -588,7 +588,7 @@ export async function upsertMenstrualCycle(
   updates: Pick<MenstrualCycle, 'period_start_date'> & Partial<Omit<MenstrualCycle, 'id' | 'user_id' | 'created_at'>>,
 ): Promise<MenstrualCycle | null> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return null
 
   const { data } = await supabase
@@ -609,7 +609,7 @@ export async function deleteMenstrualCycle(id: string): Promise<void> {
 
 export async function getTodayContext(dateOverride?: string): Promise<TodayContext | null> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
   if (!user) return null
 
   const today = dateOverride ?? new Date().toISOString().split('T')[0]
