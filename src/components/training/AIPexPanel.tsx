@@ -240,11 +240,11 @@ export default function AIPexPanel({ onSelectTemplate }: Props) {
         <div style={{
           display: 'flex', gap: '10px', alignItems: 'flex-start',
           padding: '12px 14px',
-          backgroundColor: '#0f0f0f', border: '1px solid #ef4444' + '33', borderRadius: '14px',
+          backgroundColor: '#0f0f0f', border: '1px solid #ff6b6b33', borderRadius: '14px',
         }}>
-          <AlertCircle size={14} color="#ef4444" style={{ marginTop: '1px', flexShrink: 0 }} />
+          <AlertCircle size={14} color="#ff6b6b" style={{ marginTop: '1px', flexShrink: 0 }} />
           <div>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#ef4444', letterSpacing: '0.06em', marginBottom: '3px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#ff6b6b', letterSpacing: '0.06em', marginBottom: '3px' }}>
               NO STRENGTH DATA YET
             </div>
             <p style={{ fontSize: '12px', color: '#52525b', margin: 0, lineHeight: 1.5 }}>

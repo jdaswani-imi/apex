@@ -74,7 +74,10 @@ function SupplementsContent() {
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-condensed text-3xl font-bold text-white uppercase tracking-wide">Supplement Stack</h1>
-        <p className="text-zinc-500 text-sm mt-1">{viewDate}</p>
+        <p className="text-zinc-500 text-sm mt-1">
+          {isToday ? new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+            : new Date(viewDate + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+        </p>
         {!isToday && (
           <p className="text-amber-500/80 text-xs mt-1 font-medium">Viewing past date</p>
         )}
@@ -105,7 +108,7 @@ function SupplementsContent() {
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-[72px] bg-zinc-900/60 rounded-2xl animate-pulse" />
+            <div key={i} className="h-[72px] bg-card rounded-2xl animate-pulse" />
           ))}
         </div>
       ) : (
@@ -128,7 +131,7 @@ function SupplementsContent() {
                   'rounded-2xl border transition-all duration-200',
                   s.taken
                     ? 'bg-green-950/40 border-green-800/40'
-                    : 'bg-zinc-900/60 border-white/[0.06]',
+                    : 'bg-card border-border',
                 )}
               >
                 {/* Main row */}
@@ -154,7 +157,7 @@ function SupplementsContent() {
                       )}
                     </div>
                     <p className="text-zinc-600 text-xs mt-0.5">
-                      {s.time_taken ? `Taken at ${s.time_taken}` : (catalog?.timing ?? s.notes ?? '')}
+                      {s.time_taken ? `Taken at ${s.time_taken.slice(0, 5)}` : (catalog?.timing ?? s.notes ?? '')}
                     </p>
                   </div>
 

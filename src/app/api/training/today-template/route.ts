@@ -10,13 +10,16 @@ const DAY_FULL: Record<number, string> = {
 }
 const ORDERED_DAYS_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-export async function GET() {
+export async function GET(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const today = new Date().toISOString().split('T')[0]
-  const dayNum = new Date().getDay()
+  const { searchParams } = new URL(req.url)
+  const dateParam = searchParams.get('date')
+  const todayStr = new Date().toISOString().split('T')[0]
+  const today = dateParam ?? todayStr
+  const dayNum = new Date(today + 'T12:00:00').getDay()
   const todayShort = DAY_SHORT[dayNum]
   const todayFull = DAY_FULL[dayNum]
 

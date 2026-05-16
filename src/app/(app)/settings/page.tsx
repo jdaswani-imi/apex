@@ -403,7 +403,7 @@ export default function SettingsPage() {
                   {s.id != null && (
                     <button
                       onClick={() => deleteSupplement(s.id as string)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--destructive)', padding: '4px' }}
                     >
                       <Trash2 size={16} />
                     </button>
@@ -569,7 +569,7 @@ export default function SettingsPage() {
                     <div style={{ fontSize: '12px', color: '#52525b' }}>{c.cycle_length_days as number}d cycle</div>
                   </div>
                   <button onClick={() => deleteCycle(c.id as string)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }}>
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--destructive)', padding: '4px' }}>
                     <Trash2 size={16} />
                   </button>
                 </div>

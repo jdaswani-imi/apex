@@ -186,9 +186,17 @@ export interface ChatMessage {
   created_at: string
 }
 
+export interface FoodTotals {
+  protein: number | null
+  carbs: number | null
+  fats: number | null
+  calories: number | null
+}
+
 export interface TodayContext {
   date: string
   dailyLog: DailyLog | null
+  foodTotals: FoodTotals
   recovery: WhoopRecovery | null
   sleep: WhoopSleep | null
   cycle: WhoopCycle | null

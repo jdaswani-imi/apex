@@ -2,7 +2,7 @@ import { createClient, getAuthUser } from '@/lib/supabase/server'
 import type {
   DailyLog, TrainingSession, Exercise,
   SupplementLog, WhoopRecovery, WhoopSleep,
-  WhoopCycle, WhoopWorkout, TodayContext, MenstrualCycle,
+  WhoopCycle, WhoopWorkout, TodayContext, MenstrualCycle, FoodTotals,
 } from '@/lib/types'
 
 
@@ -626,6 +626,37 @@ export async function deleteMenstrualCycle(id: string): Promise<void> {
 
 // ─── Full today context (used by AI and dashboard) ────────────────────────────
 
+export async function getTodayFoodTotals(date: string): Promise<FoodTotals> {
+  const supabase = await createClient()
+  const user = await getAuthUser()
+  if (!user) return { protein: null, carbs: null, fats: null, calories: null }
+
+  const { data } = await supabase
+    .from('food_logs')
+    .select('calories, protein_g, carbs_g, fats_g')
+    .eq('user_id', user.id)
+    .eq('date', date)
+
+  if (!data || data.length === 0) return { protein: null, carbs: null, fats: null, calories: null }
+
+  let protein = 0, carbs = 0, fats = 0, calories = 0
+  let hasAny = false
+  for (const row of data) {
+    if (row.protein_g !== null) { protein += row.protein_g; hasAny = true }
+    if (row.carbs_g !== null) { carbs += row.carbs_g; hasAny = true }
+    if (row.fats_g !== null) { fats += row.fats_g; hasAny = true }
+    if (row.calories !== null) { calories += row.calories; hasAny = true }
+  }
+
+  if (!hasAny) return { protein: null, carbs: null, fats: null, calories: null }
+  return {
+    protein: Math.round(protein * 10) / 10,
+    carbs: Math.round(carbs * 10) / 10,
+    fats: Math.round(fats * 10) / 10,
+    calories: Math.round(calories),
+  }
+}
+
 export async function getTodayContext(dateOverride?: string): Promise<TodayContext | null> {
   const supabase = await createClient()
   const user = await getAuthUser()
@@ -635,6 +666,7 @@ export async function getTodayContext(dateOverride?: string): Promise<TodayConte
 
   const [
     dailyLog,
+    foodTotals,
     recovery,
     sleep,
     cycle,
@@ -645,6 +677,7 @@ export async function getTodayContext(dateOverride?: string): Promise<TodayConte
     recentSleep,
   ] = await Promise.all([
     getDailyLog(today),
+    getTodayFoodTotals(today),
     getTodayRecovery(today),
     getTodaySleep(today),
     getTodayCycle(today),
@@ -658,6 +691,7 @@ export async function getTodayContext(dateOverride?: string): Promise<TodayConte
   return {
     date: today,
     dailyLog,
+    foodTotals,
     recovery,
     sleep,
     cycle,

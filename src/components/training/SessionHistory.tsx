@@ -8,7 +8,7 @@ const typeColors: Record<string, string> = {
   pull: '#8b5cf6',
   legs: '#22c55e',
   cardio: '#f97316',
-  cricket: '#ef4444',
+  cricket: '#ff6b6b',
   arms: '#ec4899',
   rest: '#52525b',
 }

@@ -27,6 +27,7 @@ interface ExerciseLog {
   restSeconds: number
   lastPerf?: { set_number: number; set_type: string; weight_kg: number; reps: number }[]
   gifUrl?: string | null
+  progressionTarget?: { weight_kg: number | null; reps: number | null; notes: string | null } | null
 }
 
 interface Section {
@@ -59,6 +60,12 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
   const [finishing, setFinishing] = useState(false)
   const [discarding, setDiscarding] = useState(false)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
+  const [showResults, setShowResults] = useState(false)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [sessionResults, setSessionResults] = useState<{
+    summary: string
+    targets: Array<{ exercise_name: string; target_weight_kg: number; target_reps: number; note: string }>
+  } | null>(null)
   const [showPicker, setShowPicker] = useState(false)
   const [dragFrom, setDragFrom] = useState<{ secIdx: number; exIdx: number } | null>(null)
   const [dragOver, setDragOver] = useState<{ secIdx: number; exIdx: number } | null>(null)
@@ -98,23 +105,34 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
     type RawExercise = { id: string; exercise_name: string; notes?: string; rest_seconds?: number; sets: RawSet[] }
     type RawSection = { name: string; exercises: RawExercise[] }
     type RawLastPerf = { set_number: number; set_type: string; weight_kg: number; reps: number }
+    type RawTarget = { target_weight_kg: number | null; target_reps: number | null; notes: string | null }
+
+    const progressionTargetsRaw = data.progression_targets as Record<string, RawTarget> | undefined
 
     const built: Section[] = ((data.sections ?? []) as RawSection[]).map((sec) => ({
       name: sec.name,
       exercises: sec.exercises.map((ex) => {
         const lastPerf: RawLastPerf[] = (data.last_performance as Record<string, RawLastPerf[]> | undefined)?.[ex.exercise_name] ?? []
+        const target = progressionTargetsRaw?.[ex.exercise_name] ?? null
 
         const sets: SetRow[] = ex.sets.length > 0
           ? ex.sets.map((s) => {
               const matching = lastPerf.find(
                 lp => lp.set_type === s.set_type && lp.set_number === s.set_number
               )
+              // Working sets: prefer AI progression target, then last performance, then template default
+              const weight = s.set_type === 'working' && target?.target_weight_kg != null
+                ? Number(target.target_weight_kg)
+                : matching?.weight_kg ?? s.default_weight_kg ?? 0
+              const reps = s.set_type === 'working' && target?.target_reps != null
+                ? target.target_reps
+                : matching?.reps ?? s.default_reps ?? 0
               return {
                 localId: newLocalId(),
                 set_type: s.set_type,
                 set_number: s.set_number,
-                weight_kg: matching?.weight_kg ?? s.default_weight_kg ?? 0,
-                reps: matching?.reps ?? s.default_reps ?? 0,
+                weight_kg: weight,
+                reps: reps,
                 done: false,
                 is_pr: false,
               }
@@ -136,6 +154,9 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
           restSeconds: ex.rest_seconds ?? 120,
           lastPerf,
           gifUrl,
+          progressionTarget: target
+            ? { weight_kg: target.target_weight_kg, reps: target.target_reps, notes: target.notes }
+            : null,
         }
       }),
     }))
@@ -400,7 +421,19 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
         finished_at: new Date().toISOString(),
       }),
     })
-    onFinish()
+    setFinishing(false)
+    setShowResults(true)
+    setAnalyzing(true)
+
+    try {
+      const res = await fetch(`/api/training/session/${sessionId}/analyze`, { method: 'POST' })
+      const data = await res.json()
+      setSessionResults(data)
+    } catch {
+      setSessionResults({ summary: 'Session saved. Every rep counts — keep showing up.', targets: [] })
+    } finally {
+      setAnalyzing(false)
+    }
   }
 
   const inputStyle: React.CSSProperties = {
@@ -572,7 +605,7 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
               disabled={finishing || discarding}
               style={{
                 flexShrink: 0, backgroundColor: '#111',
-                color: '#ef4444', fontWeight: 600, padding: '18px 20px',
+                color: '#ff6b6b', fontWeight: 600, padding: '18px 20px',
                 borderRadius: '18px', border: '1px solid #27272a',
                 cursor: 'pointer', fontSize: '15px',
                 opacity: finishing || discarding ? 0.5 : 1,
@@ -612,6 +645,126 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
         />
       )}
 
+      {/* Post-session coaching modal */}
+      {showResults && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 50,
+          backgroundColor: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          padding: '20px',
+        }}>
+          <div style={{
+            width: '100%', maxWidth: '480px',
+            backgroundColor: '#111', borderRadius: '28px',
+            border: '1px solid #1c1c1c', padding: '28px 24px',
+            marginBottom: '20px',
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
+              <div style={{
+                width: '52px', height: '52px', borderRadius: '16px', flexShrink: 0,
+                backgroundColor: templateColor + '20', border: `1px solid ${templateColor}40`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '24px',
+              }}>
+                {prs > 0 ? '🏆' : '✓'}
+              </div>
+              <div>
+                <div style={{ fontSize: '19px', fontWeight: 700, color: '#fff' }}>
+                  Session Complete
+                </div>
+                <div style={{ fontSize: '13px', color: '#52525b', marginTop: '2px' }}>
+                  {formatTime(elapsed)} · {Math.round(volume).toLocaleString()}kg
+                  {prs > 0 ? ` · ${prs} PR${prs > 1 ? 's' : ''}` : ''}
+                </div>
+              </div>
+            </div>
+
+            {analyzing ? (
+              <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                <div style={{ fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
+                  Analyzing your session...
+                </div>
+                <div style={{ fontSize: '12px', color: '#52525b' }}>
+                  Setting your targets for next time
+                </div>
+              </div>
+            ) : sessionResults ? (
+              <>
+                {/* Coach summary */}
+                <div style={{
+                  backgroundColor: '#161616', borderRadius: '14px',
+                  padding: '14px 16px', marginBottom: '16px',
+                  fontSize: '14px', color: '#e4e4e7', lineHeight: '1.65',
+                  borderLeft: `3px solid ${templateColor}`,
+                }}>
+                  {sessionResults.summary}
+                </div>
+
+                {/* Next session targets */}
+                {sessionResults.targets.length > 0 && (
+                  <div>
+                    <div style={{
+                      fontSize: '10px', color: '#3f3f46', fontWeight: 700,
+                      letterSpacing: '0.1em', textTransform: 'uppercase',
+                      marginBottom: '10px',
+                    }}>
+                      Next Session Targets
+                    </div>
+                    <div style={{
+                      display: 'flex', flexDirection: 'column', gap: '6px',
+                      maxHeight: '220px', overflowY: 'auto',
+                    }}>
+                      {sessionResults.targets.map((t, i) => (
+                        <div key={i} style={{
+                          display: 'flex', alignItems: 'center',
+                          justifyContent: 'space-between',
+                          backgroundColor: '#1a1a1a', borderRadius: '12px',
+                          padding: '11px 14px',
+                        }}>
+                          <div style={{ flex: 1, minWidth: 0, paddingRight: '12px' }}>
+                            <div style={{
+                              fontSize: '13px', fontWeight: 600, color: '#e4e4e7',
+                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                            }}>
+                              {t.exercise_name}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#52525b', marginTop: '2px' }}>
+                              {t.note}
+                            </div>
+                          </div>
+                          <div style={{
+                            fontSize: '15px', fontWeight: 700, color: templateColor,
+                            flexShrink: 0,
+                          }}>
+                            {t.target_weight_kg}kg × {t.target_reps}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : null}
+
+            <button
+              onClick={onFinish}
+              disabled={analyzing}
+              style={{
+                width: '100%', marginTop: '20px',
+                backgroundColor: analyzing ? '#1c1c1c' : templateColor,
+                color: analyzing ? '#52525b' : '#fff',
+                fontWeight: 700, padding: '17px', borderRadius: '16px',
+                border: 'none', cursor: analyzing ? 'not-allowed' : 'pointer',
+                fontSize: '15px', transition: 'background-color 0.2s',
+              }}
+            >
+              {analyzing ? 'Analyzing...' : 'Done'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Discard confirmation modal */}
       {showDiscardConfirm && (
         <div style={{
@@ -648,7 +801,7 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
                 onClick={() => { setShowDiscardConfirm(false); discardSession() }}
                 disabled={discarding}
                 style={{
-                  flex: 1, backgroundColor: '#ef4444', color: '#fff',
+                  flex: 1, backgroundColor: '#ff6b6b', color: '#0d0c0b',
                   fontWeight: 700, padding: '16px', borderRadius: '14px',
                   border: 'none', cursor: 'pointer', fontSize: '15px',
                   opacity: discarding ? 0.7 : 1,
@@ -805,11 +958,11 @@ function SwipeRow({ children, onDelete, disabled }: {
     <div style={{ position: 'relative', overflow: 'hidden', marginBottom: '8px' }}>
       <div style={{
         position: 'absolute', right: 0, top: 0, bottom: 0, width: '80px',
-        backgroundColor: '#ef4444', borderRadius: '8px',
+        backgroundColor: '#ff6b6b', borderRadius: '8px',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         opacity: Math.min(1, Math.abs(offset) / 60),
       }}>
-        <Trash2 size={16} color="#fff" />
+        <Trash2 size={16} color="#0d0c0b" />
       </div>
       <div
         onTouchStart={onTouchStart}
@@ -847,8 +1000,6 @@ interface ExerciseCardProps {
 }
 
 function ExerciseCard({
-  // templateColor is part of the public API (passed by parent) but not used in card body
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ex, templateColor, inputStyle,
   onToggle, onTickSet, onUpdateSet, onAddSet, onAddWarmup,
   onRemoveSet, onUpdateNotes, onNameChange,
@@ -860,10 +1011,15 @@ function ExerciseCard({
   const hasPr = ex.sets.some(s => s.is_pr)
   const isDurationOnly = ex.sets.length === 0
 
-  // Last performance summary string
+  const target = ex.progressionTarget
+  const targetStr = target?.weight_kg != null && target?.reps != null
+    ? `${target.weight_kg}kg × ${target.reps}`
+    : null
+
+  // Last performance summary string (shown alongside target for reference)
   const lastPerf = ex.lastPerf?.filter(lp => lp.set_type === 'working')
   const lastPerfStr = lastPerf && lastPerf.length > 0
-    ? lastPerf.slice(0, 3).map(lp => `${lp.weight_kg}×${lp.reps}`).join(' ')
+    ? lastPerf.slice(0, 2).map(lp => `${lp.weight_kg}×${lp.reps}`).join(' ')
     : null
 
   return (
@@ -914,10 +1070,19 @@ function ExerciseCard({
               inputStyle={inputStyle}
             />
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px', flexWrap: 'wrap' }}>
             {!isDurationOnly && (
               <span style={{ fontSize: '12px', color: '#52525b' }}>
                 {doneSets}/{workingSets.length} sets
+              </span>
+            )}
+            {targetStr && (
+              <span style={{
+                fontSize: '11px', fontWeight: 700, color: templateColor,
+                backgroundColor: templateColor + '18',
+                borderRadius: '5px', padding: '1px 6px',
+              }}>
+                Target: {targetStr}
               </span>
             )}
             {lastPerfStr && (
@@ -933,7 +1098,7 @@ function ExerciseCard({
               onClick={e => { e.stopPropagation(); onRemoveExercise() }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#3f3f46' }}
             >
-              <Trash2 size={15} color="#ef4444" />
+              <Trash2 size={15} color="#ff6b6b" />
             </button>
           )}
           {ex.expanded ? <ChevronUp size={16} color="#52525b" /> : <ChevronDown size={16} color="#52525b" />}

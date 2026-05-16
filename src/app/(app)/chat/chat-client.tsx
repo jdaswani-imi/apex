@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Zap, ChevronRight, CheckCircle, Database, Pencil } from 'lucide-react'
+import { Send, Zap, ChevronRight, CheckCircle, Database, Pencil, Beef, Dumbbell, TrendingUp, Moon, Activity } from 'lucide-react'
 import Link from 'next/link'
 
 interface ToolCall {
@@ -16,13 +16,13 @@ interface Message {
   typing?: boolean
 }
 
-const SUGGESTIONS = [
-  "What should I eat to hit protein today?",
-  "Give me today's workout",
-  "How's my progress to Tomorrowland?",
-  "What time should I sleep tonight?",
-  "Log 150g chicken breast for lunch",
-  "How's my recovery trend this week?",
+const SUGGESTIONS: { text: string; icon: React.ElementType }[] = [
+  { text: "What should I eat to hit protein today?", icon: Beef },
+  { text: "Give me today's workout", icon: Dumbbell },
+  { text: "How's my progress to Tomorrowland?", icon: TrendingUp },
+  { text: "What time should I sleep tonight?", icon: Moon },
+  { text: "Log 150g chicken breast for lunch", icon: Pencil },
+  { text: "How's my recovery trend this week?", icon: Activity },
 ]
 
 // Simple markdown → JSX renderer
@@ -313,13 +313,16 @@ export function ChatClient({ onboardingCompleted }: { onboardingCompleted: boole
               {onboardingCompleted ? 'Ask me anything — I know your data' : 'Or ask me anything to get started'}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {SUGGESTIONS.map(s => (
+              {SUGGESTIONS.map(({ text, icon: Icon }) => (
                 <button
-                  key={s}
-                  onClick={() => send(s)}
-                  className="bg-card border border-border rounded-xl px-4 py-3 text-sm text-zinc-400 text-left hover:border-white/15 hover:text-zinc-300 transition-colors cursor-pointer"
+                  key={text}
+                  onClick={() => send(text)}
+                  className="bg-card border border-border rounded-xl px-4 py-3 text-sm text-zinc-400 text-left hover:border-white/15 hover:text-zinc-300 transition-colors cursor-pointer flex items-center gap-3"
                 >
-                  {s}
+                  <div className="w-7 h-7 rounded-lg bg-white/[0.05] flex items-center justify-center shrink-0">
+                    <Icon size={13} className="text-orange-400" />
+                  </div>
+                  {text}
                 </button>
               ))}
             </div>

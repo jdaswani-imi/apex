@@ -79,7 +79,7 @@ export default function TrainingPage() {
     { key: 'ai', label: 'AI Plan' },
     { key: 'templates', label: 'Templates' },
     { key: 'history', label: 'History' },
-    { key: 'progress', label: 'Progress' },
+    { key: 'progress', label: 'Stats' },
   ]
 
   return (

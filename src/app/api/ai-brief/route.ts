@@ -32,12 +32,11 @@ export async function GET() {
   const hrv = ctx.recovery?.hrv_rmssd_milli ?? null
   const rhr = ctx.recovery?.resting_heart_rate ?? null
   const sleep = ctx.sleep
-  const log = ctx.dailyLog
-  const protein = log?.protein_g ?? 0
+  const protein = ctx.foodTotals.protein ?? ctx.dailyLog?.protein_g ?? 0
   const proteinTarget = (userCtx.goals?.daily_protein_target_g as number) ?? 140
-  const calories = log?.calories ?? 0
+  const calories = ctx.foodTotals.calories ?? ctx.dailyLog?.calories ?? 0
   const calorieTarget = (userCtx.goals?.daily_calorie_target as number) ?? 2100
-  const steps = log?.steps ?? 0
+  const steps = ctx.dailyLog?.steps ?? 0
   const stepsTarget = (goals?.daily_steps_target as number) ?? 10000
 
   const recentProtein7 = ctx.recentLogs.slice(0, 7).map(l => l.protein_g ?? 0)

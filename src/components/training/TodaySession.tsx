@@ -43,7 +43,7 @@ export default function TodaySession({ onStartSession }: Props) {
 
   const recovery = data?.recovery as number | null
   const recoveryColor = recovery
-    ? recovery >= 67 ? '#22c55e' : recovery >= 34 ? '#eab308' : '#ef4444'
+    ? recovery >= 67 ? '#22c55e' : recovery >= 34 ? '#eab308' : '#ff6b6b'
     : '#52525b'
   const recoveryLabel = recovery
     ? recovery >= 67 ? 'Train hard' : recovery >= 34 ? 'Train smart · RPE 7–8' : 'Rest or Zone 2 only'
@@ -103,7 +103,7 @@ export default function TodaySession({ onStartSession }: Props) {
             {exercises.map((ex, i) => {
               const status = ex.progressStatus
               const StatusIcon = status === 'progress' ? TrendingUp : status === 'regression' ? TrendingDown : Minus
-              const statusColor = status === 'progress' ? '#22c55e' : status === 'regression' ? '#ef4444' : '#eab308'
+              const statusColor = status === 'progress' ? '#22c55e' : status === 'regression' ? '#ff6b6b' : '#eab308'
 
               return (
                 <div key={i} style={{

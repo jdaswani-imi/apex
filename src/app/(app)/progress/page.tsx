@@ -748,7 +748,7 @@ export default function ProgressPage() {
             <a
               href="/api/whoop/login"
               style={{
-                backgroundColor: '#ef4444', color: '#fff', fontWeight: 700,
+                backgroundColor: '#ff6b6b', color: '#0d0c0b', fontWeight: 700,
                 fontSize: '12px', padding: '8px 14px', borderRadius: '10px',
                 textDecoration: 'none', flexShrink: 0,
               }}

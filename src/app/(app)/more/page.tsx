@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import {
-  Pill, Moon, TrendingUp, Sparkles, Wind, ChevronRight, FlaskConical,
+  Pill, Moon, TrendingUp, Sparkles, Wind, ChevronRight, FlaskConical, Settings,
 } from 'lucide-react'
 
 const sections = [
@@ -18,6 +18,12 @@ const sections = [
     items: [
       { href: '/skincare', icon: Sparkles, label: 'Skincare', desc: 'Morning & evening routine', color: 'text-pink-400', bg: 'bg-pink-500/10' },
       { href: '/hair', icon: Wind, label: 'Hair', desc: 'Hair care routine', color: 'text-teal-400', bg: 'bg-teal-500/10' },
+    ],
+  },
+  {
+    title: 'Account',
+    items: [
+      { href: '/settings', icon: Settings, label: 'Settings', desc: 'Profile, goals & integrations', color: 'text-zinc-400', bg: 'bg-zinc-500/10' },
     ],
   },
 ]

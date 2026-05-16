@@ -36,7 +36,7 @@ export default function ProgressDashboard() {
               {group.map(b => {
                 const status = (b.progressStatus as string) ?? 'hold'
                 const StatusIcon = status === 'progress' ? TrendingUp : status === 'regression' ? TrendingDown : status === 'stale' ? Clock : Minus
-                const statusColor = status === 'progress' ? '#22c55e' : status === 'regression' ? '#ef4444' : status === 'stale' ? '#52525b' : '#eab308'
+                const statusColor = status === 'progress' ? '#22c55e' : status === 'regression' ? '#ff6b6b' : status === 'stale' ? '#52525b' : '#eab308'
 
                 const targetWt = b.target_weight_kg as number
                 const currentWt = b.current_weight_kg as number

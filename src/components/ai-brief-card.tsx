@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Sparkles, Loader2, ChevronRight } from 'lucide-react'
+import { Sparkles, Loader2, ChevronRight, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
 import type { DailyBrief } from '@/app/api/ai-brief/route'
 
@@ -14,33 +14,78 @@ const READINESS_COLORS: Record<string, { ring: string; label: string; bg: string
 
 const STORAGE_PREFIX = 'apex_brief_'
 
-export function AiBriefCard() {
+interface AiBriefCardProps {
+  protein: number | null
+  steps: number | null
+  calories: number | null
+  recovery: number | null
+  suppTaken: number
+  suppTotal: number
+}
+
+function buildFingerprint(props: AiBriefCardProps): string {
+  return `${props.protein ?? 0}_${props.steps ?? 0}_${props.calories ?? 0}_${props.recovery ?? 'x'}_${props.suppTaken}_${props.suppTotal}`
+}
+
+function pruneOldBriefKeys(today: string) {
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith(STORAGE_PREFIX))
+    for (const k of keys) {
+      if (!k.includes(today)) localStorage.removeItem(k)
+    }
+  } catch {}
+}
+
+export function AiBriefCard(props: AiBriefCardProps) {
   const [brief, setBrief] = useState<DailyBrief | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
-  useEffect(() => {
-    const today = new Date().toISOString().split('T')[0]
-    const key = `${STORAGE_PREFIX}${today}`
+  const fingerprint = buildFingerprint(props)
 
-    try {
-      const cached = localStorage.getItem(key)
-      if (cached) {
-        setBrief(JSON.parse(cached) as DailyBrief)
-        setLoading(false)
-        return
-      }
-    } catch {}
+  function fetchBrief(cacheKey: string, force = false) {
+    if (!force) {
+      try {
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+          setBrief(JSON.parse(cached) as DailyBrief)
+          setLoading(false)
+          return
+        }
+      } catch {}
+    }
 
     fetch('/api/ai-brief')
       .then(r => r.json())
       .then((data: DailyBrief) => {
         setBrief(data)
-        try { localStorage.setItem(key, JSON.stringify(data)) } catch {}
+        try { localStorage.setItem(cacheKey, JSON.stringify(data)) } catch {}
       })
       .catch(() => setError(true))
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => {
+        setLoading(false)
+        setRefreshing(false)
+      })
+  }
+
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0]
+    pruneOldBriefKeys(today)
+    const key = `${STORAGE_PREFIX}${today}_${fingerprint}`
+    fetchBrief(key)
+  // fingerprint changes when logged data changes, triggering a fresh fetch
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fingerprint])
+
+  function handleRefresh() {
+    const today = new Date().toISOString().split('T')[0]
+    const key = `${STORAGE_PREFIX}${today}_${fingerprint}`
+    try { localStorage.removeItem(key) } catch {}
+    setRefreshing(true)
+    setBrief(null)
+    fetchBrief(key, true)
+  }
 
   if (error) return null
 
@@ -51,12 +96,24 @@ export function AiBriefCard() {
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-        <Sparkles size={12} className="text-orange-500" />
-        <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Daily Brief</span>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          <Sparkles size={12} className="text-orange-500" />
+          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Daily Brief</span>
+        </div>
+        {!loading && (
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="text-zinc-600 hover:text-zinc-400 transition-colors disabled:opacity-40"
+            aria-label="Refresh brief"
+          >
+            <RefreshCw size={11} className={refreshing ? 'animate-spin' : ''} />
+          </button>
+        )}
       </div>
 
-      {loading ? (
+      {loading || refreshing ? (
         <div className="flex items-center gap-2.5 px-4 py-4 text-zinc-600">
           <Loader2 size={13} className="animate-spin" />
           <span className="text-xs">Analysing your data…</span>

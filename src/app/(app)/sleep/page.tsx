@@ -1,9 +1,10 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Moon, Zap, Activity, Wind, RefreshCw } from 'lucide-react'
+import { Moon, Zap, Activity, Wind, RefreshCw, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { WhoopSleep } from '@/lib/types'
+import { AITipButton } from '@/components/ai-tip-button'
 
 function fmtDuration(hrs: number | null) {
   if (hrs === null) return '—'
@@ -33,14 +34,15 @@ interface StatPillProps {
   label: string
   value: string | number | null
   unit?: string
+  hint?: string
   icon: React.ElementType
   colorClass: string
   bgClass: string
 }
 
-function StatPill({ label, value, unit, icon: Icon, colorClass, bgClass }: StatPillProps) {
+function StatPill({ label, value, unit, hint, icon: Icon, colorClass, bgClass }: StatPillProps) {
   return (
-    <div className={cn('rounded-2xl p-4 flex flex-col gap-2', bgClass)}>
+    <div className={cn('rounded-2xl p-4 flex flex-col gap-2 border', bgClass)}>
       <div className="flex items-center gap-1.5">
         <Icon size={13} className={colorClass} />
         <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-widest">{label}</span>
@@ -53,6 +55,9 @@ function StatPill({ label, value, unit, icon: Icon, colorClass, bgClass }: StatP
           <span className="text-xs text-zinc-500 font-medium">{unit}</span>
         )}
       </div>
+      {hint && (
+        <p className="text-[10px] text-zinc-700 leading-tight">{hint}</p>
+      )}
     </div>
   )
 }
@@ -112,6 +117,7 @@ export default function SleepPage() {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [tokenExpired, setTokenExpired] = useState(false)
+  const [showInfo, setShowInfo] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -157,14 +163,52 @@ export default function SleepPage() {
             <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">WHOOP</p>
             <h1 className="text-3xl font-bold text-foreground leading-tight">Sleep</h1>
           </div>
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center disabled:opacity-50 transition-opacity"
-          >
-            <RefreshCw size={15} className={cn('text-indigo-400', syncing && 'animate-spin')} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowInfo(v => !v)}
+              className={cn(
+                'w-9 h-9 rounded-xl flex items-center justify-center border transition-all duration-150',
+                showInfo
+                  ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-300'
+                  : 'bg-card border-border text-zinc-500 hover:text-zinc-300',
+              )}
+              aria-label="Sleep targets info"
+            >
+              <Info size={15} />
+            </button>
+            <AITipButton page="sleep" />
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center disabled:opacity-50 transition-opacity"
+            >
+              <RefreshCw size={15} className={cn('text-indigo-400', syncing && 'animate-spin')} />
+            </button>
+          </div>
         </div>
+
+        {/* Info panel */}
+        {showInfo && (
+          <div className="bg-indigo-500/5 border border-indigo-500/15 rounded-2xl p-4 space-y-3">
+            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Optimal Sleep Targets</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: 'Total Duration', target: '7–9 hrs', note: 'Most adults need 8h' },
+                { label: 'Performance', target: '≥ 85%', note: 'WHOOP quality score' },
+                { label: 'Deep Sleep', target: '20–25%', note: '~96–120 min of 8h' },
+                { label: 'REM Sleep', target: '20–25%', note: 'Memory & recovery' },
+                { label: 'Efficiency', target: '≥ 85%', note: 'Time asleep / in bed' },
+                { label: 'Resp. Rate', target: '12–20 /min', note: 'Elevation = flag' },
+              ].map(({ label, target, note }) => (
+                <div key={label} className="bg-card border border-border rounded-xl p-3">
+                  <p className="text-[10px] text-zinc-600 font-semibold uppercase tracking-wider mb-1">{label}</p>
+                  <p className="text-sm font-bold text-indigo-300">{target}</p>
+                  <p className="text-[10px] text-zinc-700 mt-0.5">{note}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {tokenExpired && (
           <div className="bg-red-500/10 border border-red-500/25 rounded-2xl p-4 flex items-center justify-between gap-3">
@@ -208,40 +252,47 @@ export default function SleepPage() {
         {!loading && latest && (
           <>
             {/* Key metrics */}
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
               <StatPill
                 label="Duration"
                 value={latest.duration_hrs ? `${latest.duration_hrs.toFixed(1)}` : null}
                 unit="hrs"
+                hint="aim 8h"
                 icon={Moon}
                 colorClass="text-indigo-400"
-                bgClass="bg-indigo-500/10"
+                bgClass="bg-indigo-500/10 border-indigo-500/15"
               />
               <StatPill
                 label="Performance"
                 value={latest.sleep_performance_pct ?? null}
                 unit="%"
+                hint="≥85% excellent"
                 icon={Zap}
-                colorClass="text-emerald-400"
-                bgClass="bg-emerald-500/10"
+                colorClass={perfColorClass(latest.sleep_performance_pct ?? null)}
+                bgClass="bg-emerald-500/10 border-emerald-500/15"
               />
               <StatPill
                 label="Efficiency"
                 value={latest.sleep_efficiency_pct != null ? parseFloat(String(latest.sleep_efficiency_pct)).toFixed(1) : null}
                 unit="%"
+                hint="≥85% target"
                 icon={Activity}
                 colorClass="text-blue-400"
-                bgClass="bg-blue-500/10"
+                bgClass="bg-blue-500/10 border-blue-500/15"
               />
               <StatPill
                 label="Resp. Rate"
                 value={latest.respiratory_rate ? `${latest.respiratory_rate.toFixed(1)}` : null}
                 unit="/min"
+                hint="normal 12–20"
                 icon={Wind}
                 colorClass="text-orange-400"
-                bgClass="bg-orange-500/10"
+                bgClass="bg-orange-500/10 border-orange-500/15"
               />
             </div>
+
+            {/* Sleep stages + trend — side by side on md+ */}
+            <div className="md:grid md:grid-cols-2 md:gap-3 space-y-3 md:space-y-0">
 
             {/* Sleep stages */}
             <div className="bg-card border border-border rounded-2xl p-5">
@@ -257,6 +308,10 @@ export default function SleepPage() {
                 light={latest.light_sleep_min}
                 awake={latest.awake_min}
               />
+              <div className="mt-3 pt-3 border-t border-white/[0.04] flex items-center gap-1.5">
+                <Info size={10} className="text-zinc-700 shrink-0" />
+                <p className="text-[10px] text-zinc-700">Aim for 20%+ Deep &amp; 20%+ REM of total sleep</p>
+              </div>
             </div>
 
             {/* 14-day trend */}
@@ -267,13 +322,19 @@ export default function SleepPage() {
                 </p>
                 <div className="flex gap-1 items-end h-16">
                   {records.map((r, i) => (
-                    <div key={i} className="flex-1 h-full">
+                    <div key={i} className="flex-1 h-full" title={`${r.duration_hrs?.toFixed(1) ?? 0}h`}>
                       <MiniBar value={r.duration_hrs ?? 0} max={Math.max(maxDur, 9)} />
                     </div>
                   ))}
                 </div>
+                <div className="mt-2 flex items-center gap-1.5">
+                  <Info size={10} className="text-zinc-700 shrink-0" />
+                  <p className="text-[10px] text-zinc-700">Each bar = one night. Taller = more sleep.</p>
+                </div>
               </div>
             )}
+
+            </div>{/* end md grid */}
 
             {/* Recent nights */}
             <div className="bg-card border border-border rounded-2xl overflow-hidden">

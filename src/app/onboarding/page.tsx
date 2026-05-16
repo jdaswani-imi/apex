@@ -2355,15 +2355,15 @@ export default function OnboardingPage() {
               onClick={() => { setShowMenu(false); setShowDiscardConfirm(true) }}
               style={{
                 width: '100%', padding: '14px', borderRadius: '14px', marginBottom: '10px',
-                backgroundColor: 'rgba(239,68,68,0.08)', border: '1.5px solid rgba(239,68,68,0.2)',
-                color: '#ef4444', fontSize: '15px', fontWeight: 600, cursor: 'pointer', textAlign: 'left',
+                backgroundColor: 'rgba(255,107,107,0.08)', border: '1.5px solid rgba(255,107,107,0.2)',
+                color: '#ff6b6b', fontSize: '15px', fontWeight: 600, cursor: 'pointer', textAlign: 'left',
                 display: 'flex', alignItems: 'center', gap: '12px',
               }}
             >
               <span style={{ fontSize: '20px' }}>🗑️</span>
               <div>
                 <div>Exit &amp; discard</div>
-                <div style={{ fontSize: '12px', fontWeight: 400, color: '#b91c1c', marginTop: '2px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 400, color: '#fca5a5', marginTop: '2px' }}>
                   Clears all answers. Cannot be undone.
                 </div>
               </div>
@@ -2407,8 +2407,8 @@ export default function OnboardingPage() {
               onClick={handleDiscard}
               style={{
                 width: '100%', padding: '13px', borderRadius: '12px', marginBottom: '10px',
-                backgroundColor: '#ef4444', border: 'none',
-                color: '#fff', fontSize: '15px', fontWeight: 700, cursor: 'pointer',
+                backgroundColor: '#ff6b6b', border: 'none',
+                color: '#0d0c0b', fontSize: '15px', fontWeight: 700, cursor: 'pointer',
               }}
             >
               Yes, discard everything

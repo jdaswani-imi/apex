@@ -120,8 +120,8 @@ ${eventDate && goals ? `## TARGET EVENT
 - REM: ${sleep?.rem_min ? `${sleep.rem_min} min` : '—'}
 
 ## TODAY'S NUTRITION SO FAR
-- Protein: ${log?.protein_g ?? 0}g / ${goals?.daily_protein_target_g ?? 140}g target
-- Calories: ${log?.calories ?? 0} / ${goals?.daily_calorie_target ?? 2100} target
+- Protein: ${ctx.foodTotals.protein ?? log?.protein_g ?? 0}g / ${goals?.daily_protein_target_g ?? 140}g target
+- Calories: ${ctx.foodTotals.calories ?? log?.calories ?? 0} / ${goals?.daily_calorie_target ?? 2100} target
 - Steps: ${log?.steps?.toLocaleString() ?? 0} / ${goals?.daily_steps_target?.toLocaleString() ?? '10,000'} target
 
 ## SUPPLEMENTS TODAY

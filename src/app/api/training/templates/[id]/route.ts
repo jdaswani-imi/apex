@@ -83,10 +83,33 @@ export async function GET(
     lastPerf[exName].push(ex)
   }
 
-  // Fetch gif URLs for all unique exercise names
   const exerciseNames = [
     ...new Set(sections.flatMap(s => s.exercises.map(e => e.exercise_name as string))),
   ]
+
+  // Fetch progression targets from exercise_baselines
+  const { data: baselines } = await supabase
+    .from('exercise_baselines')
+    .select('exercise_name, target_weight_kg, target_reps, current_sets, notes')
+    .eq('user_id', user.id)
+    .in('exercise_name', exerciseNames)
+
+  const progressionTargets: Record<string, {
+    target_weight_kg: number | null
+    target_reps: number | null
+    current_sets: number | null
+    notes: string | null
+  }> = {}
+  for (const b of baselines ?? []) {
+    progressionTargets[b.exercise_name] = {
+      target_weight_kg: b.target_weight_kg,
+      target_reps: b.target_reps,
+      current_sets: b.current_sets,
+      notes: b.notes,
+    }
+  }
+
+  // Fetch gif URLs for all unique exercise names
   const mediaByName: Record<string, {
     gif_url: string | null; gif_url_female: string | null
     instructions: string[]; primary_muscles: string[]; secondary_muscles: string[]
@@ -157,5 +180,6 @@ export async function GET(
     last_session: lastSession ?? null,
     last_performance: lastPerf,
     exercise_media: mediaByName,
+    progression_targets: progressionTargets,
   })
 }

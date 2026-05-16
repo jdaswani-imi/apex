@@ -104,7 +104,7 @@ export async function POST(request: Request) {
         : 'Monday, Wednesday, Friday')
 
   // ── Build prompt ─────────────────────────────────────────────────────────────
-  const COLORS = ['#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#ef4444', '#f59e0b', '#06b6d4', '#ec4899']
+  const COLORS = ['#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#ff6b6b', '#f59e0b', '#06b6d4', '#ec4899']
 
   const systemPrompt = `You are AI-PEX, an elite AI personal trainer. Your job is to design science-backed workout programs tailored to the individual. You output ONLY valid JSON — no markdown, no explanation.`
 

@@ -7,6 +7,7 @@ import type { FoodLog } from '@/lib/types'
 import { AITipButton } from '@/components/ai-tip-button'
 
 const today = new Date().toISOString().split('T')[0]
+const todayFormatted = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const
 type MealType = typeof MEAL_TYPES[number]
@@ -452,7 +453,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="font-condensed text-3xl font-bold text-white uppercase tracking-wide">Food Log</h1>
-          <p className="text-zinc-500 text-sm mt-1">{today}</p>
+          <p className="text-zinc-500 text-sm mt-1">{todayFormatted}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -477,7 +478,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
       </div>
 
       {/* Daily Totals */}
-      <div className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl p-4 mb-4">
+      <div className="bg-card border border-border rounded-2xl p-4 mb-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <UtensilsCrossed size={13} className="text-orange-400" />
@@ -538,7 +539,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
 
       {/* Add food form */}
       {showForm && (
-        <div ref={formRef} className="bg-zinc-900/80 border border-white/[0.08] rounded-2xl p-4 mb-4 space-y-3">
+        <div ref={formRef} className="bg-card border border-border rounded-2xl p-4 mb-4 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">Add Food</p>
             {/* Tab switcher */}
@@ -591,7 +592,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                   {showRecent && (
                     <div>
                       <p className="text-[9px] text-zinc-700 uppercase tracking-wider font-semibold px-1 mb-1.5">Recent</p>
-                      <div className="bg-zinc-950/80 border border-white/[0.06] rounded-xl overflow-hidden">
+                      <div className="bg-background border border-border rounded-xl overflow-hidden">
                         {recentFoods.map((r, i) => (
                           <button
                             key={i}
@@ -616,7 +617,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
 
                   {/* Search results */}
                   {searchResults.length > 0 && (
-                    <div className="bg-zinc-950/80 border border-white/[0.06] rounded-xl overflow-hidden max-h-56 overflow-y-auto">
+                    <div className="bg-background border border-border rounded-xl overflow-hidden max-h-56 overflow-y-auto">
                       {searchResults.map((r, i) => (
                         <button
                           key={r.code ?? i}
@@ -904,7 +905,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                     {items.map(item => (
                       <div
                         key={item.id}
-                        className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl px-4 py-3 flex items-center gap-3"
+                        className="bg-card border border-border rounded-2xl px-4 py-3 flex items-center gap-3"
                       >
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-zinc-100 truncate">{item.name}</p>
@@ -937,124 +938,91 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
       {/* Meal Plan Sheet */}
       {showMealPlan && (
         <div
-          style={{
-            position: 'fixed', inset: 0, zIndex: 50,
-            backgroundColor: 'rgba(0,0,0,0.7)',
-            display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
-          }}
+          className="fixed inset-0 z-50 bg-black/70 flex flex-col justify-end"
           onClick={(e) => { if (e.target === e.currentTarget) setShowMealPlan(false) }}
         >
-          <div style={{
-            backgroundColor: '#0a0a0a',
-            borderTop: '1px solid #1c1c1c',
-            borderRadius: '24px 24px 0 0',
-            maxHeight: '88dvh',
-            display: 'flex', flexDirection: 'column',
-          }}>
+          <div className="bg-background border-t border-border rounded-t-3xl max-h-[88dvh] flex flex-col">
             {/* Sheet header */}
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '16px 16px 12px',
-              borderBottom: '1px solid #111', flexShrink: 0,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Sparkles size={14} color="#f97316" />
-                <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>Today&apos;s Meal Plan</span>
+            <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-border shrink-0">
+              <div className="flex items-center gap-2">
+                <Sparkles size={14} className="text-orange-400" />
+                <span className="text-sm font-bold text-foreground">Today&apos;s Meal Plan</span>
               </div>
-              <button
-                onClick={() => setShowMealPlan(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#52525b' }}
-              >
+              <button onClick={() => setShowMealPlan(false)} className="text-zinc-500 hover:text-zinc-300 transition-colors">
                 <X size={18} />
               </button>
             </div>
 
             {/* Sheet body */}
-            <div style={{ overflowY: 'auto', padding: '16px', flex: 1 }}>
+            <div className="overflow-y-auto p-4 flex-1 space-y-3">
               {generatingPlan ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '40px 0', color: '#52525b' }}>
-                  <Loader2 size={22} style={{ animation: 'spin 1s linear infinite', color: '#f97316' }} />
-                  <span style={{ fontSize: '13px' }}>Generating your personalised plan…</span>
+                <div className="flex flex-col items-center gap-3 py-10 text-zinc-500">
+                  <Loader2 size={22} className="text-orange-400 animate-spin" />
+                  <span className="text-sm">Generating your personalised plan…</span>
                 </div>
               ) : mealPlan ? (
                 <>
-                  {/* Totals pill */}
-                  <div style={{
-                    display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px',
-                  }}>
+                  {/* Totals pills */}
+                  <div className="flex gap-2 flex-wrap">
                     {[
                       { label: 'kcal', value: mealPlan.total_calories },
                       { label: 'protein', value: `${mealPlan.total_protein_g}g` },
                     ].map(({ label, value }) => (
-                      <div key={label} style={{
-                        backgroundColor: '#111', border: '1px solid #1c1c1c',
-                        borderRadius: '10px', padding: '5px 12px',
-                        fontSize: '12px', color: '#a1a1aa',
-                      }}>
-                        <span style={{ fontWeight: 700, color: '#fff' }}>{value}</span> {label}
+                      <div key={label} className="bg-card border border-border rounded-xl px-3 py-1.5 text-xs text-zinc-400">
+                        <span className="font-bold text-foreground">{value}</span> {label}
                       </div>
                     ))}
                   </div>
 
                   {/* Meal items */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div className="space-y-2.5">
                     {mealPlan.meals.map((item, idx) => {
                       const added = addedMeals.has(idx)
                       const adding = addingMealIdx === idx
-                      const MEAL_DOT: Record<string, string> = {
-                        breakfast: '#fbbf24', lunch: '#4ade80',
-                        dinner: '#60a5fa', snack: '#71717a',
+                      const MEAL_DOT_CLASS: Record<string, string> = {
+                        breakfast: 'bg-amber-400', lunch: 'bg-green-400',
+                        dinner: 'bg-blue-400', snack: 'bg-zinc-500',
                       }
                       return (
-                        <div key={idx} style={{
-                          backgroundColor: '#111', border: '1px solid #1c1c1c',
-                          borderRadius: '16px', padding: '14px',
-                          opacity: added ? 0.5 : 1,
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                                <span style={{
-                                  width: '6px', height: '6px', borderRadius: '50%', flexShrink: 0,
-                                  backgroundColor: MEAL_DOT[item.meal_type] ?? '#71717a',
-                                }} />
-                                <span style={{ fontSize: '10px', fontWeight: 700, color: '#52525b', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                                  {item.meal_type}
-                                </span>
-                                <span style={{ fontSize: '10px', color: '#3f3f46' }}>· {item.prep_note}</span>
+                        <div key={idx} className={cn('bg-card border border-border rounded-2xl p-3.5 transition-opacity', added && 'opacity-50')}>
+                          <div className="flex items-start justify-between gap-2.5">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', MEAL_DOT_CLASS[item.meal_type] ?? 'bg-zinc-500')} />
+                                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">{item.meal_type}</span>
+                                <span className="text-[10px] text-zinc-700">· {item.prep_note}</span>
                               </div>
-                              <p style={{ fontSize: '14px', fontWeight: 600, color: '#e4e4e7', margin: '0 0 4px' }}>{item.name}</p>
-                              <p style={{ fontSize: '12px', color: '#52525b', margin: '0 0 8px', lineHeight: '1.4' }}>{item.description}</p>
-                              <div style={{ display: 'flex', gap: '8px' }}>
+                              <p className="text-sm font-semibold text-zinc-100 mb-1">{item.name}</p>
+                              <p className="text-xs text-zinc-500 mb-2 leading-relaxed">{item.description}</p>
+                              <div className="flex gap-2">
                                 {[
-                                  { label: 'P', value: item.protein_g, color: '#f97316' },
-                                  { label: 'C', value: item.carbs_g, color: '#facc15' },
-                                  { label: 'F', value: item.fats_g, color: '#60a5fa' },
+                                  { label: 'P', value: item.protein_g, color: 'text-orange-400' },
+                                  { label: 'C', value: item.carbs_g, color: 'text-yellow-400' },
+                                  { label: 'F', value: item.fats_g, color: 'text-blue-400' },
                                 ].map(({ label, value, color }) => (
-                                  <span key={label} style={{ fontSize: '11px', color: '#52525b' }}>
-                                    <span style={{ fontWeight: 700, color }}>{value}</span>{label}
+                                  <span key={label} className="text-[11px] text-zinc-500">
+                                    <span className={cn('font-bold', color)}>{value}</span>{label}
                                   </span>
                                 ))}
-                                <span style={{ fontSize: '11px', color: '#3f3f46' }}>{item.calories} kcal</span>
+                                <span className="text-[11px] text-zinc-700">{item.calories} kcal</span>
                               </div>
                             </div>
                             <button
                               onClick={() => !added && addMealToLog(item, idx)}
                               disabled={added || adding}
-                              style={{
-                                width: '32px', height: '32px', borderRadius: '10px', flexShrink: 0,
-                                backgroundColor: added ? 'rgba(74,222,128,0.1)' : 'rgba(249,115,22,0.1)',
-                                border: `1px solid ${added ? 'rgba(74,222,128,0.2)' : 'rgba(249,115,22,0.2)'}`,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                cursor: added ? 'default' : 'pointer',
-                              }}
+                              className={cn(
+                                'w-8 h-8 rounded-xl shrink-0 flex items-center justify-center border transition-all duration-150',
+                                added
+                                  ? 'bg-green-500/10 border-green-500/20'
+                                  : 'bg-orange-500/10 border-orange-500/20 hover:bg-orange-500/20',
+                              )}
                             >
                               {adding ? (
-                                <Loader2 size={13} color="#f97316" style={{ animation: 'spin 1s linear infinite' }} />
+                                <Loader2 size={13} className="text-orange-400 animate-spin" />
                               ) : added ? (
-                                <Check size={13} color="#4ade80" />
+                                <Check size={13} className="text-green-400" />
                               ) : (
-                                <Plus size={13} color="#f97316" />
+                                <Plus size={13} className="text-orange-400" />
                               )}
                             </button>
                           </div>
@@ -1066,13 +1034,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                   {/* Regenerate */}
                   <button
                     onClick={generateMealPlan}
-                    style={{
-                      marginTop: '16px', width: '100%',
-                      backgroundColor: 'transparent', border: '1px solid #1c1c1c',
-                      borderRadius: '12px', padding: '10px',
-                      fontSize: '13px', color: '#52525b', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                    }}
+                    className="w-full bg-transparent border border-border rounded-xl py-2.5 text-sm text-zinc-500 hover:text-zinc-300 hover:border-white/15 transition-all flex items-center justify-center gap-1.5"
                   >
                     <Sparkles size={12} /> Generate new plan
                   </button>
@@ -1080,7 +1042,6 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
               ) : null}
             </div>
           </div>
-          <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         </div>
       )}
     </div>
