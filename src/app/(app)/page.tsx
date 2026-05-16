@@ -11,6 +11,7 @@ import { AITipButton } from '@/components/ai-tip-button'
 import { AiBriefCard } from '@/components/ai-brief-card'
 import { TodayWorkoutCard } from '@/components/training/TodayWorkoutCard'
 import { UserMenu } from '@/components/user-menu'
+import { SUPPLEMENT_CATALOG } from '@/lib/supplements-catalog'
 
 export const dynamic = 'force-dynamic'
 
@@ -105,6 +106,12 @@ export default async function TodayPage({
     : recovery >= 67 ? 'Green · push hard today'
     : recovery >= 34 ? 'Yellow · train smart'
     : 'Red · rest or Zone 2'
+
+  const sortedSupplements = [...ctx.supplements].sort((a, b) => {
+    const aEntry = SUPPLEMENT_CATALOG.find(e => e.name === a.supplement_name)
+    const bEntry = SUPPLEMENT_CATALOG.find(e => e.name === b.supplement_name)
+    return (aEntry?.sortOrder ?? 999) - (bEntry?.sortOrder ?? 999)
+  })
 
   const suppTaken = ctx.supplements.filter(s => s.taken).length
   const suppTotal = ctx.supplements.length
@@ -412,7 +419,7 @@ export default async function TodayPage({
             />
           </div>
           <div className="space-y-2">
-            {ctx.supplements.slice(0, 4).map(s => (
+            {sortedSupplements.slice(0, 4).map(s => (
               <div key={s.id} className="flex items-center justify-between">
                 <span className={cn('text-sm truncate pr-2', s.taken ? 'text-zinc-600 line-through' : 'text-zinc-300')}>
                   {s.supplement_name}
@@ -425,8 +432,8 @@ export default async function TodayPage({
                 </div>
               </div>
             ))}
-            {ctx.supplements.length > 4 && (
-              <p className="text-zinc-600 text-xs">+{ctx.supplements.length - 4} more · tap to manage</p>
+            {sortedSupplements.length > 4 && (
+              <p className="text-zinc-600 text-xs">+{sortedSupplements.length - 4} more · tap to manage</p>
             )}
           </div>
         </Link>
