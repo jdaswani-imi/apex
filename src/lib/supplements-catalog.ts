@@ -247,6 +247,170 @@ export const SUPPLEMENT_CATALOG: SupplementCatalogEntry[] = [
     mechanism: 'Non-haem iron is absorbed in the Fe²⁺ form. Ascorbic acid from OJ converts Fe³⁺ → Fe²⁺ and forms a soluble iron-ascorbate chelate, dramatically improving absorption.',
     interactions: 'Must avoid: calcium/dairy, coffee/tea (tannins), high-fibre foods, zinc — all strongly inhibit absorption.',
   },
+  // ── Aliases for old supplement names (historical log entries) ─────────────────
+  {
+    id: 'humantra-concentrace-old',
+    name: 'Humantra + Concentrace',
+    category: 'Hydration',
+    categoryColor: 'blue',
+    dose: 'Per label',
+    timing: 'On wake',
+    timeGroup: 'Morning',
+    sortOrder: 0,
+    timing_rationale: 'Morning hydration stack taken on wake to restore overnight electrolyte deficit.',
+    benefits: ['Restores electrolytes lost overnight', 'Primes fluid absorption before food or caffeine'],
+    mechanism: 'Electrolytes maintain cell membrane potential and drive water into cells via osmosis.',
+  },
+  {
+    id: 'omega3-rituals-old',
+    name: 'Omega-3 (Rituals)',
+    category: 'Anti-Inflammatory',
+    categoryColor: 'amber',
+    dose: 'Per label',
+    timing: 'With food',
+    timeGroup: 'Afternoon',
+    sortOrder: 4,
+    timing_rationale: 'Omega-3 fatty acids absorb significantly better with a fat-containing meal.',
+    benefits: ['EPA+DHA reduce systemic inflammation', 'DHA supports cognition and mood'],
+    mechanism: 'EPA and DHA are incorporated into cell membrane phospholipids, altering fluidity and signaling.',
+  },
+  {
+    id: 'mens-multivitamin-old',
+    name: "Men's Multivitamin 18+",
+    category: 'Foundational',
+    categoryColor: 'amber',
+    dose: 'Per product label',
+    timing: 'With food',
+    timeGroup: 'Afternoon',
+    sortOrder: 5,
+    timing_rationale: 'Fat-soluble vitamins absorb best with dietary fat present at lunch.',
+    benefits: ['Covers micronutrient gaps', 'B-complex supports energy metabolism', 'Vitamin D supports testosterone and immune function'],
+    mechanism: 'Multivitamins provide cofactors for enzymatic reactions across metabolism.',
+  },
+  // ── Current supplement names not yet in catalog ────────────────────────────
+  {
+    id: 'creatine',
+    name: 'Creatine',
+    category: 'Performance',
+    categoryColor: 'cyan',
+    dose: '5g creatine monohydrate',
+    timing: 'Morning',
+    timeGroup: 'Morning',
+    sortOrder: 2,
+    timing_rationale: 'Daily consistency matters more than timing for maintaining saturated phosphocreatine stores. Morning anchors it to a reliable habit.',
+    benefits: [
+      'Increases muscle phosphocreatine stores for rapid ATP resynthesis',
+      'Improves high-intensity exercise performance and power output',
+      'Supports cognitive performance and working memory',
+    ],
+    mechanism: 'Creatine phosphate donates a phosphate group to ADP → ATP, fueling the first 8–12 seconds of maximal effort.',
+  },
+  {
+    id: 'vitamin-d3',
+    name: 'Vitamin D3',
+    category: 'Foundational',
+    categoryColor: 'amber',
+    dose: 'Per label (typically 2000–5000 IU)',
+    timing: 'Morning with food',
+    timeGroup: 'Morning',
+    sortOrder: 2,
+    timing_rationale: 'Fat-soluble vitamin — absorbs best with dietary fat. Morning ensures it works with the diurnal cortisol peak and supports daytime hormone signaling.',
+    benefits: [
+      'Supports testosterone production and endocrine function',
+      'Critical for immune regulation and bone density',
+      'Linked to improved mood and reduced depression risk',
+      'Deficiency is extremely common, especially in lower-sunlight climates',
+    ],
+    mechanism: 'Vitamin D3 is converted to calcitriol in the liver and kidneys, acting as a steroid hormone that regulates gene expression in immune cells, muscle tissue, and the endocrine system.',
+  },
+  {
+    id: 'magnesium-glycinate-short',
+    name: 'Magnesium Glycinate',
+    category: 'Recovery + Sleep',
+    categoryColor: 'purple',
+    dose: '200–400mg elemental magnesium as glycinate chelate',
+    timing: 'Before bed',
+    timeGroup: 'Night',
+    sortOrder: 7,
+    timing_rationale: 'Magnesium promotes relaxation via NMDA receptor antagonism and GABA potentiation — effects that directly support sleep onset.',
+    benefits: [
+      'Improves sleep onset latency and sleep quality',
+      'Supports HRV and parasympathetic nervous system tone',
+      'Reduces muscle cramping and facilitates overnight muscle protein synthesis',
+    ],
+    mechanism: 'Magnesium modulates the NMDA glutamate receptor and enhances GABA-A receptor binding. Glycine has independent sleep-promoting effects.',
+  },
+  {
+    id: 'whey-protein',
+    name: 'Whey Protein',
+    category: 'Performance',
+    categoryColor: 'cyan',
+    dose: '25–40g per serving',
+    timing: 'Post-workout',
+    timeGroup: 'Morning',
+    sortOrder: 3,
+    timing_rationale: 'Post-workout protein intake maximizes muscle protein synthesis during the anabolic window when muscle is most receptive to amino acids.',
+    benefits: [
+      'Provides rapidly absorbed complete amino acid profile',
+      'Stimulates muscle protein synthesis via leucine-mTOR pathway',
+      'Supports recovery and reduces DOMS',
+      'Convenient way to hit daily protein targets',
+    ],
+    mechanism: 'Whey is a fast-digesting protein with high leucine content (~11%). Leucine directly activates mTORC1, the master regulator of muscle protein synthesis, independently of total caloric intake.',
+  },
+  {
+    id: 'pre-workout',
+    name: 'Pre-Workout',
+    category: 'Performance',
+    categoryColor: 'cyan',
+    dose: 'Per product label',
+    timing: '20–30 min pre-workout',
+    timeGroup: 'Morning',
+    sortOrder: 1,
+    timing_rationale: 'Taken 20–30 min before training to allow caffeine and other actives to peak in bloodstream during the workout window.',
+    benefits: [
+      'Caffeine improves focus, power output, and endurance',
+      'Beta-alanine buffers muscle acidity during high-intensity efforts',
+      'Citrulline increases nitric oxide production and blood flow',
+    ],
+    mechanism: 'Caffeine antagonizes adenosine receptors, reducing perceived effort and increasing catecholamine release. Beta-alanine raises carnosine levels, buffering lactic acid accumulation.',
+  },
+  {
+    id: 'electrolytes',
+    name: 'Electrolytes',
+    category: 'Hydration',
+    categoryColor: 'blue',
+    dose: 'Per product label',
+    timing: 'Intra-workout',
+    timeGroup: 'Morning',
+    sortOrder: 2,
+    timing_rationale: 'Electrolyte replacement during training prevents dehydration-driven performance drops and maintains nerve conduction and muscle contraction.',
+    benefits: [
+      'Replaces sodium, potassium, and magnesium lost through sweat',
+      'Maintains plasma osmolality and muscle contraction efficiency',
+      'Prevents cramping and fatigue from electrolyte depletion',
+    ],
+    mechanism: 'Na⁺, K⁺, and Mg²⁺ maintain the electrochemical gradients required for neuromuscular signaling. Sodium is the primary driver of fluid retention and cellular hydration during exercise.',
+  },
+  {
+    id: 'zinc',
+    name: 'Zinc',
+    category: 'Micronutrient',
+    categoryColor: 'orange',
+    dose: 'Per label (typically 15–30mg)',
+    timing: 'Evening, away from iron',
+    timeGroup: 'Evening',
+    sortOrder: 6,
+    timing_rationale: 'Evening zinc avoids competition with iron (Ferroglobibin) for absorption at the duodenal transporter. Zinc also supports overnight testosterone synthesis.',
+    benefits: [
+      'Required for testosterone synthesis and reproductive function',
+      'Supports immune function — zinc deficiency impairs T-cell activity',
+      'Cofactor in >300 enzymes including those in DNA synthesis and protein metabolism',
+      'Supports wound healing and skin integrity',
+    ],
+    mechanism: 'Zinc acts as a cofactor for enzymes across metabolism including RNA polymerase, alkaline phosphatase, and superoxide dismutase. It is directly involved in luteinizing hormone signaling, which drives testosterone production in Leydig cells.',
+    interactions: 'Competes with iron and calcium for absorption — keep evening timing away from Ferroglobibin.',
+  },
   {
     id: 'rituals-melatonin',
     name: 'Rituals Melatonin 5mg',
@@ -293,14 +457,25 @@ export function getCatalogEntry(supplementName: string): SupplementCatalogEntry 
   )
 }
 
-export function groupSupplementsByTime<T extends { supplement_name: string }>(
+function inferTimeGroup(timeTaken: string): TimeGroup {
+  const [h, m] = timeTaken.split(':').map(Number)
+  const mins = h * 60 + (m || 0)
+  if (mins >= 300 && mins < 660) return 'Morning'   // 5am–11am
+  if (mins >= 660 && mins < 780) return 'Midday'    // 11am–1pm
+  if (mins >= 780 && mins < 1080) return 'Afternoon' // 1pm–6pm
+  if (mins >= 1080 && mins < 1320) return 'Evening'  // 6pm–10pm
+  return 'Night'
+}
+
+export function groupSupplementsByTime<T extends { supplement_name: string; time_taken?: string | null }>(
   items: T[],
 ): { group: TimeGroup; items: T[] }[] {
   const grouped = new Map<TimeGroup, T[]>()
 
   for (const item of items) {
     const catalog = getCatalogEntry(item.supplement_name)
-    const group: TimeGroup = catalog?.timeGroup ?? 'Night'
+    const group: TimeGroup = catalog?.timeGroup
+      ?? (item.time_taken ? inferTimeGroup(item.time_taken) : 'Night')
     if (!grouped.has(group)) grouped.set(group, [])
     grouped.get(group)!.push(item)
   }

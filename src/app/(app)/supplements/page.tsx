@@ -1,24 +1,29 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import type { SupplementLog } from '@/lib/types'
 import { getCatalogEntry, groupSupplementsByTime, CATEGORY_COLORS } from '@/lib/supplements-catalog'
 
-const today = new Date().toISOString().split('T')[0]
+function SupplementsContent() {
+  const searchParams = useSearchParams()
+  const todayStr = new Date().toISOString().split('T')[0]
+  const viewDate = searchParams.get('date') ?? todayStr
+  const isToday = viewDate === todayStr
 
-export default function SupplementsPage() {
   const [supplements, setSupplements] = useState<SupplementLog[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
 
   const fetchSupplements = useCallback(async () => {
-    const res = await fetch(`/api/supplements?date=${today}`)
+    setLoading(true)
+    const res = await fetch(`/api/supplements?date=${viewDate}`)
     const data = await res.json()
     setSupplements(data)
     setLoading(false)
-  }, [])
+  }, [viewDate])
 
   useEffect(() => {
     fetchSupplements()
@@ -69,7 +74,10 @@ export default function SupplementsPage() {
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-condensed text-3xl font-bold text-white uppercase tracking-wide">Supplement Stack</h1>
-        <p className="text-zinc-500 text-sm mt-1">{today}</p>
+        <p className="text-zinc-500 text-sm mt-1">{viewDate}</p>
+        {!isToday && (
+          <p className="text-amber-500/80 text-xs mt-1 font-medium">Viewing past date</p>
+        )}
       </div>
 
       {/* Progress */}
@@ -257,5 +265,13 @@ export default function SupplementsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function SupplementsPage() {
+  return (
+    <Suspense>
+      <SupplementsContent />
+    </Suspense>
   )
 }

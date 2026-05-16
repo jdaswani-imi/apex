@@ -47,13 +47,21 @@ export async function POST(request: Request) {
   // On training days, boost carbs; on rest days, keep lower
   const carbAdjust = isTrainingDay ? 'slightly higher carbs for fuel and recovery' : 'moderate carbs'
 
+  type BM = { name: string; value: string; unit: string; status: string; note?: string }
+  const lab = userCtx.latestLab?.structured_data as { biomarkers?: BM[] } | null
+  const labOutOfRange = lab?.biomarkers?.filter((b: BM) => b.status === 'out_of_range') ?? []
+  const labSufficient = lab?.biomarkers?.filter((b: BM) => b.status === 'sufficient') ?? []
+  const labNutritionContext = [...labOutOfRange, ...labSufficient].length > 0
+    ? `\n- Blood work flags to address via diet: ${[...labOutOfRange, ...labSufficient].map((b: BM) => `${b.name} ${b.value}${b.unit}${b.note ? ` (${b.note})` : ''}`).join('; ')}`
+    : ''
+
   const prompt = `Generate a full day meal plan for this person. Return ONLY valid JSON, no markdown, no extra text.
 
 PERSON:
 - Diet: ${dietType} (eggs and dairy OK)${restrictions.length ? `\n- Restrictions: ${restrictions.join(', ')}` : ''}${dislikes.length ? `\n- Dislikes: ${dislikes.join(', ')}` : ''}
 - Location: ${location} (easily available foods only)
 - Hates cooking — all meals must be minimal effort (max 10 min prep, or no-cook)
-- Today: ${isTrainingDay ? 'Training day' : 'Rest day'} — use ${carbAdjust}
+- Today: ${isTrainingDay ? 'Training day' : 'Rest day'} — use ${carbAdjust}${labNutritionContext}
 
 TARGETS:
 - Calories: ${calTarget} kcal

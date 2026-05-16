@@ -50,6 +50,13 @@ export async function GET() {
     ? Math.round(recentRecovery7.reduce((a, b) => a + b, 0) / recentRecovery7.length)
     : null
 
+  type BM = { name: string; value: string; unit: string; status: string; note?: string }
+  const lab = userCtx.latestLab?.structured_data as { biomarkers?: BM[] } | null
+  const labOutOfRange = lab?.biomarkers?.filter((b: BM) => b.status === 'out_of_range') ?? []
+  const labContext = labOutOfRange.length > 0
+    ? `\n- Recent blood work flags: ${labOutOfRange.map((b: BM) => `${b.name} ${b.value}${b.unit}`).join(', ')}`
+    : ''
+
   const prompt = `Today is ${today}. Generate a personalised daily brief for this athlete. Return ONLY valid JSON, no markdown, no explanation.
 
 DATA:
@@ -59,7 +66,7 @@ DATA:
 - Steps today: ${steps.toLocaleString()} / ${stepsTarget.toLocaleString()}
 - 7-day avg protein: ${avgProtein7 ?? 'unknown'}g
 - 7-day avg recovery: ${avgRecovery7 ?? 'unknown'}%
-- Supplements taken: ${ctx.supplements.filter(s => s.taken).length}/${ctx.supplements.length}
+- Supplements taken: ${ctx.supplements.filter(s => s.taken).length}/${ctx.supplements.length}${labContext}
 
 Return this exact JSON shape:
 {
@@ -81,21 +88,29 @@ Return this exact JSON shape:
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
       .map(b => b.text)
       .join('')
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```\s*$/i, '')
+      .trim()
 
     const brief = JSON.parse(raw) as DailyBrief
     return Response.json(brief)
   } catch {
     // Fallback brief if AI fails
+    const readinessScore = recovery ?? 70
+    const readinessLabel =
+      readinessScore >= 84 ? 'Peak' :
+      readinessScore >= 67 ? 'Good' :
+      readinessScore >= 34 ? 'Moderate' : 'Low'
     const fallback: DailyBrief = {
-      readiness: recovery ?? 70,
-      readiness_label: recovery && recovery >= 67 ? 'Good' : recovery && recovery >= 34 ? 'Moderate' : 'Low',
+      readiness: readinessScore,
+      readiness_label: readinessLabel,
       priorities: [
         `Hit ${proteinTarget}g protein today`,
         `Reach ${stepsTarget.toLocaleString()} steps`,
         'Log your meals',
       ],
       insight: 'Keep logging consistently for better insights.',
-      training_rec: recovery && recovery < 34 ? 'Zone 2 cardio or rest only' : 'Train as scheduled',
+      training_rec: readinessScore < 34 ? 'Zone 2 cardio or rest only' : 'Train as scheduled',
     }
     return Response.json(fallback)
   }

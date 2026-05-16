@@ -395,7 +395,7 @@ export default async function TodayPage({
 
       {/* Supplements */}
       {showSupplements && suppTotal > 0 && (
-        <Link href="/supplements" className="block bg-card border border-border rounded-2xl p-5 hover:border-white/15 transition-all duration-200">
+        <Link href={`/supplements?date=${date}`} className="block bg-card border border-border rounded-2xl p-5 hover:border-white/15 transition-all duration-200">
           <div className="flex items-center justify-between mb-3">
             <span className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Supplement Stack</span>
             <span className={cn('text-sm font-semibold', suppTaken === suppTotal && suppTotal > 0 ? 'text-green-400' : 'text-zinc-500')}>

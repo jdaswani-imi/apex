@@ -1,6 +1,22 @@
 import type { TodayContext } from '@/lib/types'
 import { getCyclePhase } from '@/lib/types'
 
+type Biomarker = {
+  name: string
+  value: string
+  unit: string
+  status: 'optimal' | 'sufficient' | 'out_of_range'
+  note?: string
+  panel?: string
+}
+
+type LabStructuredData = {
+  summary?: string
+  overall_status?: string
+  biomarkers?: Biomarker[]
+  recommendations?: string[]
+}
+
 // UserCtx shape comes from getFullUserContext() — typed loosely here because
 // it aggregates multiple Supabase tables without generated types
 type UserCtx = {
@@ -11,10 +27,18 @@ type UserCtx = {
   lifestyle: Record<string, unknown> | null
   baselines: Record<string, unknown>[] | null
   latestCycle: { period_start_date: string; cycle_length_days: number } | null
+  latestLab: {
+    filename: string
+    report_date: string | null
+    report_type: string
+    summary: string | null
+    structured_data: LabStructuredData | null
+    created_at: string
+  } | null
 }
 
 export function buildSystemPrompt(ctx: TodayContext, userCtx: UserCtx): string {
-  const { profile, goals, training, supplements, lifestyle, baselines } = userCtx
+  const { profile, goals, training, supplements, lifestyle, baselines, latestLab } = userCtx
 
   const today = new Date()
   const dayOfWeek = today.toLocaleDateString('en-GB', { weekday: 'long' })
@@ -138,6 +162,26 @@ ${cycleInfo ? `## MENSTRUAL CYCLE
 ## SUPPLEMENT STACK
 ${supplements?.map(s => `- ${String(s.timing_notes ?? s.timing ?? '')}: ${String(s.name ?? '')} — ${String(s.dose ?? '')}`).join('\n') ?? 'Not configured'}
 
+${latestLab?.structured_data ? (() => {
+  const sd = latestLab.structured_data
+  const date = latestLab.report_date ?? latestLab.created_at.slice(0, 10)
+  const outOfRange = (sd.biomarkers ?? []).filter(b => b.status === 'out_of_range')
+  const sufficient = (sd.biomarkers ?? []).filter(b => b.status === 'sufficient')
+  return `## LATEST LAB RESULTS (${date})
+Summary: ${sd.summary ?? latestLab.summary ?? 'N/A'}
+Overall status: ${sd.overall_status ?? 'unknown'}
+
+Out of range (${outOfRange.length}):
+${outOfRange.map(b => `- ${b.name}: ${b.value} ${b.unit}${b.note ? ` — ${b.note}` : ''}`).join('\n') || '— none'}
+
+Borderline / sufficient (${sufficient.length}):
+${sufficient.map(b => `- ${b.name}: ${b.value} ${b.unit}`).join('\n') || '— none'}
+
+Lab recommendations:
+${(sd.recommendations ?? []).map((r, i) => `${i + 1}. ${r}`).join('\n') || '— none'}
+
+IMPORTANT: Always factor in these blood results when making supplement, nutrition, training, or recovery suggestions. Flag out-of-range markers proactively if relevant to any advice given.`
+})() : ''}
 ## LIFESTYLE
 - Sleep target weeknights: ${lifestyle?.sleep_target_weeknight ?? '23:30'}
 - Sleep target Sunday: ${lifestyle?.sleep_target_sunday ?? '23:00'}

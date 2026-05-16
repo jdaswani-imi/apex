@@ -2155,7 +2155,11 @@ export default function OnboardingPage() {
             tech_prefs: d.tech_prefs ?? prev.tech_prefs,
             coaching: d.coaching ?? prev.coaching,
           }))
-          if (d.current_step && d.current_step > 0 && !d.completed) {
+          if (d.completed) {
+            router.replace('/')
+            return
+          }
+          if (d.current_step && d.current_step > 0) {
             setStepIndex(Math.min(d.current_step, STEPS.length - 1))
           }
         }

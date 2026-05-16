@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import {
-  Pill, Moon, TrendingUp, Sparkles, Wind, ChevronRight,
+  Pill, Moon, TrendingUp, Sparkles, Wind, ChevronRight, FlaskConical,
 } from 'lucide-react'
 
 const sections = [
@@ -10,6 +10,7 @@ const sections = [
       { href: '/supplements', icon: Pill, label: 'Supplements', desc: 'Daily stack adherence', color: 'text-amber-400', bg: 'bg-amber-500/10' },
       { href: '/sleep', icon: Moon, label: 'Sleep', desc: 'WHOOP sleep data & recovery', color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
       { href: '/progress', icon: TrendingUp, label: 'Progress', desc: 'Body metrics & trends', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+      { href: '/lab', icon: FlaskConical, label: 'Lab Reports', desc: 'Blood & urine test analysis', color: 'text-[#c8a98a]', bg: 'bg-[#c8a98a]/10' },
     ],
   },
   {

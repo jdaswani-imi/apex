@@ -210,6 +210,7 @@ export async function ensureSupplementRows(userId: string, date: string): Promis
       .eq('user_id', userId)
       .eq('date', date)
       .in('supplement_name', staleNames)
+      .eq('taken', false)
   }
 
   const existingNames = new Set((existing ?? []).map(r => r.supplement_name))
@@ -538,8 +539,25 @@ export async function updateExerciseBaseline(id: string, updates: Record<string,
   return data
 }
 
+export async function getLatestLabData() {
+  const supabase = await createClient()
+  const user = await getAuthUser()
+  if (!user) return null
+
+  const { data } = await supabase
+    .from('lab_reports')
+    .select('filename, report_date, report_type, summary, structured_data, created_at')
+    .eq('user_id', user.id)
+    .not('structured_data', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  return data
+}
+
 export async function getFullUserContext() {
-  const [profile, goals, training, supplements, lifestyle, baselines, latestCycle] = await Promise.all([
+  const [profile, goals, training, supplements, lifestyle, baselines, latestCycle, latestLab] = await Promise.all([
     getUserProfile(),
     getUserGoals(),
     getUserTraining(),
@@ -547,8 +565,9 @@ export async function getFullUserContext() {
     getUserLifestyle(),
     getExerciseBaselines(),
     getLatestCycle(),
+    getLatestLabData(),
   ])
-  return { profile, goals, training, supplements, lifestyle, baselines, latestCycle }
+  return { profile, goals, training, supplements, lifestyle, baselines, latestCycle, latestLab }
 }
 
 // ─── Menstrual Cycle ──────────────────────────────────────────────────────────

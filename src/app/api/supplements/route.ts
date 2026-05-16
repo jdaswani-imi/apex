@@ -10,7 +10,10 @@ export async function GET(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json([])
 
-  await ensureSupplementRows(user.id, date)
+  const todayStr = new Date().toISOString().split('T')[0]
+  if (date === todayStr) {
+    await ensureSupplementRows(user.id, date)
+  }
 
   const { data } = await supabase
     .from('supplement_logs')
