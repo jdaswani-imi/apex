@@ -47,6 +47,235 @@ interface Props {
 let localIdCounter = 0
 function newLocalId() { return `local-${++localIdCounter}` }
 
+function formatTime(secs: number) {
+  const m = Math.floor(secs / 60).toString().padStart(2, '0')
+  const s = (secs % 60).toString().padStart(2, '0')
+  return `${m}:${s}`
+}
+
+function playRestCompleteBeep() {
+  try {
+    const ctx = new AudioContext()
+    function tone(start: number, freq: number, dur: number) {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0.35, start)
+      gain.gain.exponentialRampToValueAtTime(0.001, start + dur)
+      osc.start(start)
+      osc.stop(start + dur)
+    }
+    tone(ctx.currentTime, 880, 0.18)
+    tone(ctx.currentTime + 0.22, 1100, 0.28)
+    setTimeout(() => ctx.close(), 1200)
+  } catch { /* AudioContext unavailable */ }
+}
+
+function haptic(pattern: number | number[]) {
+  try { navigator.vibrate?.(pattern) } catch { /* */ }
+}
+
+// ─── Rest Timer Overlay ───────────────────────────────────────────────────────
+
+function RestTimerOverlay({
+  restTimer, restTotal, exerciseName, setInfo, templateColor, onSkip, onAdjust,
+}: {
+  restTimer: number
+  restTotal: number
+  exerciseName: string | null
+  setInfo: string | null
+  templateColor: string
+  onSkip: () => void
+  onAdjust: (delta: number) => void
+}) {
+  const radius = 64
+  const circumference = 2 * Math.PI * radius
+  const progress = restTotal > 0 ? Math.min(1, restTimer / restTotal) : 0
+  const offset = circumference * (1 - progress)
+  const isUrgent = restTimer > 0 && restTimer <= 5
+  const isDone = restTimer <= 0
+  const ringColor = isDone ? '#22c55e' : isUrgent ? '#ef4444' : templateColor
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 40,
+        backgroundColor: 'rgba(0,0,0,0.94)', backdropFilter: 'blur(20px)',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        padding: '40px 24px', touchAction: 'none',
+      }}
+    >
+      {exerciseName && (
+        <div style={{ textAlign: 'center', marginBottom: '36px' }}>
+          <div style={{
+            fontSize: '11px', color: '#3f3f46', fontWeight: 700,
+            letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '8px',
+          }}>
+            Resting after
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 700, color: '#fff' }}>{exerciseName}</div>
+          {setInfo && (
+            <div style={{ fontSize: '13px', color: '#52525b', marginTop: '4px' }}>{setInfo}</div>
+          )}
+        </div>
+      )}
+
+      {/* Circular countdown */}
+      <div style={{ position: 'relative', width: '168px', height: '168px', marginBottom: '40px' }}>
+        <svg width="168" height="168" style={{ transform: 'rotate(-90deg)', display: 'block' }}>
+          <circle cx="84" cy="84" r={radius} fill="none" stroke="#1c1c1c" strokeWidth="7" />
+          <circle
+            cx="84" cy="84" r={radius} fill="none"
+            stroke={ringColor} strokeWidth="7" strokeLinecap="round"
+            strokeDasharray={`${circumference}`}
+            strokeDashoffset={`${offset}`}
+            style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }}
+          />
+        </svg>
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+        }}>
+          {isDone ? (
+            <>
+              <Check size={34} color="#22c55e" />
+              <div style={{ fontSize: '15px', fontWeight: 700, color: '#22c55e', marginTop: '6px' }}>Go!</div>
+            </>
+          ) : (
+            <>
+              <div style={{
+                fontSize: '44px', fontWeight: 800, lineHeight: 1,
+                color: isUrgent ? '#ef4444' : '#fff',
+                fontVariantNumeric: 'tabular-nums',
+                transition: 'color 0.3s',
+              }}>
+                {formatTime(restTimer)}
+              </div>
+              <div style={{ fontSize: '11px', color: '#52525b', marginTop: '5px', letterSpacing: '0.04em' }}>
+                rest
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <button
+          onClick={() => onAdjust(-15)}
+          style={{
+            width: '58px', height: '58px', borderRadius: '50%',
+            backgroundColor: '#1a1a1a', border: '1px solid #27272a',
+            color: '#a1a1aa', cursor: 'pointer',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', gap: '2px',
+          }}
+        >
+          <span style={{ fontSize: '18px', lineHeight: 1, fontWeight: 300 }}>−</span>
+          <span style={{ fontSize: '10px', fontWeight: 600 }}>15s</span>
+        </button>
+
+        <button
+          onClick={onSkip}
+          style={{
+            height: '58px', padding: '0 32px', borderRadius: '29px',
+            border: '1px solid #27272a', backgroundColor: '#1a1a1a',
+            color: '#a1a1aa', fontWeight: 700, fontSize: '15px', cursor: 'pointer',
+          }}
+        >
+          Skip rest
+        </button>
+
+        <button
+          onClick={() => onAdjust(15)}
+          style={{
+            width: '58px', height: '58px', borderRadius: '50%',
+            backgroundColor: '#1a1a1a', border: '1px solid #27272a',
+            color: '#a1a1aa', cursor: 'pointer',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', gap: '2px',
+          }}
+        >
+          <span style={{ fontSize: '18px', lineHeight: 1, fontWeight: 300 }}>+</span>
+          <span style={{ fontSize: '10px', fontWeight: 600 }}>15s</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Stepper Input ────────────────────────────────────────────────────────────
+
+function StepperInput({ value, onChange, step, min = 0, disabled = false }: {
+  value: number
+  onChange: (v: number) => void
+  step: number
+  min?: number
+  disabled?: boolean
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center' }}>
+      <button
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => {
+          e.stopPropagation()
+          if (!disabled) onChange(Math.max(min, parseFloat((value - step).toFixed(2))))
+        }}
+        disabled={disabled}
+        style={{
+          width: '32px', height: '44px', borderRadius: '8px 0 0 8px',
+          backgroundColor: '#1a1a1a', border: '1px solid #27272a', borderRight: 'none',
+          color: disabled ? '#2a2a2a' : '#71717a',
+          cursor: disabled ? 'default' : 'pointer',
+          fontSize: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0, lineHeight: 1,
+        }}
+      >
+        −
+      </button>
+      <input
+        type="number"
+        value={value || ''}
+        onChange={e => { if (!disabled) onChange(parseFloat(e.target.value) || 0) }}
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
+        disabled={disabled}
+        style={{
+          width: '50px', height: '44px',
+          backgroundColor: '#1c1c1c', border: '1px solid #27272a',
+          borderLeft: 'none', borderRight: 'none',
+          fontSize: '15px', color: disabled ? '#3f3f46' : '#fff',
+          outline: 'none', textAlign: 'center',
+          fontFamily: 'inherit', fontVariantNumeric: 'tabular-nums',
+        }}
+      />
+      <button
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => {
+          e.stopPropagation()
+          if (!disabled) onChange(parseFloat((value + step).toFixed(2)))
+        }}
+        disabled={disabled}
+        style={{
+          width: '32px', height: '44px', borderRadius: '0 8px 8px 0',
+          backgroundColor: '#1a1a1a', border: '1px solid #27272a', borderLeft: 'none',
+          color: disabled ? '#2a2a2a' : '#71717a',
+          cursor: disabled ? 'default' : 'pointer',
+          fontSize: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0, lineHeight: 1,
+        }}
+      >
+        +
+      </button>
+    </div>
+  )
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ActiveSession({ sessionId, templateId, templateName, templateColor, gender = 'male', onFinish }: Props) {
@@ -57,6 +286,9 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
   const [restTimer, setRestTimer] = useState<number | null>(null)
   const [restActive, setRestActive] = useState(false)
   const [restTotal, setRestTotal] = useState(120)
+  const [showRestOverlay, setShowRestOverlay] = useState(false)
+  const [restExerciseName, setRestExerciseName] = useState<string | null>(null)
+  const [restSetInfo, setRestSetInfo] = useState<string | null>(null)
   const [finishing, setFinishing] = useState(false)
   const [discarding, setDiscarding] = useState(false)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
@@ -74,12 +306,12 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
   const [loaded, setLoaded] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
   const restRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
+  const sectionsRef = useRef<Section[]>([])
 
   useEffect(() => {
     loadTemplate()
     timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000)
     return () => { clearInterval(timerRef.current); clearInterval(restRef.current) }
-    // loadTemplate is defined below and stable for the component's lifetime (templateId/gender don't change)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -95,6 +327,7 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
     ))
     setVolume(v)
     setPrs(p)
+    sectionsRef.current = sections
   }, [sections])
 
   async function loadTemplate() {
@@ -117,32 +350,19 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
 
         const sets: SetRow[] = ex.sets.length > 0
           ? ex.sets.map((s) => {
-              const matching = lastPerf.find(
-                lp => lp.set_type === s.set_type && lp.set_number === s.set_number
-              )
-              // Working sets: prefer AI progression target, then last performance, then template default
+              const matching = lastPerf.find(lp => lp.set_type === s.set_type && lp.set_number === s.set_number)
               const weight = s.set_type === 'working' && target?.target_weight_kg != null
                 ? Number(target.target_weight_kg)
                 : matching?.weight_kg ?? s.default_weight_kg ?? 0
               const reps = s.set_type === 'working' && target?.target_reps != null
                 ? target.target_reps
                 : matching?.reps ?? s.default_reps ?? 0
-              return {
-                localId: newLocalId(),
-                set_type: s.set_type,
-                set_number: s.set_number,
-                weight_kg: weight,
-                reps: reps,
-                done: false,
-                is_pr: false,
-              }
+              return { localId: newLocalId(), set_type: s.set_type, set_number: s.set_number, weight_kg: weight, reps, done: false, is_pr: false }
             })
-          : [] // Treadmill / Stairmaster have no sets
+          : []
 
         const media = data.exercise_media?.[ex.exercise_name]
-        const gifUrl = media
-          ? (gender === 'female' ? media.gif_url_female ?? media.gif_url : media.gif_url) ?? null
-          : null
+        const gifUrl = media ? (gender === 'female' ? media.gif_url_female ?? media.gif_url : media.gif_url) ?? null : null
 
         return {
           templateExerciseId: ex.id,
@@ -154,9 +374,7 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
           restSeconds: ex.rest_seconds ?? 120,
           lastPerf,
           gifUrl,
-          progressionTarget: target
-            ? { weight_kg: target.target_weight_kg, reps: target.target_reps, notes: target.notes }
-            : null,
+          progressionTarget: target ? { weight_kg: target.target_weight_kg, reps: target.target_reps, notes: target.notes } : null,
         }
       }),
     }))
@@ -165,23 +383,24 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
     setLoaded(true)
   }
 
-  function formatTime(secs: number) {
-    const m = Math.floor(secs / 60).toString().padStart(2, '0')
-    const s = (secs % 60).toString().padStart(2, '0')
-    return `${m}:${s}`
-  }
-
-  function startRestTimer(duration: number) {
-    setRestTotal(duration)
-    setRestTimer(duration)
+  function startRestTimer(duration: number, exName?: string, setInfo?: string) {
+    const clamped = Math.max(5, duration)
+    setRestTotal(clamped)
+    setRestTimer(clamped)
     setRestActive(true)
+    setShowRestOverlay(true)
+    if (exName !== undefined) setRestExerciseName(exName)
+    if (setInfo !== undefined) setRestSetInfo(setInfo)
     clearInterval(restRef.current)
     restRef.current = setInterval(() => {
       setRestTimer(t => {
         if (t === null || t <= 1) {
           clearInterval(restRef.current)
           setRestActive(false)
-          return null
+          playRestCompleteBeep()
+          haptic([100, 50, 100])
+          setTimeout(() => setShowRestOverlay(false), 2200)
+          return 0
         }
         return t - 1
       })
@@ -192,6 +411,11 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
     clearInterval(restRef.current)
     setRestActive(false)
     setRestTimer(null)
+    setShowRestOverlay(false)
+  }
+
+  function adjustRestTimer(delta: number) {
+    setRestTimer(t => t === null ? t : Math.max(5, t + delta))
   }
 
   function updateSections(updater: (draft: Section[]) => Section[]) {
@@ -204,7 +428,8 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
     const newDone = !set.done
 
     if (newDone) {
-      // Check PR against last performance
+      haptic(50)
+
       const lastWorking = (ex.lastPerf ?? []).filter(lp => lp.set_type === 'working')
       const maxLastWeight = Math.max(0, ...lastWorking.map(lp => lp.weight_kg ?? 0))
       const maxLastReps = Math.max(0, ...lastWorking.filter(lp => lp.weight_kg === maxLastWeight).map(lp => lp.reps ?? 0))
@@ -212,6 +437,8 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
         set.weight_kg > maxLastWeight ||
         (set.weight_kg === maxLastWeight && set.reps > maxLastReps)
       )
+
+      if (isPr) haptic([60, 40, 120, 40, 120])
 
       const res = await fetch('/api/training/exercise', {
         method: 'POST',
@@ -234,20 +461,36 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
       const saved = await res.json()
 
       updateSections(draft => {
-        draft[secIdx].exercises[exIdx].sets[setIdx] = {
-          ...set, done: true, is_pr: isPr, savedId: saved.id,
-        }
+        draft[secIdx].exercises[exIdx].sets[setIdx] = { ...set, done: true, is_pr: isPr, savedId: saved.id }
         return draft
       })
 
       if (set.set_type === 'working' && ex.restSeconds > 0) {
-        startRestTimer(ex.restSeconds)
+        const workingDone = ex.sets.filter(s => s.set_type === 'working' && s.done).length + 1
+        const workingTotal = ex.sets.filter(s => s.set_type === 'working').length
+        startRestTimer(ex.restSeconds, ex.name, `Set ${workingDone} of ${workingTotal} complete`)
+      }
+
+      // Scroll to next incomplete exercise when this one finishes
+      const allDoneAfter = ex.sets.every((s, i) => i === setIdx ? true : s.done)
+      if (allDoneAfter) {
+        setTimeout(() => {
+          const flat: { secIdx: number; exIdx: number }[] = []
+          sectionsRef.current.forEach((sec, si) => sec.exercises.forEach((_, ei) => flat.push({ secIdx: si, exIdx: ei })))
+          const cur = flat.findIndex(e => e.secIdx === secIdx && e.exIdx === exIdx)
+          for (let i = cur + 1; i < flat.length; i++) {
+            const { secIdx: si, exIdx: ei } = flat[i]
+            const nextEx = sectionsRef.current[si]?.exercises[ei]
+            if (nextEx?.sets.some(st => !st.done)) {
+              document.getElementById(`ex-card-${si}-${ei}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              break
+            }
+          }
+        }, 300)
       }
     } else {
       updateSections(draft => {
-        draft[secIdx].exercises[exIdx].sets[setIdx] = {
-          ...set, done: false, is_pr: false,
-        }
+        draft[secIdx].exercises[exIdx].sets[setIdx] = { ...set, done: false, is_pr: false }
         return draft
       })
     }
@@ -255,10 +498,14 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
 
   function updateSetField(secIdx: number, exIdx: number, setIdx: number, field: 'weight_kg' | 'reps', value: number) {
     updateSections(draft => {
-      draft[secIdx].exercises[exIdx].sets[setIdx] = {
-        ...draft[secIdx].exercises[exIdx].sets[setIdx],
-        [field]: value,
-      }
+      draft[secIdx].exercises[exIdx].sets[setIdx] = { ...draft[secIdx].exercises[exIdx].sets[setIdx], [field]: value }
+      return draft
+    })
+  }
+
+  function updateRestSeconds(secIdx: number, exIdx: number, seconds: number) {
+    updateSections(draft => {
+      draft[secIdx].exercises[exIdx].restSeconds = seconds
       return draft
     })
   }
@@ -268,15 +515,7 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
       const ex = draft[secIdx].exercises[exIdx]
       const lastWorking = [...ex.sets].reverse().find(s => s.set_type === 'working') ?? ex.sets[ex.sets.length - 1]
       const nextNum = ex.sets.filter(s => s.set_type === 'working').length + 1
-      ex.sets.push({
-        localId: newLocalId(),
-        set_type: 'working',
-        set_number: nextNum,
-        weight_kg: lastWorking?.weight_kg ?? 0,
-        reps: lastWorking?.reps ?? 0,
-        done: false,
-        is_pr: false,
-      })
+      ex.sets.push({ localId: newLocalId(), set_type: 'working', set_number: nextNum, weight_kg: lastWorking?.weight_kg ?? 0, reps: lastWorking?.reps ?? 0, done: false, is_pr: false })
       return draft
     })
   }
@@ -288,15 +527,7 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
       const nextNum = warmups.length + 1
       const insertIdx = ex.sets.findLastIndex(s => s.set_type === 'warmup') + 1
       const warmupWeight = Math.round((ex.sets.find(s => s.set_type === 'working')?.weight_kg ?? 40) * 0.5)
-      ex.sets.splice(insertIdx, 0, {
-        localId: newLocalId(),
-        set_type: 'warmup',
-        set_number: nextNum,
-        weight_kg: warmupWeight,
-        reps: 15,
-        done: false,
-        is_pr: false,
-      })
+      ex.sets.splice(insertIdx, 0, { localId: newLocalId(), set_type: 'warmup', set_number: nextNum, weight_kg: warmupWeight, reps: 15, done: false, is_pr: false })
       return draft
     })
   }
@@ -306,7 +537,6 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
       const ex = draft[secIdx].exercises[exIdx]
       if (ex.sets.length <= 1) return draft
       ex.sets.splice(setIdx, 1)
-      // Re-number working sets
       let wNum = 0
       ex.sets = ex.sets.map(s => s.set_type === 'working' ? { ...s, set_number: ++wNum } : s)
       return draft
@@ -314,66 +544,40 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
   }
 
   function toggleExpanded(secIdx: number, exIdx: number) {
-    updateSections(draft => {
-      draft[secIdx].exercises[exIdx].expanded = !draft[secIdx].exercises[exIdx].expanded
-      return draft
-    })
+    updateSections(draft => { draft[secIdx].exercises[exIdx].expanded = !draft[secIdx].exercises[exIdx].expanded; return draft })
   }
 
   function updateNotes(secIdx: number, exIdx: number, notes: string) {
-    updateSections(draft => {
-      draft[secIdx].exercises[exIdx].notes = notes
-      return draft
-    })
+    updateSections(draft => { draft[secIdx].exercises[exIdx].notes = notes; return draft })
   }
 
   function addExercise(name: string) {
     updateSections(draft => {
       if (draft.length === 0) draft.push({ name: 'Other', exercises: [] })
       const lastSec = draft[draft.length - 1]
-      lastSec.exercises.push({
-        name,
-        sectionName: lastSec.name,
-        sets: [{
-          localId: newLocalId(),
-          set_type: 'working',
-          set_number: 1,
-          weight_kg: 0, reps: 0, done: false, is_pr: false,
-        }],
-        expanded: true,
-        notes: '',
-        restSeconds: 90,
-      })
+      lastSec.exercises.push({ name, sectionName: lastSec.name, sets: [{ localId: newLocalId(), set_type: 'working', set_number: 1, weight_kg: 0, reps: 0, done: false, is_pr: false }], expanded: true, notes: '', restSeconds: 90 })
       return draft
     })
   }
 
   function removeExercise(secIdx: number, exIdx: number) {
-    updateSections(draft => {
-      draft[secIdx].exercises.splice(exIdx, 1)
-      return draft
-    })
+    updateSections(draft => { draft[secIdx].exercises.splice(exIdx, 1); return draft })
   }
 
   function onDragHandlePointerDown(secIdx: number, exIdx: number, e: React.PointerEvent<Element>) {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault(); e.stopPropagation()
     e.currentTarget.setPointerCapture(e.pointerId)
-    dragFromRef.current = { secIdx, exIdx }
-    dragOverRef.current = { secIdx, exIdx }
-    setDragFrom({ secIdx, exIdx })
-    setDragOver({ secIdx, exIdx })
+    dragFromRef.current = { secIdx, exIdx }; dragOverRef.current = { secIdx, exIdx }
+    setDragFrom({ secIdx, exIdx }); setDragOver({ secIdx, exIdx })
 
     function onMove(ev: PointerEvent) {
       const els = document.elementsFromPoint(ev.clientX, ev.clientY)
       for (const el of els) {
         const card = (el as HTMLElement).closest?.('[data-ex-card]') as HTMLElement | null
         if (card) {
-          const s = parseInt(card.dataset.secIdx!)
-          const ex = parseInt(card.dataset.exIdx!)
+          const s = parseInt(card.dataset.secIdx!), ex = parseInt(card.dataset.exIdx!)
           if (!isNaN(s) && !isNaN(ex) && s === dragFromRef.current?.secIdx) {
-            dragOverRef.current = { secIdx: s, exIdx: ex }
-            setDragOver({ secIdx: s, exIdx: ex })
+            dragOverRef.current = { secIdx: s, exIdx: ex }; setDragOver({ secIdx: s, exIdx: ex })
           }
           break
         }
@@ -381,26 +585,18 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
     }
 
     function onUp() {
-      const from = dragFromRef.current
-      const over = dragOverRef.current
+      const from = dragFromRef.current, over = dragOverRef.current
       if (from && over && from.exIdx !== over.exIdx) {
         updateSections(draft => {
           const exs = draft[from.secIdx].exercises
-          const [moved] = exs.splice(from.exIdx, 1)
-          exs.splice(over.exIdx, 0, moved)
-          return draft
+          const [moved] = exs.splice(from.exIdx, 1); exs.splice(over.exIdx, 0, moved); return draft
         })
       }
-      dragFromRef.current = null
-      dragOverRef.current = null
-      setDragFrom(null)
-      setDragOver(null)
-      document.removeEventListener('pointermove', onMove)
-      document.removeEventListener('pointerup', onUp)
+      dragFromRef.current = null; dragOverRef.current = null; setDragFrom(null); setDragOver(null)
+      document.removeEventListener('pointermove', onMove); document.removeEventListener('pointerup', onUp)
     }
 
-    document.addEventListener('pointermove', onMove)
-    document.addEventListener('pointerup', onUp)
+    document.addEventListener('pointermove', onMove); document.addEventListener('pointerup', onUp)
   }
 
   async function discardSession() {
@@ -410,25 +606,17 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
   }
 
   async function finishSession() {
+    stopRestTimer()
     setFinishing(true)
     await fetch(`/api/training/session/${sessionId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        duration_min: Math.round(elapsed / 60),
-        volume_kg: Math.round(volume),
-        prs,
-        finished_at: new Date().toISOString(),
-      }),
+      body: JSON.stringify({ duration_min: Math.round(elapsed / 60), volume_kg: Math.round(volume), prs, finished_at: new Date().toISOString() }),
     })
-    setFinishing(false)
-    setShowResults(true)
-    setAnalyzing(true)
-
+    setFinishing(false); setShowResults(true); setAnalyzing(true)
     try {
       const res = await fetch(`/api/training/session/${sessionId}/analyze`, { method: 'POST' })
-      const data = await res.json()
-      setSessionResults(data)
+      setSessionResults(await res.json())
     } catch {
       setSessionResults({ summary: 'Session saved. Every rep counts — keep showing up.', targets: [] })
     } finally {
@@ -436,21 +624,10 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
     }
   }
 
-  const inputStyle: React.CSSProperties = {
-    backgroundColor: '#1c1c1c', border: '1px solid #27272a',
-    borderRadius: '8px', padding: '8px 10px',
-    fontSize: '15px', color: '#fff', outline: 'none',
-    textAlign: 'center', width: '64px', fontFamily: 'inherit',
-  }
-
-  const restProgress = restTimer !== null && restTotal > 0
-    ? 1 - restTimer / restTotal
-    : 0
-
-  // Flatten all exercises for set-done count in header
   const allExercises = sections.flatMap(s => s.exercises)
   const totalSets = allExercises.flatMap(e => e.sets).filter(s => s.set_type === 'working').length
   const doneSets = allExercises.flatMap(e => e.sets).filter(s => s.done && s.set_type === 'working').length
+  const restProgress = restTimer !== null && restTotal > 0 ? Math.min(1, restTimer / restTotal) : 0
 
   return (
     <div style={{ backgroundColor: '#000', minHeight: '100vh' }}>
@@ -485,59 +662,37 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
           </div>
         </div>
 
-        {/* Rest timer bar */}
-        {restActive && restTimer !== null && (
-          <div style={{ marginTop: '10px' }}>
-            <div style={{
-              height: '3px', backgroundColor: '#1c1c1c', borderRadius: '2px', overflow: 'hidden',
-            }}>
-              <div style={{
-                height: '100%', borderRadius: '2px',
-                backgroundColor: templateColor,
-                width: `${restProgress * 100}%`,
-                transition: 'width 1s linear',
-              }} />
+        {/* Mini rest pill — shown when overlay is dismissed but rest still counting */}
+        {restActive && restTimer !== null && !showRestOverlay && (
+          <button
+            onClick={() => setShowRestOverlay(true)}
+            style={{
+              marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px',
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+            }}
+          >
+            <Timer size={12} color="#a78bfa" />
+            <span style={{ fontSize: '12px', color: '#a78bfa', fontWeight: 600 }}>
+              Rest {formatTime(restTimer)}
+            </span>
+            <div style={{ width: '60px', height: '2px', backgroundColor: '#1c1c1c', borderRadius: '1px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', backgroundColor: templateColor, width: `${restProgress * 100}%`, transition: 'width 1s linear' }} />
             </div>
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              marginTop: '6px',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Timer size={12} color="#7c3aed" />
-                <span style={{ fontSize: '12px', color: '#a78bfa', fontWeight: 600 }}>
-                  Rest: {formatTime(restTimer)}
-                </span>
-              </div>
-              <button
-                onClick={stopRestTimer}
-                style={{ background: 'none', border: 'none', color: '#52525b', cursor: 'pointer', fontSize: '12px' }}
-              >
-                Skip
-              </button>
-            </div>
-          </div>
+          </button>
         )}
       </div>
 
-      {/* Content */}
+      {/* Exercise list */}
       <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {!loaded && (
-          <div style={{ color: '#52525b', textAlign: 'center', padding: '40px 0', fontSize: '14px' }}>
-            Loading template...
-          </div>
+          <div style={{ color: '#52525b', textAlign: 'center', padding: '40px 0', fontSize: '14px' }}>Loading template...</div>
         )}
 
         {sections.map((section, secIdx) => (
           <div key={secIdx}>
-            {/* Section heading */}
-            <div style={{
-              fontSize: '11px', fontWeight: 700, color: '#3f3f46',
-              letterSpacing: '0.08em', padding: '16px 4px 8px',
-              textTransform: 'uppercase',
-            }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#3f3f46', letterSpacing: '0.08em', padding: '16px 4px 8px', textTransform: 'uppercase' }}>
               {section.name}
             </div>
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {section.exercises.map((ex, exIdx) => {
                 const isDragging = dragFrom?.secIdx === secIdx && dragFrom?.exIdx === exIdx
@@ -545,34 +700,25 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
                 return (
                   <div
                     key={`${secIdx}-${exIdx}-${ex.name}`}
-                    data-ex-card=""
-                    data-sec-idx={String(secIdx)}
-                    data-ex-idx={String(exIdx)}
-                    style={{
-                      opacity: isDragging ? 0.35 : 1,
-                      transition: 'opacity 0.1s',
-                      borderTop: isDragTarget ? '2px solid #f97316' : '2px solid transparent',
-                      borderRadius: '2px',
-                    }}
+                    id={`ex-card-${secIdx}-${exIdx}`}
+                    data-ex-card="" data-sec-idx={String(secIdx)} data-ex-idx={String(exIdx)}
+                    style={{ opacity: isDragging ? 0.35 : 1, transition: 'opacity 0.1s', borderTop: isDragTarget ? '2px solid #f97316' : '2px solid transparent', borderRadius: '2px' }}
                   >
                     <ExerciseCard
                       ex={ex}
                       templateColor={templateColor}
-                      inputStyle={inputStyle}
                       gifUrl={ex.gifUrl}
                       onToggle={() => toggleExpanded(secIdx, exIdx)}
-                      onTickSet={(setIdx) => tickSet(secIdx, exIdx, setIdx)}
+                      onTickSet={setIdx => tickSet(secIdx, exIdx, setIdx)}
                       onUpdateSet={(setIdx, field, val) => updateSetField(secIdx, exIdx, setIdx, field, val)}
                       onAddSet={() => addSet(secIdx, exIdx)}
                       onAddWarmup={() => addWarmupSet(secIdx, exIdx)}
-                      onRemoveSet={(setIdx) => removeSet(secIdx, exIdx, setIdx)}
-                      onUpdateNotes={(n) => updateNotes(secIdx, exIdx, n)}
-                      onNameChange={(name) => updateSections(draft => {
-                        draft[secIdx].exercises[exIdx].name = name
-                        return draft
-                      })}
+                      onRemoveSet={setIdx => removeSet(secIdx, exIdx, setIdx)}
+                      onUpdateNotes={n => updateNotes(secIdx, exIdx, n)}
+                      onNameChange={name => updateSections(draft => { draft[secIdx].exercises[exIdx].name = name; return draft })}
                       onRemoveExercise={() => removeExercise(secIdx, exIdx)}
                       onDragHandlePointerDown={e => onDragHandlePointerDown(secIdx, exIdx, e)}
+                      onRestSecondsChange={s => updateRestSeconds(secIdx, exIdx, s)}
                     />
                   </div>
                 )
@@ -581,54 +727,28 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
           </div>
         ))}
 
-        {/* Add exercise */}
         {loaded && (
           <button
             onClick={() => setShowPicker(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center',
-              width: '100%', backgroundColor: '#111', border: '1px dashed #27272a',
-              borderRadius: '16px', padding: '14px', cursor: 'pointer',
-              fontSize: '14px', color: '#52525b', marginTop: '8px',
-            }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', width: '100%', backgroundColor: '#111', border: '1px dashed #27272a', borderRadius: '16px', padding: '14px', cursor: 'pointer', fontSize: '14px', color: '#52525b', marginTop: '8px' }}
           >
             <Plus size={16} /> Add exercise
           </button>
         )}
 
-        {/* Finish + Discard row */}
         {loaded && (
-          <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-            {/* Discard */}
+          <div style={{ display: 'flex', gap: '10px', marginTop: '8px', paddingBottom: '48px' }}>
             <button
               onClick={() => setShowDiscardConfirm(true)}
               disabled={finishing || discarding}
-              style={{
-                flexShrink: 0, backgroundColor: '#111',
-                color: '#ff6b6b', fontWeight: 600, padding: '18px 20px',
-                borderRadius: '18px', border: '1px solid #27272a',
-                cursor: 'pointer', fontSize: '15px',
-                opacity: finishing || discarding ? 0.5 : 1,
-              }}
+              style={{ flexShrink: 0, backgroundColor: '#111', color: '#ff6b6b', fontWeight: 600, padding: '18px 20px', borderRadius: '18px', border: '1px solid #27272a', cursor: 'pointer', fontSize: '15px', opacity: finishing || discarding ? 0.5 : 1 }}
             >
               Discard
             </button>
-
-            {/* Save */}
             <button
               onClick={doneSets > 0 ? finishSession : undefined}
               disabled={finishing || discarding || doneSets === 0}
-              title={doneSets === 0 ? 'Complete at least one set to save' : undefined}
-              style={{
-                flex: 1, backgroundColor: doneSets === 0 ? '#1c1c1c' : templateColor,
-                color: doneSets === 0 ? '#52525b' : '#fff',
-                fontWeight: 700, padding: '18px', borderRadius: '18px',
-                border: 'none', fontSize: '16px',
-                cursor: doneSets === 0 ? 'not-allowed' : 'pointer',
-                opacity: finishing ? 0.7 : 1,
-                filter: doneSets > 0 ? 'brightness(0.9)' : 'none',
-                transition: 'background-color 0.2s, color 0.2s',
-              }}
+              style={{ flex: 1, backgroundColor: doneSets === 0 ? '#1c1c1c' : templateColor, color: doneSets === 0 ? '#52525b' : '#fff', fontWeight: 700, padding: '18px', borderRadius: '18px', border: 'none', fontSize: '16px', cursor: doneSets === 0 ? 'not-allowed' : 'pointer', opacity: finishing ? 0.7 : 1, filter: doneSets > 0 ? 'brightness(0.9)' : 'none', transition: 'background-color 0.2s, color 0.2s' }}
             >
               {finishing ? 'Saving...' : doneSets === 0 ? 'No sets done' : `Save · ${Math.round(volume).toLocaleString()}kg`}
             </button>
@@ -636,109 +756,60 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
         )}
       </div>
 
-      {/* Exercise picker */}
-      {showPicker && (
-        <ExercisePicker
-          onSelect={name => addExercise(name)}
-          onClose={() => setShowPicker(false)}
-          gender={gender}
+      {/* Rest timer overlay */}
+      {showRestOverlay && restTimer !== null && (
+        <RestTimerOverlay
+          restTimer={restTimer}
+          restTotal={restTotal}
+          exerciseName={restExerciseName}
+          setInfo={restSetInfo}
+          templateColor={templateColor}
+          onSkip={stopRestTimer}
+          onAdjust={adjustRestTimer}
         />
+      )}
+
+      {showPicker && (
+        <ExercisePicker onSelect={name => addExercise(name)} onClose={() => setShowPicker(false)} gender={gender} />
       )}
 
       {/* Post-session coaching modal */}
       {showResults && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 50,
-          backgroundColor: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)',
-          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-          padding: '20px',
-        }}>
-          <div style={{
-            width: '100%', maxWidth: '480px',
-            backgroundColor: '#111', borderRadius: '28px',
-            border: '1px solid #1c1c1c', padding: '28px 24px',
-            marginBottom: '20px',
-          }}>
-            {/* Header */}
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, backgroundColor: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ width: '100%', maxWidth: '480px', backgroundColor: '#111', borderRadius: '28px', border: '1px solid #1c1c1c', padding: '28px 24px', marginBottom: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
-              <div style={{
-                width: '52px', height: '52px', borderRadius: '16px', flexShrink: 0,
-                backgroundColor: templateColor + '20', border: `1px solid ${templateColor}40`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '24px',
-              }}>
+              <div style={{ width: '52px', height: '52px', borderRadius: '16px', flexShrink: 0, backgroundColor: templateColor + '20', border: `1px solid ${templateColor}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>
                 {prs > 0 ? '🏆' : '✓'}
               </div>
               <div>
-                <div style={{ fontSize: '19px', fontWeight: 700, color: '#fff' }}>
-                  Session Complete
-                </div>
+                <div style={{ fontSize: '19px', fontWeight: 700, color: '#fff' }}>Session Complete</div>
                 <div style={{ fontSize: '13px', color: '#52525b', marginTop: '2px' }}>
-                  {formatTime(elapsed)} · {Math.round(volume).toLocaleString()}kg
-                  {prs > 0 ? ` · ${prs} PR${prs > 1 ? 's' : ''}` : ''}
+                  {formatTime(elapsed)} · {Math.round(volume).toLocaleString()}kg{prs > 0 ? ` · ${prs} PR${prs > 1 ? 's' : ''}` : ''}
                 </div>
               </div>
             </div>
 
             {analyzing ? (
               <div style={{ textAlign: 'center', padding: '24px 0' }}>
-                <div style={{ fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>
-                  Analyzing your session...
-                </div>
-                <div style={{ fontSize: '12px', color: '#52525b' }}>
-                  Setting your targets for next time
-                </div>
+                <div style={{ fontSize: '14px', color: '#a1a1aa', marginBottom: '6px' }}>Analyzing your session...</div>
+                <div style={{ fontSize: '12px', color: '#52525b' }}>Setting your targets for next time</div>
               </div>
             ) : sessionResults ? (
               <>
-                {/* Coach summary */}
-                <div style={{
-                  backgroundColor: '#161616', borderRadius: '14px',
-                  padding: '14px 16px', marginBottom: '16px',
-                  fontSize: '14px', color: '#e4e4e7', lineHeight: '1.65',
-                  borderLeft: `3px solid ${templateColor}`,
-                }}>
+                <div style={{ backgroundColor: '#161616', borderRadius: '14px', padding: '14px 16px', marginBottom: '16px', fontSize: '14px', color: '#e4e4e7', lineHeight: '1.65', borderLeft: `3px solid ${templateColor}` }}>
                   {sessionResults.summary}
                 </div>
-
-                {/* Next session targets */}
                 {sessionResults.targets.length > 0 && (
                   <div>
-                    <div style={{
-                      fontSize: '10px', color: '#3f3f46', fontWeight: 700,
-                      letterSpacing: '0.1em', textTransform: 'uppercase',
-                      marginBottom: '10px',
-                    }}>
-                      Next Session Targets
-                    </div>
-                    <div style={{
-                      display: 'flex', flexDirection: 'column', gap: '6px',
-                      maxHeight: '220px', overflowY: 'auto',
-                    }}>
+                    <div style={{ fontSize: '10px', color: '#3f3f46', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px' }}>Next Session Targets</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '220px', overflowY: 'auto' }}>
                       {sessionResults.targets.map((t, i) => (
-                        <div key={i} style={{
-                          display: 'flex', alignItems: 'center',
-                          justifyContent: 'space-between',
-                          backgroundColor: '#1a1a1a', borderRadius: '12px',
-                          padding: '11px 14px',
-                        }}>
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#1a1a1a', borderRadius: '12px', padding: '11px 14px' }}>
                           <div style={{ flex: 1, minWidth: 0, paddingRight: '12px' }}>
-                            <div style={{
-                              fontSize: '13px', fontWeight: 600, color: '#e4e4e7',
-                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                            }}>
-                              {t.exercise_name}
-                            </div>
-                            <div style={{ fontSize: '11px', color: '#52525b', marginTop: '2px' }}>
-                              {t.note}
-                            </div>
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#e4e4e7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.exercise_name}</div>
+                            <div style={{ fontSize: '11px', color: '#52525b', marginTop: '2px' }}>{t.note}</div>
                           </div>
-                          <div style={{
-                            fontSize: '15px', fontWeight: 700, color: templateColor,
-                            flexShrink: 0,
-                          }}>
-                            {t.target_weight_kg}kg × {t.target_reps}
-                          </div>
+                          <div style={{ fontSize: '15px', fontWeight: 700, color: templateColor, flexShrink: 0 }}>{t.target_weight_kg}kg × {t.target_reps}</div>
                         </div>
                       ))}
                     </div>
@@ -750,14 +821,7 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
             <button
               onClick={onFinish}
               disabled={analyzing}
-              style={{
-                width: '100%', marginTop: '20px',
-                backgroundColor: analyzing ? '#1c1c1c' : templateColor,
-                color: analyzing ? '#52525b' : '#fff',
-                fontWeight: 700, padding: '17px', borderRadius: '16px',
-                border: 'none', cursor: analyzing ? 'not-allowed' : 'pointer',
-                fontSize: '15px', transition: 'background-color 0.2s',
-              }}
+              style={{ width: '100%', marginTop: '20px', backgroundColor: analyzing ? '#1c1c1c' : templateColor, color: analyzing ? '#52525b' : '#fff', fontWeight: 700, padding: '17px', borderRadius: '16px', border: 'none', cursor: analyzing ? 'not-allowed' : 'pointer', fontSize: '15px', transition: 'background-color 0.2s' }}
             >
               {analyzing ? 'Analyzing...' : 'Done'}
             </button>
@@ -765,48 +829,17 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
         </div>
       )}
 
-      {/* Discard confirmation modal */}
+      {/* Discard confirmation */}
       {showDiscardConfirm && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 50,
-          backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '20px',
-        }}>
-          <div style={{
-            width: '100%', maxWidth: '480px',
-            backgroundColor: '#111', borderRadius: '24px',
-            border: '1px solid #1c1c1c', padding: '28px 24px',
-          }}>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: '#fff', marginBottom: '8px' }}>
-              Discard workout?
-            </div>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ width: '100%', maxWidth: '480px', backgroundColor: '#111', borderRadius: '24px', border: '1px solid #1c1c1c', padding: '28px 24px' }}>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: '#fff', marginBottom: '8px' }}>Discard workout?</div>
             <div style={{ fontSize: '14px', color: '#71717a', marginBottom: '24px', lineHeight: '1.5' }}>
-              {doneSets > 0
-                ? `You've completed ${doneSets} set${doneSets === 1 ? '' : 's'}. This data will be permanently deleted.`
-                : 'This workout will be deleted and nothing will be saved.'}
+              {doneSets > 0 ? `You've completed ${doneSets} set${doneSets === 1 ? '' : 's'}. This data will be permanently deleted.` : 'This workout will be deleted and nothing will be saved.'}
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                onClick={() => setShowDiscardConfirm(false)}
-                style={{
-                  flex: 1, backgroundColor: '#1c1c1c', color: '#fff',
-                  fontWeight: 600, padding: '16px', borderRadius: '14px',
-                  border: '1px solid #27272a', cursor: 'pointer', fontSize: '15px',
-                }}
-              >
-                Keep going
-              </button>
-              <button
-                onClick={() => { setShowDiscardConfirm(false); discardSession() }}
-                disabled={discarding}
-                style={{
-                  flex: 1, backgroundColor: '#ff6b6b', color: '#0d0c0b',
-                  fontWeight: 700, padding: '16px', borderRadius: '14px',
-                  border: 'none', cursor: 'pointer', fontSize: '15px',
-                  opacity: discarding ? 0.7 : 1,
-                }}
-              >
+              <button onClick={() => setShowDiscardConfirm(false)} style={{ flex: 1, backgroundColor: '#1c1c1c', color: '#fff', fontWeight: 600, padding: '16px', borderRadius: '14px', border: '1px solid #27272a', cursor: 'pointer', fontSize: '15px' }}>Keep going</button>
+              <button onClick={() => { setShowDiscardConfirm(false); discardSession() }} disabled={discarding} style={{ flex: 1, backgroundColor: '#ff6b6b', color: '#0d0c0b', fontWeight: 700, padding: '16px', borderRadius: '14px', border: 'none', cursor: 'pointer', fontSize: '15px', opacity: discarding ? 0.7 : 1 }}>
                 {discarding ? 'Discarding...' : 'Yes, discard'}
               </button>
             </div>
@@ -817,22 +850,19 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
   )
 }
 
-// ─── Exercise Card ─────────────────────────────────────────────────────────────
+// ─── Exercise Name Input ──────────────────────────────────────────────────────
 
 interface ExerciseSuggestion {
-  id: string
-  name: string
-  category: string | null
-  equipment: string | null
-  primary_muscles: string[]
-  force: string | null
+  id: string; name: string; category: string | null; equipment: string | null; primary_muscles: string[]; force: string | null
 }
 
-function ExerciseNameInput({ value, onChange, inputStyle }: {
-  value: string
-  onChange: (name: string) => void
-  inputStyle: React.CSSProperties
-}) {
+const nameInputStyle: React.CSSProperties = {
+  backgroundColor: '#1c1c1c', border: '1px solid #27272a', borderRadius: '8px',
+  padding: '8px 10px', fontSize: '15px', color: '#fff', outline: 'none',
+  textAlign: 'left', width: '180px', fontFamily: 'inherit',
+}
+
+function ExerciseNameInput({ value, onChange }: { value: string; onChange: (name: string) => void }) {
   const [query, setQuery] = useState(value)
   const [suggestions, setSuggestions] = useState<ExerciseSuggestion[]>([])
   const [open, setOpen] = useState(false)
@@ -843,9 +873,7 @@ function ExerciseNameInput({ value, onChange, inputStyle }: {
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
@@ -857,61 +885,27 @@ function ExerciseNameInput({ value, onChange, inputStyle }: {
     debounceRef.current = setTimeout(async () => {
       const res = await fetch(`/api/training/exercises?q=${encodeURIComponent(q)}`)
       const data = await res.json()
-      setSuggestions(data)
-      setOpen(data.length > 0)
+      setSuggestions(data); setOpen(data.length > 0)
     }, 200)
   }, [])
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const v = e.target.value
-    setQuery(v)
-    onChange(v)
-    search(v)
+    const v = e.target.value; setQuery(v); onChange(v); search(v)
   }
 
   function select(s: ExerciseSuggestion) {
-    setQuery(s.name)
-    onChange(s.name)
-    setSuggestions([])
-    setOpen(false)
+    setQuery(s.name); onChange(s.name); setSuggestions([]); setOpen(false)
   }
 
   return (
     <div ref={wrapperRef} style={{ position: 'relative' }}>
-      <input
-        type="text"
-        placeholder="Exercise name"
-        value={query}
-        onChange={handleChange}
-        onFocus={() => { if (suggestions.length > 0) setOpen(true) }}
-        onClick={e => e.stopPropagation()}
-        style={{ ...inputStyle, width: '180px', textAlign: 'left', padding: '6px 10px' }}
-        autoComplete="off"
-      />
+      <input type="text" placeholder="Exercise name" value={query} onChange={handleChange} onFocus={() => { if (suggestions.length > 0) setOpen(true) }} onClick={e => e.stopPropagation()} style={nameInputStyle} autoComplete="off" />
       {open && (
-        <div
-          onClick={e => e.stopPropagation()}
-          style={{
-            position: 'absolute', top: '100%', left: 0, zIndex: 100,
-            backgroundColor: '#1a1a1a', border: '1px solid #2a2a2a',
-            borderRadius: '12px', marginTop: '4px', minWidth: '240px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.6)', overflow: 'hidden',
-          }}
-        >
+        <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, backgroundColor: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', marginTop: '4px', minWidth: '240px', boxShadow: '0 8px 24px rgba(0,0,0,0.6)', overflow: 'hidden' }}>
           {suggestions.map(s => (
-            <button
-              key={s.id}
-              onMouseDown={e => { e.preventDefault(); select(s) }}
-              style={{
-                display: 'block', width: '100%', textAlign: 'left',
-                background: 'none', border: 'none', cursor: 'pointer',
-                padding: '10px 14px', borderBottom: '1px solid #222',
-              }}
-            >
+            <button key={s.id} onMouseDown={e => { e.preventDefault(); select(s) }} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 14px', borderBottom: '1px solid #222' }}>
               <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>{s.name}</div>
-              <div style={{ fontSize: '11px', color: '#52525b', marginTop: '2px' }}>
-                {[s.primary_muscles?.[0], s.equipment].filter(Boolean).join(' · ')}
-              </div>
+              <div style={{ fontSize: '11px', color: '#52525b', marginTop: '2px' }}>{[s.primary_muscles?.[0], s.equipment].filter(Boolean).join(' · ')}</div>
             </button>
           ))}
         </div>
@@ -922,70 +916,42 @@ function ExerciseNameInput({ value, onChange, inputStyle }: {
 
 // ─── Swipe-to-delete row ──────────────────────────────────────────────────────
 
-function SwipeRow({ children, onDelete, disabled }: {
-  children: React.ReactNode
-  onDelete: () => void
-  disabled?: boolean
-}) {
+function SwipeRow({ children, onDelete, disabled }: { children: React.ReactNode; onDelete: () => void; disabled?: boolean }) {
   const [offset, setOffset] = useState(0)
   const [swiping, setSwiping] = useState(false)
   const startX = useRef(0)
 
-  function onTouchStart(e: React.TouchEvent) {
-    if (disabled) return
-    startX.current = e.touches[0].clientX
-    setSwiping(true)
-  }
-
-  function onTouchMove(e: React.TouchEvent) {
-    if (!swiping) return
-    const delta = e.touches[0].clientX - startX.current
-    if (delta < 0) setOffset(Math.max(delta, -80))
-    else if (offset < 0) setOffset(0)
-  }
-
-  function onTouchEnd() {
-    setSwiping(false)
-    if (offset <= -60) {
-      onDelete()
-      setOffset(0)
-    } else {
-      setOffset(0)
-    }
-  }
+  function onTouchStart(e: React.TouchEvent) { if (disabled) return; startX.current = e.touches[0].clientX; setSwiping(true) }
+  function onTouchMove(e: React.TouchEvent) { if (!swiping) return; const delta = e.touches[0].clientX - startX.current; if (delta < 0) setOffset(Math.max(delta, -80)); else if (offset < 0) setOffset(0) }
+  function onTouchEnd() { setSwiping(false); if (offset <= -60) { onDelete(); setOffset(0) } else setOffset(0) }
 
   return (
-    <div style={{ position: 'relative', overflow: 'hidden', marginBottom: '8px' }}>
-      <div style={{
-        position: 'absolute', right: 0, top: 0, bottom: 0, width: '80px',
-        backgroundColor: '#ff6b6b', borderRadius: '8px',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        opacity: Math.min(1, Math.abs(offset) / 60),
-      }}>
+    <div style={{ position: 'relative', overflow: 'hidden', marginBottom: '6px' }}>
+      <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '80px', backgroundColor: '#ff6b6b', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: Math.min(1, Math.abs(offset) / 60) }}>
         <Trash2 size={16} color="#0d0c0b" />
       </div>
-      <div
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        style={{
-          transform: `translateX(${offset}px)`,
-          transition: swiping ? 'none' : 'transform 0.2s ease',
-          position: 'relative',
-        }}
-      >
+      <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} style={{ transform: `translateX(${offset}px)`, transition: swiping ? 'none' : 'transform 0.2s ease', position: 'relative' }}>
         {children}
       </div>
     </div>
   )
 }
 
-// ─── Exercise card ────────────────────────────────────────────────────────────
+// ─── Rest presets for cycle ───────────────────────────────────────────────────
+
+const REST_PRESETS = [30, 45, 60, 90, 120, 150, 180, 240]
+
+function cycleRest(current: number): number {
+  const idx = REST_PRESETS.indexOf(current)
+  return REST_PRESETS[(idx + 1) % REST_PRESETS.length]
+}
+
+// ─── Exercise Card ────────────────────────────────────────────────────────────
 
 interface ExerciseCardProps {
   ex: ExerciseLog
   templateColor: string
-  inputStyle: React.CSSProperties
+  gifUrl?: string | null
   onToggle: () => void
   onTickSet: (setIdx: number) => void
   onUpdateSet: (setIdx: number, field: 'weight_kg' | 'reps', val: number) => void
@@ -996,218 +962,116 @@ interface ExerciseCardProps {
   onNameChange: (name: string) => void
   onRemoveExercise: () => void
   onDragHandlePointerDown: (e: React.PointerEvent<Element>) => void
-  gifUrl?: string | null
+  onRestSecondsChange: (s: number) => void
 }
 
-function ExerciseCard({
-  ex, templateColor, inputStyle,
-  onToggle, onTickSet, onUpdateSet, onAddSet, onAddWarmup,
-  onRemoveSet, onUpdateNotes, onNameChange,
-  onRemoveExercise, onDragHandlePointerDown,
-  gifUrl,
-}: ExerciseCardProps) {
+function ExerciseCard({ ex, templateColor, onToggle, onTickSet, onUpdateSet, onAddSet, onAddWarmup, onRemoveSet, onUpdateNotes, onNameChange, onRemoveExercise, onDragHandlePointerDown, gifUrl, onRestSecondsChange }: ExerciseCardProps) {
   const workingSets = ex.sets.filter(s => s.set_type === 'working')
   const doneSets = workingSets.filter(s => s.done).length
+  const allDone = workingSets.length > 0 && doneSets === workingSets.length
   const hasPr = ex.sets.some(s => s.is_pr)
   const isDurationOnly = ex.sets.length === 0
 
   const target = ex.progressionTarget
-  const targetStr = target?.weight_kg != null && target?.reps != null
-    ? `${target.weight_kg}kg × ${target.reps}`
-    : null
-
-  // Last performance summary string (shown alongside target for reference)
+  const targetStr = target?.weight_kg != null && target?.reps != null ? `${target.weight_kg}kg × ${target.reps}` : null
   const lastPerf = ex.lastPerf?.filter(lp => lp.set_type === 'working')
-  const lastPerfStr = lastPerf && lastPerf.length > 0
-    ? lastPerf.slice(0, 2).map(lp => `${lp.weight_kg}×${lp.reps}`).join(' ')
-    : null
+  const lastPerfStr = lastPerf && lastPerf.length > 0 ? lastPerf.slice(0, 2).map(lp => `${lp.weight_kg}×${lp.reps}`).join(' ') : null
 
   return (
-    <div style={{
-      backgroundColor: '#111', border: '1px solid #1c1c1c',
-      borderRadius: '18px', overflow: 'hidden',
-    }}>
+    <div style={{ backgroundColor: '#111', border: `1px solid ${allDone ? templateColor + '50' : '#1c1c1c'}`, borderRadius: '18px', overflow: 'hidden', transition: 'border-color 0.4s' }}>
       {/* Header */}
-      <div
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '14px 16px', cursor: 'pointer', gap: '8px',
-        }}
-        onClick={onToggle}
-      >
-        {/* Drag handle */}
-        <div
-          onPointerDown={onDragHandlePointerDown}
-          onClick={e => e.stopPropagation()}
-          style={{ color: '#2a2a2a', cursor: 'grab', touchAction: 'none', flexShrink: 0, padding: '2px' }}
-        >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', cursor: 'pointer', gap: '8px' }} onClick={onToggle}>
+        <div onPointerDown={onDragHandlePointerDown} onClick={e => e.stopPropagation()} style={{ color: '#2a2a2a', cursor: 'grab', touchAction: 'none', flexShrink: 0, padding: '2px' }}>
           <GripVertical size={16} />
         </div>
 
-        {/* Exercise GIF thumbnail */}
         {gifUrl && (
-          <div style={{
-            width: '44px', height: '44px', borderRadius: '10px',
-            overflow: 'hidden', flexShrink: 0, backgroundColor: '#1a1a1a',
-          }}>
+          <div style={{ width: '44px', height: '44px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, backgroundColor: '#1a1a1a' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={gifUrl}
-              alt={ex.name}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              loading="lazy"
-            />
+            <img src={gifUrl} alt={ex.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
           </div>
         )}
 
         <div style={{ flex: 1, minWidth: 0 }}>
           {ex.name && !ex.expanded ? (
-            <div style={{ fontSize: '15px', fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ex.name}</div>
+            <div style={{ fontSize: '15px', fontWeight: 600, color: allDone ? '#52525b' : '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', transition: 'color 0.3s' }}>{ex.name}</div>
           ) : (
-            <ExerciseNameInput
-              value={ex.name}
-              onChange={onNameChange}
-              inputStyle={inputStyle}
-            />
+            <ExerciseNameInput value={ex.name} onChange={onNameChange} />
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px', flexWrap: 'wrap' }}>
             {!isDurationOnly && (
-              <span style={{ fontSize: '12px', color: '#52525b' }}>
-                {doneSets}/{workingSets.length} sets
+              <span style={{ fontSize: '12px', color: allDone ? '#22c55e' : '#52525b', transition: 'color 0.3s' }}>
+                {allDone ? '✓ Done' : `${doneSets}/${workingSets.length} sets`}
               </span>
             )}
             {targetStr && (
-              <span style={{
-                fontSize: '11px', fontWeight: 700, color: templateColor,
-                backgroundColor: templateColor + '18',
-                borderRadius: '5px', padding: '1px 6px',
-              }}>
-                Target: {targetStr}
+              <span style={{ fontSize: '11px', fontWeight: 700, color: templateColor, backgroundColor: templateColor + '18', borderRadius: '5px', padding: '1px 6px' }}>
+                {targetStr}
               </span>
             )}
-            {lastPerfStr && (
-              <span style={{ fontSize: '11px', color: '#3f3f46' }}>Last: {lastPerfStr}</span>
-            )}
+            {lastPerfStr && <span style={{ fontSize: '11px', color: '#3f3f46' }}>Last: {lastPerfStr}</span>}
             {hasPr && <span style={{ fontSize: '11px', color: '#f59e0b' }}>🏆 PR</span>}
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-          {ex.expanded && (
-            <button
-              onClick={e => { e.stopPropagation(); onRemoveExercise() }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#3f3f46' }}
-            >
-              <Trash2 size={15} color="#ff6b6b" />
-            </button>
-          )}
+          {ex.expanded && <button onClick={e => { e.stopPropagation(); onRemoveExercise() }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}><Trash2 size={15} color="#ff6b6b" /></button>}
           {ex.expanded ? <ChevronUp size={16} color="#52525b" /> : <ChevronDown size={16} color="#52525b" />}
         </div>
       </div>
 
       {/* Sets */}
       {ex.expanded && (
-        <div style={{ padding: '0 16px 14px' }}>
+        <div style={{ padding: '0 16px 16px' }}>
           {isDurationOnly ? (
-            <div style={{ fontSize: '13px', color: '#52525b', fontStyle: 'italic', marginBottom: '8px' }}>
-              {ex.notes || 'Duration-based exercise'}
-            </div>
+            <div style={{ fontSize: '13px', color: '#52525b', fontStyle: 'italic', marginBottom: '8px' }}>{ex.notes || 'Duration-based exercise'}</div>
           ) : (
             <>
               {/* Column headers */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', paddingLeft: '4px' }}>
-                <span style={{ fontSize: '10px', color: '#3f3f46', width: '28px' }}>SET</span>
-                <span style={{ fontSize: '10px', color: '#3f3f46', width: '64px', textAlign: 'center' }}>KG</span>
-                <span style={{ fontSize: '10px', color: '#3f3f46', width: '64px', textAlign: 'center' }}>REPS</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', paddingLeft: '2px' }}>
+                <span style={{ fontSize: '10px', color: '#3f3f46', width: '22px' }}>SET</span>
+                <span style={{ fontSize: '10px', color: '#3f3f46', flex: 1, textAlign: 'center' }}>KG</span>
+                <span style={{ fontSize: '10px', color: '#3f3f46', flex: 1, textAlign: 'center' }}>REPS</span>
+                <span style={{ width: '52px' }} />
               </div>
 
               {ex.sets.map((set, setIdx) => {
                 const isWarmup = set.set_type === 'warmup'
                 const canDelete = !set.done && ex.sets.length > 1
+                const weightStep = (set.weight_kg ?? 0) < 20 ? 1 : 2.5
                 return (
-                  <SwipeRow
-                    key={set.localId}
-                    onDelete={() => onRemoveSet(setIdx)}
-                    disabled={!canDelete}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{
-                        fontSize: '12px',
-                        color: isWarmup ? '#52525b' : '#71717a',
-                        width: '28px', flexShrink: 0,
-                        fontWeight: isWarmup ? 500 : 400,
-                      }}>
+                  <SwipeRow key={set.localId} onDelete={() => onRemoveSet(setIdx)} disabled={!canDelete}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: set.done ? 0.45 : 1, transition: 'opacity 0.25s' }}>
+                      <span style={{ fontSize: '12px', color: isWarmup ? '#52525b' : '#71717a', width: '22px', flexShrink: 0, fontWeight: isWarmup ? 500 : 400 }}>
                         {isWarmup ? 'W' : set.set_number}
                       </span>
-
-                      <input
-                        type="number"
-                        value={set.weight_kg || ''}
-                        onChange={e => onUpdateSet(setIdx, 'weight_kg', parseFloat(e.target.value) || 0)}
-                        style={{
-                          ...inputStyle,
-                          opacity: set.done ? 0.5 : 1,
-                          backgroundColor: set.done ? '#0a0a0a' : isWarmup ? '#161616' : '#1c1c1c',
-                          borderColor: isWarmup ? '#222' : '#27272a',
-                        }}
-                        disabled={set.done}
-                      />
-
-                      <input
-                        type="number"
-                        value={set.reps || ''}
-                        onChange={e => onUpdateSet(setIdx, 'reps', parseInt(e.target.value) || 0)}
-                        style={{
-                          ...inputStyle,
-                          opacity: set.done ? 0.5 : 1,
-                          backgroundColor: set.done ? '#0a0a0a' : isWarmup ? '#161616' : '#1c1c1c',
-                          borderColor: isWarmup ? '#222' : '#27272a',
-                        }}
-                        disabled={set.done}
-                      />
-
+                      <div style={{ flex: 1 }}>
+                        <StepperInput value={set.weight_kg} onChange={v => onUpdateSet(setIdx, 'weight_kg', v)} step={weightStep} disabled={set.done} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <StepperInput value={set.reps} onChange={v => onUpdateSet(setIdx, 'reps', v)} step={1} disabled={set.done} />
+                      </div>
                       <button
                         onClick={() => onTickSet(setIdx)}
                         style={{
-                          width: '36px', height: '36px', borderRadius: '50%', border: 'none',
-                          backgroundColor: set.done
-                            ? (set.is_pr ? '#f59e0b' : (isWarmup ? '#27272a' : '#22c55e'))
-                            : '#1c1c1c',
-                          cursor: 'pointer', flexShrink: 0,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          opacity: isWarmup && set.done ? 0.7 : 1,
+                          width: '52px', height: '52px', borderRadius: '50%', border: 'none', flexShrink: 0,
+                          backgroundColor: set.done ? (set.is_pr ? '#f59e0b' : isWarmup ? '#27272a' : '#22c55e') : '#1c1c1c',
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          transition: 'background-color 0.2s',
                         }}
                       >
-                        {set.is_pr
-                          ? <Trophy size={14} color="#000" />
-                          : <Check size={14} color={set.done ? (isWarmup ? '#71717a' : '#000') : '#3f3f46'} />
-                        }
+                        {set.is_pr ? <Trophy size={18} color="#000" /> : <Check size={18} color={set.done ? (isWarmup ? '#71717a' : '#000') : '#3f3f46'} />}
                       </button>
                     </div>
                   </SwipeRow>
                 )
               })}
 
-              {/* Add set / warm-up row */}
-              <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
-                <button
-                  onClick={onAddSet}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '4px',
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    color: '#52525b', fontSize: '13px', padding: '2px 0',
-                  }}
-                >
+              <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                <button onClick={onAddSet} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#52525b', fontSize: '13px', padding: '2px 0' }}>
                   <Plus size={13} /> Add set
                 </button>
-                <button
-                  onClick={onAddWarmup}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '4px',
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    color: '#3f3f46', fontSize: '13px', padding: '2px 0',
-                  }}
-                >
+                <button onClick={onAddWarmup} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#3f3f46', fontSize: '13px', padding: '2px 0' }}>
                   <Plus size={13} /> Warm-up
                 </button>
               </div>
@@ -1217,17 +1081,21 @@ function ExerciseCard({
           {/* Notes */}
           {!isDurationOnly && (
             <input
-              type="text"
-              placeholder="Notes (optional)"
-              value={ex.notes}
-              onChange={e => onUpdateNotes(e.target.value)}
-              style={{
-                marginTop: '10px', width: '100%', boxSizing: 'border-box',
-                backgroundColor: '#1c1c1c', border: '1px solid #1a1a1a',
-                borderRadius: '8px', padding: '8px 12px',
-                fontSize: '13px', color: '#71717a', outline: 'none', fontFamily: 'inherit',
-              }}
+              type="text" placeholder="Notes (optional)" value={ex.notes} onChange={e => onUpdateNotes(e.target.value)}
+              style={{ marginTop: '10px', width: '100%', boxSizing: 'border-box', backgroundColor: '#1c1c1c', border: '1px solid #1a1a1a', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', color: '#71717a', outline: 'none', fontFamily: 'inherit' }}
             />
+          )}
+
+          {/* Rest duration */}
+          {!isDurationOnly && (
+            <button
+              onClick={e => { e.stopPropagation(); onRestSecondsChange(cycleRest(ex.restSeconds)) }}
+              style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            >
+              <Timer size={11} color="#3f3f46" />
+              <span style={{ fontSize: '11px', color: '#3f3f46' }}>{ex.restSeconds}s rest</span>
+              <span style={{ fontSize: '10px', color: '#27272a' }}>tap to change</span>
+            </button>
           )}
         </div>
       )}

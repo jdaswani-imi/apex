@@ -13,6 +13,7 @@ import { TodayWorkoutCard } from '@/components/training/TodayWorkoutCard'
 import { UserMenu } from '@/components/user-menu'
 import { SUPPLEMENT_CATALOG } from '@/lib/supplements-catalog'
 import { DashboardSupplementStack } from '@/components/dashboard-supplement-stack'
+import { WhoopAutoSync } from '@/components/whoop-auto-sync'
 
 export const dynamic = 'force-dynamic'
 
@@ -163,6 +164,7 @@ export default async function TodayPage({
 
   return (
     <div className="px-4 md:px-6 pt-4 md:pt-6 pb-8 space-y-4">
+      <WhoopAutoSync />
 
       {/* Header */}
       <div className="flex items-center justify-between">

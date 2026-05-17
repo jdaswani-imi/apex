@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { UtensilsCrossed, Plus, Trash2, ChevronDown, X, Search, Loader2, Star, BookmarkPlus, Sparkles, Check } from 'lucide-react'
+import { UtensilsCrossed, Plus, Trash2, ChevronDown, X, Search, Loader2, Star, BookmarkPlus, Sparkles, Check, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { FoodLog } from '@/lib/types'
 import { AITipButton } from '@/components/ai-tip-button'
@@ -140,6 +140,9 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM)
+  const [savingEdit, setSavingEdit] = useState(false)
 
   // Meal plan state
   const [showMealPlan, setShowMealPlan] = useState(false)
@@ -385,6 +388,41 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
     await window.fetch(`/api/food/${id}`, { method: 'DELETE' })
     setLogs(prev => prev.filter(l => l.id !== id))
     setDeletingId(null)
+  }
+
+  function startEdit(item: FoodLog) {
+    setEditingId(item.id)
+    setEditForm({
+      name: item.name,
+      meal_type: (MEAL_TYPES.includes(item.meal_type as MealType) ? item.meal_type : 'snack') as MealType,
+      calories: item.calories !== null ? String(item.calories) : '',
+      protein_g: item.protein_g !== null ? String(item.protein_g) : '',
+      carbs_g: item.carbs_g !== null ? String(item.carbs_g) : '',
+      fats_g: item.fats_g !== null ? String(item.fats_g) : '',
+    })
+  }
+
+  async function saveEdit(id: string) {
+    if (!editForm.name.trim()) return
+    setSavingEdit(true)
+    const res = await window.fetch(`/api/food/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: editForm.name.trim(),
+        meal_type: editForm.meal_type,
+        calories: num(editForm.calories),
+        protein_g: num(editForm.protein_g),
+        carbs_g: num(editForm.carbs_g),
+        fats_g: num(editForm.fats_g),
+      }),
+    })
+    if (res.ok) {
+      const updated: FoodLog = await res.json()
+      setLogs(prev => prev.map(l => l.id === id ? updated : l))
+      setEditingId(null)
+    }
+    setSavingEdit(false)
   }
 
   async function generateMealPlan() {
@@ -903,28 +941,93 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                 ) : (
                   <div className="space-y-2">
                     {items.map(item => (
-                      <div
-                        key={item.id}
-                        className="bg-card border border-border rounded-2xl px-4 py-3 flex items-center gap-3"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-zinc-100 truncate">{item.name}</p>
-                          <p className="text-zinc-600 text-xs mt-0.5">
-                            {[
-                              item.calories !== null && `${item.calories} kcal`,
-                              item.protein_g !== null && `${item.protein_g}g P`,
-                              item.carbs_g !== null && `${item.carbs_g}g C`,
-                              item.fats_g !== null && `${item.fats_g}g F`,
-                            ].filter(Boolean).join(' · ') || 'No macros logged'}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => remove(item.id)}
-                          disabled={deletingId === item.id}
-                          className="w-8 h-8 rounded-xl flex items-center justify-center text-zinc-700 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150 shrink-0 disabled:opacity-40"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                      <div key={item.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+                        {editingId === item.id ? (
+                          <div className="px-4 py-3 space-y-2.5">
+                            <input
+                              type="text"
+                              value={editForm.name}
+                              onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))}
+                              className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-zinc-100 outline-none focus:border-orange-500/50 transition-colors"
+                              autoFocus
+                            />
+                            <div className="relative">
+                              <select
+                                value={editForm.meal_type}
+                                onChange={e => setEditForm(p => ({ ...p, meal_type: e.target.value as MealType }))}
+                                className="w-full appearance-none bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-zinc-300 outline-none focus:border-orange-500/50 transition-colors pr-8"
+                              >
+                                {MEAL_TYPES.map(t => (
+                                  <option key={t} value={t}>{MEAL_LABELS[t]}</option>
+                                ))}
+                              </select>
+                              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" />
+                            </div>
+                            <div className="grid grid-cols-4 gap-2">
+                              {[
+                                { key: 'calories' as const, label: 'Cal' },
+                                { key: 'protein_g' as const, label: 'Protein' },
+                                { key: 'carbs_g' as const, label: 'Carbs' },
+                                { key: 'fats_g' as const, label: 'Fat' },
+                              ].map(({ key, label }) => (
+                                <div key={key}>
+                                  <p className="text-[9px] text-zinc-700 uppercase tracking-wider font-semibold mb-1 px-1">{label}</p>
+                                  <input
+                                    type="number"
+                                    inputMode="decimal"
+                                    min="0"
+                                    step="any"
+                                    value={editForm[key]}
+                                    onChange={e => setEditForm(p => ({ ...p, [key]: e.target.value }))}
+                                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-2 py-2 text-sm text-zinc-300 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors text-center"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => saveEdit(item.id)}
+                                disabled={savingEdit || !editForm.name.trim()}
+                                className="flex-1 bg-orange-500 text-black font-bold py-2 rounded-xl text-sm disabled:opacity-40 hover:bg-orange-400 transition-colors"
+                              >
+                                {savingEdit ? 'Saving…' : 'Save'}
+                              </button>
+                              <button
+                                onClick={() => setEditingId(null)}
+                                className="w-10 flex items-center justify-center rounded-xl bg-white/[0.04] text-zinc-500 hover:text-zinc-300 transition-colors"
+                              >
+                                <X size={15} />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="px-4 py-3 flex items-center gap-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-zinc-100 truncate">{item.name}</p>
+                              <p className="text-zinc-600 text-xs mt-0.5">
+                                {[
+                                  item.calories !== null && `${item.calories} kcal`,
+                                  item.protein_g !== null && `${item.protein_g}g P`,
+                                  item.carbs_g !== null && `${item.carbs_g}g C`,
+                                  item.fats_g !== null && `${item.fats_g}g F`,
+                                ].filter(Boolean).join(' · ') || 'No macros logged'}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => startEdit(item)}
+                              className="w-8 h-8 rounded-xl flex items-center justify-center text-zinc-700 hover:text-zinc-300 hover:bg-white/[0.06] transition-all duration-150 shrink-0"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                            <button
+                              onClick={() => remove(item.id)}
+                              disabled={deletingId === item.id}
+                              className="w-8 h-8 rounded-xl flex items-center justify-center text-zinc-700 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150 shrink-0 disabled:opacity-40"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -8,7 +8,7 @@ export async function GET() {
 
   const { data } = await supabase
     .from('whoop_tokens')
-    .select('access_token, expires_at, refresh_token')
+    .select('access_token, expires_at, refresh_token, last_synced_at')
     .eq('user_id', user.id)
     .single()
 
@@ -17,5 +17,5 @@ export async function GET() {
   const expired = new Date(data.expires_at) <= new Date()
   const canRefresh = !!data.refresh_token
 
-  return NextResponse.json({ connected: true, expired, canRefresh })
+  return NextResponse.json({ connected: true, expired, canRefresh, lastSyncedAt: data.last_synced_at ?? null })
 }
