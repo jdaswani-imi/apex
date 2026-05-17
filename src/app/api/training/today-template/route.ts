@@ -26,13 +26,17 @@ export async function GET(req: Request) {
   const [planRes, sessionRes] = await Promise.all([
     supabase.from('ai_pex_plans').select('status, training_days').eq('user_id', user.id).single(),
     supabase.from('training_sessions')
-      .select('id, template_id', { count: 'exact' })
+      .select('id, template_id, session_type', { count: 'exact' })
       .eq('user_id', user.id).eq('date', today).not('finished_at', 'is', null),
   ])
 
   const plan = planRes.data
   const sessionCount = sessionRes.count ?? 0
-  const loggedTemplateIds = (sessionRes.data ?? []).map(s => s.template_id).filter(Boolean)
+  const loggedSessions = sessionRes.data ?? []
+  const loggedTemplateIds = loggedSessions.map(s => s.template_id).filter(Boolean)
+  const alternativeSession = sessionCount > 0 && !loggedTemplateIds.length
+    ? loggedSessions[0]?.session_type ?? null
+    : null
 
   // No active plan — fall back to user_training split
   if (!plan || plan.status !== 'active') {
@@ -40,7 +44,7 @@ export async function GET(req: Request) {
       .from('user_training').select('training_split').eq('user_id', user.id).single()
     const sessionType = training?.training_split?.[String(dayNum)] ?? 'Rest'
     const isRest = /rest|off/i.test(sessionType)
-    return NextResponse.json({ isRest, template: null, sessionType, sessionLogged: sessionCount > 0 })
+    return NextResponse.json({ isRest, template: null, sessionType, sessionLogged: sessionCount > 0, sessionDone: sessionCount > 0, alternativeSession })
   }
 
   const trainingDays: string[] = plan.training_days ?? []
@@ -78,7 +82,7 @@ export async function GET(req: Request) {
     .from('template_exercises').select('id', { count: 'exact', head: true })
     .eq('template_id', template.id)
 
-  const sessionDone = loggedTemplateIds.includes(template.id)
+  const sessionDone = sessionCount > 0
 
   return NextResponse.json({
     isRest: false,
@@ -86,5 +90,6 @@ export async function GET(req: Request) {
     sessionType: template.name,
     sessionLogged: sessionCount > 0,
     sessionDone,
+    alternativeSession,
   })
 }

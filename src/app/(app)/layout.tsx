@@ -4,9 +4,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, MessageCircle, Dumbbell, UtensilsCrossed, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { AppSidebar } from '@/components/app-sidebar'
-import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
-import { Separator } from '@/components/ui/separator'
 
 const nav = [
   { href: '/', icon: Home, label: 'Today' },
@@ -16,12 +13,49 @@ const nav = [
   { href: '/more', icon: LayoutGrid, label: 'More' },
 ]
 
+function DesktopSidebar() {
+  const pathname = usePathname()
+  return (
+    <aside className="hidden md:flex flex-col w-44 shrink-0 border-r border-white/[0.07] h-screen sticky top-0">
+      <div className="px-4 py-4 border-b border-white/[0.07]">
+        <Link href="/" className="flex items-center gap-2.5">
+          <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground shrink-0">
+            <span className="font-bold text-xs">A</span>
+          </div>
+          <span className="font-semibold text-sm tracking-tight text-foreground">Apex</span>
+        </Link>
+      </div>
+
+      <nav className="flex flex-col gap-0.5 px-2 py-3">
+        {nav.map(({ href, icon: Icon, label }) => {
+          const active = pathname === href
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
+                active
+                  ? 'bg-primary/15 text-primary'
+                  : 'text-foreground/40 hover:text-foreground/80 hover:bg-white/[0.05]'
+              )}
+            >
+              <Icon size={16} strokeWidth={active ? 2.5 : 1.75} className="shrink-0" />
+              {label}
+            </Link>
+          )
+        })}
+      </nav>
+    </aside>
+  )
+}
+
 function MobileBottomNav() {
   const pathname = usePathname()
   return (
     <nav
       aria-label="Main navigation"
-      className="md:hidden fixed bottom-0 left-0 right-0 bg-sidebar/95 backdrop-blur-2xl border-t border-sidebar-border safe-bottom z-50"
+      className="md:hidden fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-2xl border-t border-white/[0.07] z-50"
     >
       <div className="flex items-center justify-around px-2 py-2">
         {nav.map(({ href, icon: Icon, label }) => {
@@ -33,7 +67,7 @@ function MobileBottomNav() {
               aria-current={active ? 'page' : undefined}
               className={cn(
                 'relative flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-150 min-w-[52px] min-h-[48px] justify-center',
-                active ? 'text-primary' : 'text-sidebar-foreground/40 hover:text-sidebar-foreground/70'
+                active ? 'text-primary' : 'text-foreground/30 hover:text-foreground/60'
               )}
             >
               {active && (
@@ -42,7 +76,7 @@ function MobileBottomNav() {
               <Icon size={22} strokeWidth={active ? 2.5 : 1.5} className="relative" />
               <span className={cn(
                 'text-[10px] font-semibold relative tracking-wide',
-                active ? 'text-primary' : 'text-sidebar-foreground/40'
+                active ? 'text-primary' : 'text-foreground/30'
               )}>
                 {label}
               </span>
@@ -56,25 +90,14 @@ function MobileBottomNav() {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset className="flex flex-col bg-background">
-        {/* Desktop header bar with sidebar trigger */}
-        <header className="hidden md:flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
-          <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground" />
-          <Separator orientation="vertical" className="h-4" />
-        </header>
-
-        {/* Main content */}
-        <main className="flex-1 pb-20 md:pb-0">
-          <div className="w-full max-w-5xl mx-auto">
-            {children}
-          </div>
-        </main>
-      </SidebarInset>
-
-      {/* Mobile bottom navigation */}
+    <div className="flex min-h-screen bg-background">
+      <DesktopSidebar />
+      <main className="flex-1 pb-20 md:pb-0 min-w-0">
+        <div className="w-full max-w-5xl mx-auto">
+          {children}
+        </div>
+      </main>
       <MobileBottomNav />
-    </SidebarProvider>
+    </div>
   )
 }

@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { getTodayContext, getFullUserContext, getUserGoals } from '@/lib/db'
+import { getTodayContext, getFullUserContext, getUserGoals, getUserTraining } from '@/lib/db'
 import { createClient } from '@/lib/supabase/server'
+import { buildWeekIntelligence, FLAG_LABELS, type DayData } from '@/lib/intelligence'
 
 const anthropic = new Anthropic()
 
@@ -17,10 +18,17 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
 
-  const [ctx, userCtx, goals] = await Promise.all([
+  const [ctx, userCtx, goals, trainingConfig, suppResult] = await Promise.all([
     getTodayContext(),
     getFullUserContext(),
     getUserGoals(),
+    getUserTraining(),
+    supabase
+      .from('supplement_logs')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('date', (() => { const d = new Date(); d.setDate(d.getDate() - 8); return d.toISOString().split('T')[0] })())
+      .order('date', { ascending: false }),
   ])
   if (!ctx) return new Response('Unauthorized', { status: 401 })
 
@@ -49,6 +57,50 @@ export async function GET() {
     ? Math.round(recentRecovery7.reduce((a, b) => a + b, 0) / recentRecovery7.length)
     : null
 
+  // Build weighted week intelligence
+  const suppLogs = suppResult.data ?? []
+  const trainingSplit = (trainingConfig as { training_split?: Record<string, string> } | null)?.training_split ?? null
+
+  const recovByDate = Object.fromEntries(ctx.recentRecovery.map(r => [r.date, r]))
+  const sleepByDate = Object.fromEntries(ctx.recentSleep.map(s => [s.date, s]))
+  const logByDate = Object.fromEntries(ctx.recentLogs.map(l => [l.date, l]))
+  const suppsByDate: Record<string, typeof suppLogs> = {}
+  for (const s of suppLogs) {
+    if (!suppsByDate[s.date]) suppsByDate[s.date] = []
+    suppsByDate[s.date].push(s)
+  }
+
+  const weekDayData: DayData[] = []
+  for (let i = 1; i <= 7; i++) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    const date = d.toISOString().split('T')[0]
+    weekDayData.push({
+      date,
+      log: logByDate[date] ?? null,
+      recovery: recovByDate[date] ?? null,
+      sleep: sleepByDate[date] ?? null,
+      supplements: suppsByDate[date] ?? [],
+      sessions: [],
+    })
+  }
+
+  const intel = buildWeekIntelligence(
+    weekDayData,
+    { daily_protein_target_g: proteinTarget, daily_steps_target: stepsTarget },
+    trainingSplit,
+  )
+
+  const actionableYesterdayFlags = intel.yesterdayFlags.filter(f => f !== 'no_data')
+  const weekIntelContext = [
+    intel.weightedAverage !== null ? `Weighted 7-day performance avg: ${intel.weightedAverage}/100` : '',
+    intel.trend !== 'insufficient_data' ? `Trend: ${intel.trend}` : '',
+    intel.yesterdayScore !== null ? `Yesterday's score: ${intel.yesterdayScore}/100 (${intel.yesterdayQuality})` : '',
+    actionableYesterdayFlags.length > 0
+      ? `Yesterday's gaps: ${actionableYesterdayFlags.map(f => FLAG_LABELS[f]).join(', ')}`
+      : '',
+  ].filter(Boolean).join('. ')
+
   type BM = { name: string; value: string; unit: string; status: string; note?: string }
   const lab = userCtx.latestLab?.structured_data as { biomarkers?: BM[] } | null
   const labOutOfRange = lab?.biomarkers?.filter((b: BM) => b.status === 'out_of_range') ?? []
@@ -65,7 +117,8 @@ DATA:
 - Steps today: ${steps.toLocaleString()} / ${stepsTarget.toLocaleString()}
 - 7-day avg protein: ${avgProtein7 ?? 'unknown'}g
 - 7-day avg recovery: ${avgRecovery7 ?? 'unknown'}%
-- Supplements taken: ${ctx.supplements.filter(s => s.taken).length}/${ctx.supplements.length}${labContext}
+- Supplements taken: ${ctx.supplements.filter(s => s.taken).length}/${ctx.supplements.length}
+- Week intelligence: ${weekIntelContext || 'insufficient data'}${labContext}
 
 Return this exact JSON shape:
 {

@@ -386,7 +386,7 @@ export default function SettingsPage() {
                         setSupplements(updated)
                       }}
                       style={{ ...inputStyle, marginBottom: '8px' }}
-                      placeholder="Dose"
+                      placeholder="Dose (e.g. 5000 IU, 500mg)"
                     />
                     <input
                       type="text"
@@ -396,9 +396,72 @@ export default function SettingsPage() {
                         updated[i] = { ...s, timing_notes: e.target.value }
                         setSupplements(updated)
                       }}
-                      style={inputStyle}
+                      style={{ ...inputStyle, marginBottom: '8px' }}
                       placeholder="Timing notes (e.g. 30 min before lunch)"
                     />
+                    {/* Capsules + Frequency row */}
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ fontSize: '11px', color: '#52525b', display: 'block', marginBottom: '4px' }}>Capsules / serving</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={(s.capsules as number) ?? 1}
+                          onChange={e => {
+                            const updated = [...supplements]
+                            updated[i] = { ...s, capsules: parseInt(e.target.value) || 1 }
+                            setSupplements(updated)
+                          }}
+                          style={{ ...inputStyle, width: '100%' }}
+                        />
+                      </div>
+                      <div style={{ flex: 2 }}>
+                        <label style={{ fontSize: '11px', color: '#52525b', display: 'block', marginBottom: '4px' }}>Frequency</label>
+                        <select
+                          value={(s.frequency_type as string) ?? 'daily'}
+                          onChange={e => {
+                            const updated = [...supplements]
+                            updated[i] = { ...s, frequency_type: e.target.value }
+                            setSupplements(updated)
+                          }}
+                          style={{ ...inputStyle, width: '100%' }}
+                        >
+                          <option value="daily">Daily</option>
+                          <option value="every_n_days">Every N days</option>
+                        </select>
+                      </div>
+                    </div>
+                    {(s.frequency_type as string) === 'every_n_days' && (
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: '11px', color: '#52525b', display: 'block', marginBottom: '4px' }}>Every how many days?</label>
+                          <input
+                            type="number"
+                            min={2}
+                            value={(s.frequency_interval as number) ?? 7}
+                            onChange={e => {
+                              const updated = [...supplements]
+                              updated[i] = { ...s, frequency_interval: parseInt(e.target.value) || 7 }
+                              setSupplements(updated)
+                            }}
+                            style={{ ...inputStyle, width: '100%' }}
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: '11px', color: '#52525b', display: 'block', marginBottom: '4px' }}>Start / anchor date</label>
+                          <input
+                            type="date"
+                            value={(s.frequency_anchor_date as string) ?? new Date().toISOString().split('T')[0]}
+                            onChange={e => {
+                              const updated = [...supplements]
+                              updated[i] = { ...s, frequency_anchor_date: e.target.value }
+                              setSupplements(updated)
+                            }}
+                            style={{ ...inputStyle, width: '100%' }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                   {s.id != null && (
                     <button
@@ -427,6 +490,8 @@ export default function SettingsPage() {
               const newSupp = {
                 name: '', dose: '', timing: 'before_bed', timing_notes: '',
                 sort_order: supplements.length + 1, active: true,
+                capsules: 1, frequency_type: 'daily', frequency_interval: 1,
+                frequency_anchor_date: new Date().toISOString().split('T')[0],
               }
               setSupplements([...supplements, newSupp])
             }}

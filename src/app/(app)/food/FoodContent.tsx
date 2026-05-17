@@ -5,9 +5,8 @@ import { UtensilsCrossed, Plus, Trash2, ChevronDown, X, Search, Loader2, Star, B
 import { cn } from '@/lib/utils'
 import type { FoodLog } from '@/lib/types'
 import { AITipButton } from '@/components/ai-tip-button'
-
-const today = new Date().toISOString().split('T')[0]
-const todayFormatted = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+import { DayNav } from '@/components/day-nav'
+import { PageInsightBanner } from '@/components/page-insight-banner'
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const
 type MealType = typeof MEAL_TYPES[number]
@@ -128,12 +127,18 @@ interface FoodContentProps {
   proteinTarget: number
   calorieTarget: number
   isTrainingDay?: boolean
+  viewDate?: string
+  todayStr?: string
 }
 
 type FormTab = 'search' | 'create'
 type ServingUnit = 'g' | 'oz'
 
-export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDay = false }: FoodContentProps) {
+export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDay = false, viewDate: viewDateProp, todayStr: todayStrProp }: FoodContentProps) {
+  const todayStr = todayStrProp ?? new Date().toISOString().split('T')[0]
+  const viewDate = viewDateProp ?? todayStr
+  const isToday = viewDate === todayStr
+  const dateLabel = new Date(viewDate + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
   const [logs, setLogs] = useState<FoodLog[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -177,11 +182,11 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
   const formRef = useRef<HTMLDivElement | null>(null)
 
   const fetchLogs = useCallback(async () => {
-    const res = await window.fetch(`/api/food?date=${today}`)
+    const res = await window.fetch(`/api/food?date=${viewDate}`)
     const data = await res.json()
     setLogs(data)
     setLoading(false)
-  }, [])
+  }, [viewDate])
 
   useEffect(() => {
     fetchLogs().catch(() => setLoading(false))
@@ -309,7 +314,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        date: today,
+        date: viewDate,
         meal_type: form.meal_type,
         name: form.name.trim(),
         calories: num(form.calories),
@@ -449,7 +454,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        date: today,
+        date: viewDate,
         meal_type: item.meal_type,
         name: item.name,
         calories: item.calories,
@@ -488,19 +493,23 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
     <div className="px-4 md:px-6 pt-4 md:pt-6 pb-8">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="font-condensed text-3xl font-bold text-white uppercase tracking-wide">Food Log</h1>
-          <p className="text-zinc-500 text-sm mt-1">{todayFormatted}</p>
+          <p className="text-muted-foreground text-sm tracking-widest uppercase">
+            {isToday ? 'Today' : 'Past Day'}
+          </p>
+          <DayNav date={viewDate} todayStr={todayStr} basePath="/food" />
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={generateMealPlan}
-            title="Generate AI meal plan"
-            className="w-10 h-10 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 hover:bg-orange-500/20 transition-all duration-200"
-          >
-            <Sparkles size={16} />
-          </button>
+          {isToday && (
+            <button
+              onClick={generateMealPlan}
+              title="Generate AI meal plan"
+              className="w-10 h-10 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400 hover:bg-orange-500/20 transition-all duration-200"
+            >
+              <Sparkles size={16} />
+            </button>
+          )}
           <button
             onClick={() => showForm ? closeForm() : setShowForm(true)}
             className={cn(
@@ -515,12 +524,19 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
         </div>
       </div>
 
+      {/* Morning insight */}
+      {isToday && (
+        <div className="mb-4">
+          <PageInsightBanner page="food" />
+        </div>
+      )}
+
       {/* Daily Totals */}
       <div className="bg-card border border-border rounded-2xl p-4 mb-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <UtensilsCrossed size={13} className="text-orange-400" />
-            <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Today&apos;s Nutrition</span>
+            <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">{dateLabel}</span>
           </div>
           <AITipButton page="food" />
         </div>

@@ -14,6 +14,7 @@ import { UserMenu } from '@/components/user-menu'
 import { SUPPLEMENT_CATALOG } from '@/lib/supplements-catalog'
 import { DashboardSupplementStack } from '@/components/dashboard-supplement-stack'
 import { WhoopAutoSync } from '@/components/whoop-auto-sync'
+import { MorningIntelligenceCard } from '@/components/morning-intelligence-card'
 
 export const dynamic = 'force-dynamic'
 
@@ -244,39 +245,8 @@ export default async function TodayPage({
         })}
       </div>
 
-      {/* Target event */}
-      {eventDate && days !== null && (
-      <div className="relative overflow-hidden rounded-3xl border border-purple-500/20 bg-gradient-to-br from-purple-950/90 via-violet-900/50 to-pink-950/70 p-5">
-        <div className="absolute -top-10 -right-10 w-40 h-40 bg-purple-500/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-pink-500/10 rounded-full blur-2xl pointer-events-none" />
-        <div className="relative">
-          <div className="flex items-center gap-1.5 mb-2">
-            <Music2 size={14} className="text-purple-400" />
-            <span className="text-purple-300 text-xs font-bold uppercase tracking-widest">{eventName ?? 'Target Event'}</span>
-          </div>
-          <div className="flex items-end justify-between mb-3">
-            <div className="flex items-end gap-2">
-              <span className="font-condensed text-7xl font-bold text-white leading-none">{days}</span>
-              <span className="text-muted-foreground text-sm mb-2">days to go</span>
-            </div>
-            {totalDays !== null && (
-              <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-xs">
-                {progress}% done
-              </Badge>
-            )}
-          </div>
-          {totalDays !== null && (
-          <div className="w-full bg-white/10 rounded-full h-1.5 mb-1.5">
-            <div
-              className="bg-gradient-to-r from-purple-500 via-violet-400 to-pink-400 h-1.5 rounded-full transition-all duration-700"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          )}
-          <p className="text-muted-foreground text-sm">{[eventDateFormatted, eventLocation].filter(Boolean).join(' · ')}</p>
-        </div>
-      </div>
-      )}
+      {/* Morning intelligence check-in — today only */}
+      {isToday && <MorningIntelligenceCard />}
 
       {/* AI Daily Brief — today only */}
       {isToday && (
@@ -298,7 +268,7 @@ export default async function TodayPage({
       <div className="space-y-3">
 
         {/* Nutrition — full width */}
-        <Link href="/food" className="bg-card border border-border rounded-2xl p-4 hover:border-orange-500/25 transition-all duration-200 block">
+        <Link href={isToday ? '/food' : `/food?date=${date}`} className="bg-card border border-border rounded-2xl p-4 hover:border-orange-500/25 transition-all duration-200 block">
           <div className="flex items-center justify-between mb-3">
             <span className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Nutrition</span>
             <div className="flex items-center gap-2">
@@ -377,7 +347,7 @@ export default async function TodayPage({
         {/* Steps | Weight — 2-col */}
         <div className="grid grid-cols-2 gap-3">
           {/* Steps */}
-          <Link href={stats[1].href} className="bg-card border border-border rounded-2xl p-4 transition-all duration-200 hover:border-white/15 block">
+          <Link href={isToday ? '/week' : `/week?date=${date}`} className="bg-card border border-border rounded-2xl p-4 transition-all duration-200 hover:border-white/15 block">
             <div className="flex items-center justify-between mb-3">
               <span className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Steps</span>
               <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
@@ -416,7 +386,7 @@ export default async function TodayPage({
 
         {/* WHOOP Recovery — score + vitals merged into one card */}
         {(ctx.recovery || ctx.cycle) ? (
-          <Link href="/sleep" className="block bg-card border border-border rounded-2xl p-4 hover:border-primary/20 transition-all duration-200">
+          <Link href={isToday ? '/sleep' : `/sleep?date=${date}`} className="block bg-card border border-border rounded-2xl p-4 hover:border-primary/20 transition-all duration-200">
             {/* Card header: label + recovery score */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -479,7 +449,7 @@ export default async function TodayPage({
           </Link>
         ) : (
           /* No WHOOP — show simple recovery card */
-          <Link href="/sleep" className="bg-card border border-border rounded-2xl p-4 hover:border-white/15 transition-all duration-200 block">
+          <Link href={isToday ? '/sleep' : `/sleep?date=${date}`} className="bg-card border border-border rounded-2xl p-4 hover:border-white/15 transition-all duration-200 block">
             <div className="flex items-center justify-between mb-3">
               <span className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Recovery</span>
               <div className="w-7 h-7 rounded-lg bg-yellow-500/10 flex items-center justify-center">
@@ -493,7 +463,7 @@ export default async function TodayPage({
 
         {/* Sleep — last night summary */}
         {showSleep && ctx.sleep && (
-          <Link href="/sleep" className="bg-card border border-border rounded-2xl p-4 hover:border-white/15 transition-all duration-200 block">
+          <Link href={isToday ? '/sleep' : `/sleep?date=${date}`} className="bg-card border border-border rounded-2xl p-4 hover:border-white/15 transition-all duration-200 block">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Moon size={14} className="text-blue-400" />
@@ -540,6 +510,40 @@ export default async function TodayPage({
       {/* Supplements */}
       {showSupplements && suppTotal > 0 && (
         <DashboardSupplementStack initialSupplements={sortedSupplements} date={date} />
+      )}
+
+      {/* Target event */}
+      {eventDate && days !== null && (
+      <div className="relative overflow-hidden rounded-3xl border border-purple-500/20 bg-gradient-to-br from-purple-950/90 via-violet-900/50 to-pink-950/70 p-5">
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-purple-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-pink-500/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="relative">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Music2 size={14} className="text-purple-400" />
+            <span className="text-purple-300 text-xs font-bold uppercase tracking-widest">{eventName ?? 'Target Event'}</span>
+          </div>
+          <div className="flex items-end justify-between mb-3">
+            <div className="flex items-end gap-2">
+              <span className="font-condensed text-7xl font-bold text-white leading-none">{days}</span>
+              <span className="text-muted-foreground text-sm mb-2">days to go</span>
+            </div>
+            {totalDays !== null && (
+              <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-xs">
+                {progress}% done
+              </Badge>
+            )}
+          </div>
+          {totalDays !== null && (
+          <div className="w-full bg-white/10 rounded-full h-1.5 mb-1.5">
+            <div
+              className="bg-gradient-to-r from-purple-500 via-violet-400 to-pink-400 h-1.5 rounded-full transition-all duration-700"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          )}
+          <p className="text-muted-foreground text-sm">{[eventDateFormatted, eventLocation].filter(Boolean).join(' · ')}</p>
+        </div>
+      </div>
       )}
 
       {/* AI Tip — today only */}

@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 interface Props {
   date: string
   todayStr: string
+  basePath?: string
 }
 
 const MAX_FUTURE_DAYS = 7
@@ -27,7 +28,7 @@ function formatLabel(dateStr: string, todayStr: string): string {
   })
 }
 
-export function DayNav({ date, todayStr }: Props) {
+export function DayNav({ date, todayStr, basePath = '/' }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [localDate, setLocalDate] = useState(date)
@@ -47,7 +48,7 @@ export function DayNav({ date, todayStr }: Props) {
     if (next > maxDate) return
     setLocalDate(next)
     startTransition(() => {
-      router.push(next === todayStr ? '/' : `/?date=${next}`)
+      router.push(next === todayStr ? basePath : `${basePath}?date=${next}`)
     })
   }
 

@@ -18,6 +18,7 @@ interface TodayData {
   sessionType: string
   sessionLogged: boolean
   sessionDone: boolean
+  alternativeSession: string | null
 }
 
 interface NextWorkout {
@@ -98,7 +99,7 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
     )
   }
 
-  const { isRest, template, sessionType, sessionLogged, sessionDone } = data
+  const { isRest, template, sessionType, sessionLogged, sessionDone, alternativeSession } = data
 
   // Next workout inline badge (shown on rest/done cards)
   function NextBadge() {
@@ -142,8 +143,34 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
     )
   }
 
-  // No template — generic link to training page
+  // No template — show completed or generic link
   if (!template) {
+    if (sessionDone) {
+      const displayName = alternativeSession
+        ? alternativeSession.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+        : sessionType
+      return (
+        <a
+          href="/training"
+          className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl p-4 hover:border-green-500/20 transition-all duration-200 no-underline block"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center justify-center flex-shrink-0">
+              <CheckCircle2 size={20} className="text-green-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-0.5">
+                {isToday ? "Today's Session" : 'Session'}
+              </p>
+              <p className="text-white font-semibold text-base truncate">{displayName}</p>
+              <p className="text-green-500 text-xs mt-0.5 font-medium">Nice work — training done for today</p>
+            </div>
+            <ChevronRight size={16} className="text-zinc-700 flex-shrink-0" />
+          </div>
+          <NextBadge />
+        </a>
+      )
+    }
     return (
       <a
         href="/training"
@@ -158,7 +185,7 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
           </p>
           <p className="text-white font-semibold text-base truncate">{sessionType}</p>
           <p className="text-zinc-600 text-xs mt-0.5">
-            {sessionLogged ? 'Session logged' : isToday ? 'Tap to log session' : 'No session logged'}
+            {isToday ? 'Tap to log session' : 'No session logged'}
           </p>
         </div>
         <ChevronRight size={16} className="text-zinc-700 flex-shrink-0" />
@@ -166,8 +193,16 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
     )
   }
 
-  // Completed
+  // Completed (template match or alternative session)
   if (sessionDone) {
+    const isAlternative = !!alternativeSession
+    const displayName = isAlternative
+      ? alternativeSession!.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+      : template.name
+    const subtext = isAlternative
+      ? 'Nice work — training done for today'
+      : 'Completed · great work'
+
     return (
       <a
         href="/training"
@@ -181,8 +216,8 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
             <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-0.5">
               {isToday ? "Today's Session" : 'Session'}
             </p>
-            <p className="text-white font-semibold text-base truncate">{template.name}</p>
-            <p className="text-green-500 text-xs mt-0.5 font-medium">Completed · great work</p>
+            <p className="text-white font-semibold text-base truncate">{displayName}</p>
+            <p className="text-green-500 text-xs mt-0.5 font-medium">{subtext}</p>
           </div>
           <ChevronRight size={16} className="text-zinc-700 flex-shrink-0" />
         </div>

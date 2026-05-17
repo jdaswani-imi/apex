@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { PageInsightBanner } from '@/components/page-insight-banner'
 import TemplatePicker from '@/components/training/TemplatePicker'
 import ActiveSession from '@/components/training/ActiveSession'
 import SessionHistory from '@/components/training/SessionHistory'
@@ -85,7 +86,11 @@ export default function TrainingPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="px-4 md:px-6 pt-4 md:pt-6 pb-5">
-        <h1 className="text-3xl font-bold text-foreground mb-5">Train</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-4">Train</h1>
+
+        <div className="mb-4">
+          <PageInsightBanner page="training" />
+        </div>
 
         <div className="flex gap-1 bg-secondary/50 rounded-xl p-1">
           {tabs.map(tab => (

@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import type { SupplementLog } from '@/lib/types'
 import { getCatalogEntry, groupSupplementsByTime, CATEGORY_COLORS } from '@/lib/supplements-catalog'
+import { DayNav } from '@/components/day-nav'
+import { PageInsightBanner } from '@/components/page-insight-banner'
 
 function SupplementsContent() {
   const searchParams = useSearchParams()
@@ -72,16 +74,21 @@ function SupplementsContent() {
     <div className="px-4 md:px-6 pt-4 md:pt-6 pb-8">
 
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="font-condensed text-3xl font-bold text-white uppercase tracking-wide">Supplement Stack</h1>
-        <p className="text-zinc-500 text-sm mt-1">
-          {isToday ? new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
-            : new Date(viewDate + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-        </p>
-        {!isToday && (
-          <p className="text-amber-500/80 text-xs mt-1 font-medium">Viewing past date</p>
-        )}
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <p className="text-muted-foreground text-sm tracking-widest uppercase">
+            {isToday ? 'Today' : 'Past Day'}
+          </p>
+          <DayNav date={viewDate} todayStr={todayStr} basePath="/supplements" />
+        </div>
       </div>
+
+      {/* Morning insight */}
+      {isToday && (
+        <div className="mb-4">
+          <PageInsightBanner page="supplements" />
+        </div>
+      )}
 
       {/* Progress */}
       <div className="mb-6">
@@ -157,7 +164,14 @@ function SupplementsContent() {
                       )}
                     </div>
                     <p className="text-zinc-600 text-xs mt-0.5">
-                      {s.time_taken ? `Taken at ${s.time_taken.slice(0, 5)}` : (catalog?.timing ?? s.notes ?? '')}
+                      {s.time_taken
+                        ? `Taken at ${s.time_taken.slice(0, 5)}`
+                        : [
+                            (s as unknown as Record<string, unknown>)._frequency_type === 'every_n_days'
+                              ? `Every ${(s as unknown as Record<string, unknown>)._frequency_interval}d`
+                              : null,
+                            catalog?.timing ?? s.notes ?? null,
+                          ].filter(Boolean).join(' · ')}
                     </p>
                   </div>
 
@@ -204,16 +218,42 @@ function SupplementsContent() {
                       )}
                     </div>
 
+                    {(() => {
+                      const enriched = s as unknown as Record<string, unknown>
+                      const capsules = (enriched._capsules as number) ?? 1
+                      const freqType = (enriched._frequency_type as string) ?? 'daily'
+                      const freqInterval = (enriched._frequency_interval as number) ?? 1
+                      const userDose = enriched._dose as string | null
+                      return (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-white/[0.03] rounded-xl p-3">
+                            <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-1">Dose</p>
+                            <p className="text-xs text-zinc-300">
+                              {capsules > 1 ? `${capsules} capsules` : '1 capsule'}
+                              {userDose ? ` · ${userDose}` : catalog ? ` · ${catalog.dose}` : ''}
+                            </p>
+                          </div>
+                          <div className="bg-white/[0.03] rounded-xl p-3">
+                            <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-1">Frequency</p>
+                            <p className="text-xs text-zinc-300">
+                              {freqType === 'every_n_days'
+                                ? `Every ${freqInterval} day${freqInterval !== 1 ? 's' : ''}`
+                                : 'Daily'}
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    })()}
                     {catalog && (
                       <>
                         <div className="grid grid-cols-2 gap-2">
                           <div className="bg-white/[0.03] rounded-xl p-3">
-                            <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-1">Dose</p>
-                            <p className="text-xs text-zinc-300">{catalog.dose}</p>
-                          </div>
-                          <div className="bg-white/[0.03] rounded-xl p-3">
                             <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-1">When</p>
                             <p className="text-xs text-zinc-300">{catalog.timing}</p>
+                          </div>
+                          <div className="bg-white/[0.03] rounded-xl p-3">
+                            <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold mb-1">Category</p>
+                            <p className="text-xs text-zinc-300">{catalog.category}</p>
                           </div>
                         </div>
 

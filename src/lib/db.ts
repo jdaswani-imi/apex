@@ -179,7 +179,7 @@ export async function ensureSupplementRows(userId: string, date: string): Promis
   const [{ data: userSupps }, { data: existing }] = await Promise.all([
     supabase
       .from('user_supplements')
-      .select('name, timing, timing_notes, days_of_week')
+      .select('name, timing, timing_notes, days_of_week, frequency_type, frequency_interval, frequency_anchor_date')
       .eq('user_id', userId)
       .eq('active', true)
       .order('sort_order', { ascending: true }),
@@ -193,9 +193,17 @@ export async function ensureSupplementRows(userId: string, date: string): Promis
   if (!userSupps || userSupps.length === 0) return
 
   // Only include supplements scheduled for this day
-  const scheduledSupps = userSupps.filter(
-    s => !s.days_of_week || s.days_of_week.length === 0 || s.days_of_week.includes(dayOfWeek),
-  )
+  const scheduledSupps = userSupps.filter(s => {
+    if (s.frequency_type === 'every_n_days') {
+      const anchor = s.frequency_anchor_date ?? date
+      const diffDays = Math.round(
+        (new Date(date + 'T12:00:00').getTime() - new Date(anchor + 'T12:00:00').getTime())
+        / 86400000,
+      )
+      return diffDays >= 0 && diffDays % (s.frequency_interval ?? 1) === 0
+    }
+    return !s.days_of_week || s.days_of_week.length === 0 || s.days_of_week.includes(dayOfWeek)
+  })
   const scheduledNames = new Set(scheduledSupps.map(s => s.name))
 
   // Remove stale log entries (supplements no longer active or not scheduled today)

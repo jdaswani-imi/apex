@@ -1,10 +1,13 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Moon, Zap, Activity, Wind, RefreshCw, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { WhoopSleep } from '@/lib/types'
 import { AITipButton } from '@/components/ai-tip-button'
+import { DayNav } from '@/components/day-nav'
+import { PageInsightBanner } from '@/components/page-insight-banner'
 
 function fmtDuration(hrs: number | null) {
   if (hrs === null) return '—'
@@ -112,7 +115,12 @@ function SleepStageBar({ deep, rem, light, awake }: {
   )
 }
 
-export default function SleepPage() {
+function SleepContent() {
+  const searchParams = useSearchParams()
+  const todayStr = new Date().toISOString().split('T')[0]
+  const viewDate = searchParams.get('date') ?? todayStr
+  const isToday = viewDate === todayStr
+
   const [sleep, setSleep] = useState<WhoopSleep[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -148,10 +156,13 @@ export default function SleepPage() {
     setSyncing(false)
   }
 
-  const latest = sleep[0] ?? null
+  const latest = isToday
+    ? (sleep[0] ?? null)
+    : (sleep.find(s => s.date === viewDate) ?? null)
   const records = [...sleep].reverse().slice(-14)
   const maxDur = Math.max(...records.map(r => r.duration_hrs ?? 0), 1)
   const noData = !loading && sleep.length === 0
+  const noDateData = !loading && sleep.length > 0 && latest === null
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -160,8 +171,10 @@ export default function SleepPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">WHOOP</p>
-            <h1 className="text-3xl font-bold text-foreground leading-tight">Sleep</h1>
+            <p className="text-muted-foreground text-sm tracking-widest uppercase">
+              {isToday ? 'WHOOP · Sleep' : 'Past Night'}
+            </p>
+            <DayNav date={viewDate} todayStr={todayStr} basePath="/sleep" />
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -210,6 +223,9 @@ export default function SleepPage() {
           </div>
         )}
 
+        {/* Morning insight */}
+        {isToday && <PageInsightBanner page="sleep" />}
+
         {tokenExpired && (
           <div className="bg-red-500/10 border border-red-500/25 rounded-2xl p-4 flex items-center justify-between gap-3">
             <div>
@@ -246,6 +262,16 @@ export default function SleepPage() {
             >
               Sync Now
             </button>
+          </div>
+        )}
+
+        {noDateData && (
+          <div className="flex flex-col items-center pt-16 gap-4 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center">
+              <Moon size={28} className="text-indigo-400" />
+            </div>
+            <p className="text-base font-bold text-foreground mb-1">No sleep data for this night</p>
+            <p className="text-sm text-zinc-600">No WHOOP record found for {fmtDate(viewDate)}</p>
           </div>
         )}
 
@@ -371,5 +397,13 @@ export default function SleepPage() {
 
       </div>
     </div>
+  )
+}
+
+export default function SleepPage() {
+  return (
+    <Suspense>
+      <SleepContent />
+    </Suspense>
   )
 }
