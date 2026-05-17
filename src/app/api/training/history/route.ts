@@ -10,6 +10,7 @@ export async function GET() {
     .from('training_sessions')
     .select('*, exercises(*)')
     .eq('user_id', user.id)
+    .not('duration_min', 'is', null)
     .order('date', { ascending: false })
     .limit(50)
 

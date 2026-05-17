@@ -82,7 +82,7 @@ export default function SessionHistory() {
                       <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
                       <div>
                         <div style={{ fontSize: '15px', fontWeight: 600, color: '#fff', textTransform: 'capitalize' }}>
-                          {sessionType}
+                          {sessionType.replace(/_/g, ' ')}
                         </div>
                         <div style={{ fontSize: '12px', color: '#52525b', marginTop: '2px' }}>
                           {new Date(session.date as string).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
