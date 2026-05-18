@@ -287,5 +287,7 @@ Return this exact JSON:
     page_insights,
   }
 
-  return Response.json(result)
+  return Response.json(result, {
+    headers: { 'Cache-Control': 'private, max-age=7200' },
+  })
 }

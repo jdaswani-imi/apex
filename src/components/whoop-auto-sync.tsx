@@ -13,7 +13,8 @@ export function WhoopAutoSync() {
         if (!res.ok) return
         const status = await res.json()
 
-        if (!status.connected || status.expired) return
+        if (!status.connected) return
+        if (status.expired && !status.canRefresh) return
 
         const today = new Date().toISOString().split('T')[0]
         const lastSynced = status.lastSyncedAt

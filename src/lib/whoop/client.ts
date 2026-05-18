@@ -36,7 +36,7 @@ export async function getWhoopToken(userId: string): Promise<string | null> {
 
     await supabase.from('whoop_tokens').update({
       access_token: newTokens.access_token,
-      refresh_token: newTokens.refresh_token ?? null,
+      refresh_token: newTokens.refresh_token ?? tokenRow.refresh_token,
       expires_at: expiresAt,
       updated_at: new Date().toISOString(),
     }).eq('user_id', userId)

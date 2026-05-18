@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { PlusCircle } from 'lucide-react'
 import { PageInsightBanner } from '@/components/page-insight-banner'
 import TemplatePicker from '@/components/training/TemplatePicker'
 import ActiveSession from '@/components/training/ActiveSession'
 import SessionHistory from '@/components/training/SessionHistory'
 import ProgressDashboard from '@/components/training/ProgressDashboard'
 import AIPexPanel from '@/components/training/AIPexPanel'
+import QuickLogModal from '@/components/training/QuickLogModal'
 
 type SubTab = 'ai' | 'templates' | 'history' | 'progress'
 
@@ -22,6 +24,7 @@ export default function TrainingPage() {
   const [subTab, setSubTab] = useState<SubTab>('ai')
   const [active, setActive] = useState<ActiveSessionMeta | null>(null)
   const [gender, setGender] = useState<string>('male')
+  const [showQuickLog, setShowQuickLog] = useState(false)
 
   useEffect(() => {
     fetch('/api/settings')
@@ -84,9 +87,25 @@ export default function TrainingPage() {
   ]
 
   return (
+    <>
+    {showQuickLog && (
+      <QuickLogModal
+        onClose={() => setShowQuickLog(false)}
+        onLogged={() => setShowQuickLog(false)}
+      />
+    )}
     <div className="min-h-screen bg-background">
       <div className="px-4 md:px-6 pt-4 md:pt-6 pb-5">
-        <h1 className="text-3xl font-bold text-foreground mb-4">Train</h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-3xl font-bold text-foreground">Train</h1>
+          <button
+            onClick={() => setShowQuickLog(true)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#c8a97e] border border-[#2c2c2e] rounded-full px-3 py-1.5 hover:border-[#c8a97e] transition-colors"
+          >
+            <PlusCircle size={13} />
+            Log Custom
+          </button>
+        </div>
 
         <div className="mb-4">
           <PageInsightBanner page="training" />
@@ -119,5 +138,6 @@ export default function TrainingPage() {
         {subTab === 'progress' && <ProgressDashboard />}
       </div>
     </div>
+    </>
   )
 }

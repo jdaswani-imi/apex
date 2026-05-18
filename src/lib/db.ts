@@ -666,7 +666,6 @@ export async function getTodayFoodTotals(date: string): Promise<FoodTotals> {
 }
 
 export async function getTodayContext(dateOverride?: string): Promise<TodayContext | null> {
-  const supabase = await createClient()
   const user = await getAuthUser()
   if (!user) return null
 

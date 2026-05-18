@@ -4,6 +4,33 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Dumbbell, Play, ChevronRight, Moon, CheckCircle2, Loader2, CalendarClock } from 'lucide-react'
 
+interface NextWorkout {
+  daysAway: number
+  date: string
+  dayLabel: string
+  template: TodayTemplate | null
+  sessionType: string
+}
+
+function NextBadge({ next }: { next: NextWorkout | null | undefined }) {
+  if (!next) return null
+  const t = next.template
+  const label = t ? t.name : next.sessionType
+  const exStr = t?.exerciseCount ? ` · ${t.exerciseCount} ex` : ''
+  return (
+    <div className="mt-3 pt-3 border-t border-white/[0.05] flex items-center gap-2">
+      <CalendarClock size={12} className="text-zinc-500 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <span className="text-zinc-400 text-xs font-semibold">{next.dayLabel}</span>
+        <span className="text-zinc-600 text-xs"> — {label}{exStr}</span>
+      </div>
+      {t && (
+        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
+      )}
+    </div>
+  )
+}
+
 interface TodayTemplate {
   id: string
   name: string
@@ -19,14 +46,6 @@ interface TodayData {
   sessionLogged: boolean
   sessionDone: boolean
   alternativeSession: string | null
-}
-
-interface NextWorkout {
-  daysAway: number
-  date: string
-  dayLabel: string
-  template: TodayTemplate | null
-  sessionType: string
 }
 
 interface Props {
@@ -99,28 +118,7 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
     )
   }
 
-  const { isRest, template, sessionType, sessionLogged, sessionDone, alternativeSession } = data
-
-  // Next workout inline badge (shown on rest/done cards)
-  function NextBadge() {
-    if (next === undefined) return null
-    if (!next) return null
-    const t = next.template
-    const label = t ? t.name : next.sessionType
-    const exStr = t?.exerciseCount ? ` · ${t.exerciseCount} ex` : ''
-    return (
-      <div className="mt-3 pt-3 border-t border-white/[0.05] flex items-center gap-2">
-        <CalendarClock size={12} className="text-zinc-500 flex-shrink-0" />
-        <div className="flex-1 min-w-0">
-          <span className="text-zinc-400 text-xs font-semibold">{next.dayLabel}</span>
-          <span className="text-zinc-600 text-xs"> — {label}{exStr}</span>
-        </div>
-        {t && (
-          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
-        )}
-      </div>
-    )
-  }
+  const { isRest, template, sessionType, sessionDone, alternativeSession } = data
 
   // Rest day
   if (isRest) {
@@ -138,7 +136,7 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
             <p className="text-zinc-600 text-xs mt-0.5">Recovery · light activity encouraged</p>
           </div>
         </div>
-        <NextBadge />
+        <NextBadge next={next} />
       </div>
     )
   }
@@ -167,7 +165,7 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
             </div>
             <ChevronRight size={16} className="text-zinc-700 flex-shrink-0" />
           </div>
-          <NextBadge />
+          <NextBadge next={next} />
         </a>
       )
     }
@@ -221,7 +219,7 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
           </div>
           <ChevronRight size={16} className="text-zinc-700 flex-shrink-0" />
         </div>
-        <NextBadge />
+        <NextBadge next={next} />
       </a>
     )
   }

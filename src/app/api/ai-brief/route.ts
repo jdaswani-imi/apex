@@ -145,7 +145,9 @@ Return this exact JSON shape:
       .trim()
 
     const brief = JSON.parse(raw) as DailyBrief
-    return Response.json(brief)
+    return Response.json(brief, {
+      headers: { 'Cache-Control': 'private, max-age=7200' },
+    })
   } catch {
     // Fallback brief if AI fails
     const readinessScore = recovery ?? 70
@@ -164,6 +166,8 @@ Return this exact JSON shape:
       insight: 'Keep logging consistently for better insights.',
       training_rec: readinessScore < 34 ? 'Zone 2 cardio or rest only' : 'Train as scheduled',
     }
-    return Response.json(fallback)
+    return Response.json(fallback, {
+      headers: { 'Cache-Control': 'private, max-age=7200' },
+    })
   }
 }

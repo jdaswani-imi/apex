@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 // Allowed columns for training_sessions insert/update
 const ALLOWED_SESSION_FIELDS = new Set([
   'date', 'session_type', 'gym', 'duration_min', 'volume_kg',
-  'prs', 'whoop_strain', 'notes', 'template_id', 'started_at', 'finished_at',
+  'prs', 'whoop_strain', 'notes', 'template_id', 'started_at', 'finished_at', 'photo_url',
 ])
 
 export async function POST(request: Request) {

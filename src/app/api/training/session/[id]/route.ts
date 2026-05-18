@@ -32,7 +32,7 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
 // Allowed columns for training_sessions update
 const ALLOWED_SESSION_UPDATE_FIELDS = new Set([
   'date', 'session_type', 'gym', 'duration_min', 'volume_kg',
-  'prs', 'whoop_strain', 'notes', 'finished_at',
+  'prs', 'whoop_strain', 'notes', 'finished_at', 'photo_url',
 ])
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {

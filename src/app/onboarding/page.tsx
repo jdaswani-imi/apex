@@ -2165,7 +2165,7 @@ export default function OnboardingPage() {
         }
       })
       .catch(() => {})
-  }, [])
+  }, [router])
 
   const currentSection = step.section
   const currentData = currentSection ? (sectionData[currentSection] ?? {}) : {}

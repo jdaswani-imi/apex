@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { UtensilsCrossed, Plus, Trash2, ChevronDown, X, Search, Loader2, Star, BookmarkPlus, Sparkles, Check, Pencil } from 'lucide-react'
+import { UtensilsCrossed, Plus, Trash2, ChevronDown, X, Search, Loader2, Star, BookmarkPlus, Sparkles, Check, Pencil, Camera } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { FoodLog } from '@/lib/types'
 import { AITipButton } from '@/components/ai-tip-button'
@@ -131,7 +131,7 @@ interface FoodContentProps {
   todayStr?: string
 }
 
-type FormTab = 'search' | 'create'
+type FormTab = 'search' | 'create' | 'photo'
 type ServingUnit = 'g' | 'oz'
 
 export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDay = false, viewDate: viewDateProp, todayStr: todayStrProp }: FoodContentProps) {
@@ -178,8 +178,25 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
   const [savingCustom, setSavingCustom] = useState(false)
   const [customSaved, setCustomSaved] = useState(false)
 
+  // Photo analysis
+  const [analyzing, setAnalyzing] = useState(false)
+  const [aiEstimated, setAiEstimated] = useState(false)
+  const [aiNotes, setAiNotes] = useState<string | null>(null)
+  const [photoFiles, setPhotoFiles] = useState<File[]>([])
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
+  const [photoDesc, setPhotoDesc] = useState('')
+  const photoInputRef = useRef<HTMLInputElement | null>(null)
+
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const formRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!showForm) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeForm() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showForm])
 
   const fetchLogs = useCallback(async () => {
     const res = await window.fetch(`/api/food?date=${viewDate}`)
@@ -286,12 +303,90 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
     setSearchQuery('')
   }
 
+  function clearPhotos() {
+    photoPreviews.forEach(url => URL.revokeObjectURL(url))
+    setPhotoFiles([])
+    setPhotoPreviews([])
+    setPhotoDesc('')
+  }
+
   function closeForm() {
     setShowForm(false)
     setFormTab('search')
     setCustomForm(EMPTY_CUSTOM)
     setCustomSaved(false)
+    setAiEstimated(false)
+    setAiNotes(null)
+    clearPhotos()
     clearSelection()
+  }
+
+  function addPhotoFiles(incoming: FileList | null) {
+    if (!incoming) return
+    const newFiles = Array.from(incoming)
+    const newPreviews = newFiles.map(f => URL.createObjectURL(f))
+    setPhotoFiles(prev => [...prev, ...newFiles])
+    setPhotoPreviews(prev => [...prev, ...newPreviews])
+  }
+
+  function removePhoto(idx: number) {
+    URL.revokeObjectURL(photoPreviews[idx])
+    setPhotoFiles(prev => prev.filter((_, i) => i !== idx))
+    setPhotoPreviews(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  async function analyzePhotos() {
+    if (photoFiles.length === 0) return
+    setAnalyzing(true)
+    setAiEstimated(false)
+    setAiNotes(null)
+    try {
+      const fd = new FormData()
+
+      for (const file of photoFiles) {
+        const resized = await new Promise<Blob>((resolve) => {
+          const img = new Image()
+          const url = URL.createObjectURL(file)
+          img.onload = () => {
+            URL.revokeObjectURL(url)
+            const scale = Math.min(1, 1024 / img.width)
+            const canvas = document.createElement('canvas')
+            canvas.width = Math.round(img.width * scale)
+            canvas.height = Math.round(img.height * scale)
+            canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+            canvas.toBlob((blob) => resolve(blob!), 'image/jpeg', 0.85)
+          }
+          img.src = url
+        })
+        fd.append('image', resized, 'photo.jpg')
+      }
+
+      if (photoDesc.trim()) fd.append('description', photoDesc.trim())
+
+      const res = await window.fetch('/api/ai/analyze-food', { method: 'POST', body: fd })
+      const data = await res.json()
+
+      if (data.error) {
+        alert(data.error === 'No food detected' ? 'No food detected — try clearer shots.' : `Could not analyze: ${data.error}`)
+        return
+      }
+
+      clearSelection()
+      setForm(prev => ({
+        ...prev,
+        name: data.name ?? '',
+        calories: data.calories != null ? String(data.calories) : '',
+        protein_g: data.protein_g != null ? String(data.protein_g) : '',
+        carbs_g: data.carbs_g != null ? String(data.carbs_g) : '',
+        fats_g: data.fats_g != null ? String(data.fats_g) : '',
+      }))
+      setAiEstimated(true)
+      setAiNotes(data.notes ?? null)
+      clearPhotos()
+      setFormTab('search')
+    } finally {
+      setAnalyzing(false)
+    }
   }
 
   function switchUnit(unit: ServingUnit) {
@@ -594,9 +689,10 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
       {/* Add food form */}
       {showForm && (
         <div ref={formRef} className="bg-card border border-border rounded-2xl p-4 mb-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">Add Food</p>
-            {/* Tab switcher */}
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold shrink-0">Add Food</p>
+            {/* Tab switcher + close */}
+            <div className="flex items-center gap-1.5 ml-auto">
             <div className="flex bg-white/[0.04] rounded-lg p-0.5 gap-0.5">
               <button
                 type="button"
@@ -610,6 +706,17 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
               </button>
               <button
                 type="button"
+                onClick={() => { setFormTab('photo'); clearSelection(); setAiEstimated(false); setAiNotes(null); clearPhotos() }}
+                className={cn(
+                  'flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-md transition-all',
+                  formTab === 'photo' ? 'bg-orange-500 text-black' : 'text-zinc-500 hover:text-zinc-300',
+                )}
+              >
+                <Camera size={10} />
+                Photo
+              </button>
+              <button
+                type="button"
                 onClick={() => { setFormTab('create'); clearSelection() }}
                 className={cn(
                   'flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-md transition-all',
@@ -620,9 +727,94 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                 Custom
               </button>
             </div>
+            <button
+              type="button"
+              onClick={closeForm}
+              className="w-6 h-6 rounded-lg flex items-center justify-center text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.06] transition-all shrink-0"
+              aria-label="Close"
+            >
+              <X size={13} />
+            </button>
+            </div>
           </div>
 
-          {formTab === 'search' ? (
+          {formTab === 'photo' ? (
+            <div className="space-y-3">
+              <p className="text-[10px] text-zinc-600">Add one or more photos — AI estimates combined macros.</p>
+
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => { addPhotoFiles(e.target.files); e.target.value = '' }}
+              />
+
+              {/* Thumbnails */}
+              {photoPreviews.length > 0 && (
+                <div className="flex gap-2 flex-wrap">
+                  {photoPreviews.map((src, i) => (
+                    <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/[0.08] shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt="" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(i)}
+                        className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center text-zinc-300 hover:text-white transition-colors"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ))}
+                  {/* Add more button */}
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    className="w-20 h-20 rounded-xl border border-dashed border-white/[0.10] flex flex-col items-center justify-center gap-1 text-zinc-600 hover:text-zinc-400 hover:border-white/20 transition-all shrink-0"
+                  >
+                    <Plus size={16} strokeWidth={2} />
+                    <span className="text-[9px]">Add</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Empty drop zone */}
+              {photoPreviews.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="w-full h-28 bg-white/[0.03] border border-dashed border-white/[0.10] rounded-2xl flex flex-col items-center justify-center gap-2 text-zinc-500 hover:text-zinc-300 hover:border-orange-500/40 hover:bg-orange-500/[0.04] transition-all"
+                >
+                  <Camera size={20} className="text-orange-400" />
+                  <span className="text-xs font-medium">Tap to add photos</span>
+                  <span className="text-[10px] text-zinc-700">JPG, PNG, WEBP · multiple OK</span>
+                </button>
+              )}
+
+              {/* Description input */}
+              <input
+                type="text"
+                placeholder="Add context… e.g. 'large portion, ate about half'"
+                value={photoDesc}
+                onChange={e => setPhotoDesc(e.target.value)}
+                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors"
+              />
+
+              <button
+                type="button"
+                onClick={analyzePhotos}
+                disabled={analyzing || photoFiles.length === 0}
+                className="w-full bg-orange-500 text-black font-bold py-2.5 rounded-xl text-sm disabled:opacity-40 hover:bg-orange-400 transition-colors active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                {analyzing ? (
+                  <><Loader2 size={14} className="animate-spin" /> Analyzing {photoFiles.length > 1 ? `${photoFiles.length} photos` : 'photo'}…</>
+                ) : (
+                  <><Sparkles size={14} /> Analyse{photoFiles.length > 1 ? ` ${photoFiles.length} Photos` : ' Photo'}</>
+                )}
+              </button>
+            </div>
+          ) : formTab === 'search' ? (
             <form onSubmit={submit} className="space-y-3">
               {/* Search bar */}
               {!selectedResult ? (
@@ -783,6 +975,18 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                       {selectedResult.per100.calories !== null && `${Math.round(selectedResult.per100.calories)} kcal/100g`}
                     </span>
                   </div>
+                </div>
+              )}
+
+              {/* AI estimate banner */}
+              {aiEstimated && (
+                <div className="flex items-start gap-2.5 bg-orange-500/[0.07] border border-orange-500/20 rounded-xl px-3 py-2.5">
+                  <Camera size={13} className="text-orange-400 shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold text-orange-300">AI estimate — review before logging</p>
+                    {aiNotes && <p className="text-[10px] text-zinc-500 mt-0.5 leading-snug">{aiNotes}</p>}
+                  </div>
+                  <button type="button" onClick={() => { setAiEstimated(false); setAiNotes(null) }} className="text-zinc-700 hover:text-zinc-400 shrink-0 mt-0.5"><X size={12} /></button>
                 </div>
               )}
 

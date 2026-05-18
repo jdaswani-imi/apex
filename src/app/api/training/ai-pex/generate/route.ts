@@ -73,15 +73,18 @@ export async function POST(request: Request) {
   const allowedEquipment = EQUIPMENT_BY_GYM[gymType] ?? EQUIPMENT_BY_GYM['Commercial gym']
 
   // Fetch exercises filtered by available equipment
+  // Assessment only needs fundamentals; full plan gets more variety
+  const exerciseLimit = mode === 'assessment' ? 80 : 300
   const { data: exerciseLibrary } = await supabase
     .from('exercise_library')
-    .select('name, category, equipment, primary_muscles, force, level')
+    .select('name, equipment, primary_muscles, category')
     .in('equipment', allowedEquipment)
     .order('name')
-    .limit(500)
+    .limit(exerciseLimit)
 
+  // Compact format: "Name|equipment|muscles" — saves ~40% vs verbose format
   const exerciseList = (exerciseLibrary ?? [])
-    .map(e => `${e.name} [${e.equipment}] (${e.primary_muscles?.join(', ') ?? ''}) — ${e.category}`)
+    .map(e => `${e.name}|${e.equipment}|${e.primary_muscles?.join(',') ?? ''}`)
     .join('\n')
 
   const historyStr = history.length > 0
@@ -125,7 +128,7 @@ User:
 - Fitness level: ${fitnessLevel}
 - Primary goal: ${primaryGoal}
 
-Approved exercises (use ONLY these exact names):
+Approved exercises — format: Name|equipment|muscles (use ONLY these exact names):
 ${exerciseList}
 
 Return JSON:
@@ -180,7 +183,7 @@ Rules:
 8. Descriptions should be short (max 6 words)
 9. Add a "rationale" field per template (2-3 sentences) explaining WHY this workout was chosen for this specific athlete on this day — reference their history, goals, or schedule
 
-Approved exercises (use ONLY these exact names):
+Approved exercises — format: Name|equipment|muscles (use ONLY these exact names):
 ${exerciseList}
 
 Return JSON exactly:

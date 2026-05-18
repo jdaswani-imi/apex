@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Dumbbell, Clock, Play } from 'lucide-react'
+import { Dumbbell, Clock, Play, PlusCircle } from 'lucide-react'
 import TemplateDetail from './TemplateDetail'
+import QuickLogModal from './QuickLogModal'
 
 interface Template {
   id: string
@@ -35,6 +36,7 @@ export default function TemplatePicker({ onSelectTemplate, gender = 'male' }: Pr
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [viewing, setViewing] = useState<Template | null>(null)
+  const [showQuickLog, setShowQuickLog] = useState(false)
 
   useEffect(() => {
     fetch('/api/training/templates')
@@ -69,9 +71,30 @@ export default function TemplatePicker({ onSelectTemplate, gender = 'male' }: Pr
   }
 
   return (
+    <>
+    {showQuickLog && (
+      <QuickLogModal
+        onClose={() => setShowQuickLog(false)}
+        onLogged={() => setShowQuickLog(false)}
+      />
+    )}
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-      <div style={{ fontSize: '13px', color: '#52525b', marginBottom: '4px', fontWeight: 500 }}>
-        PICK A TEMPLATE
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+        <div style={{ fontSize: '13px', color: '#52525b', fontWeight: 500 }}>PICK A TEMPLATE</div>
+        <button
+          onClick={() => setShowQuickLog(true)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '5px',
+            background: 'none', border: '1px solid #2c2c2e', borderRadius: '20px',
+            padding: '5px 10px', cursor: 'pointer', fontSize: '12px',
+            color: '#c8a97e', fontWeight: 500, transition: 'border-color 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = '#c8a97e')}
+          onMouseLeave={e => (e.currentTarget.style.borderColor = '#2c2c2e')}
+        >
+          <PlusCircle size={13} />
+          Log Custom
+        </button>
       </div>
 
       {templates.map(t => (
@@ -137,5 +160,6 @@ export default function TemplatePicker({ onSelectTemplate, gender = 'male' }: Pr
         </div>
       )}
     </div>
+    </>
   )
 }

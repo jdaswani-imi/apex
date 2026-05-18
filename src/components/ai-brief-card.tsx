@@ -74,8 +74,6 @@ export function AiBriefCard(props: AiBriefCardProps) {
     pruneOldBriefKeys(today)
     const key = `${STORAGE_PREFIX}${today}_${fingerprint}`
     fetchBrief(key)
-  // fingerprint changes when logged data changes, triggering a fresh fetch
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fingerprint])
 
   function handleRefresh() {
