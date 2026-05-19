@@ -121,6 +121,8 @@ interface MealPlan {
   total_calories: number
   total_protein_g: number
   meals: MealPlanItem[]
+  already_logged_calories?: number
+  already_logged_protein_g?: number
 }
 
 interface FoodContentProps {
@@ -152,6 +154,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
   // Meal plan state
   const [showMealPlan, setShowMealPlan] = useState(false)
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null)
+  const [mealPlanError, setMealPlanError] = useState<string | null>(null)
   const [generatingPlan, setGeneratingPlan] = useState(false)
   const [addedMeals, setAddedMeals] = useState<Set<number>>(new Set())
   const [addingMealIdx, setAddingMealIdx] = useState<number | null>(null)
@@ -528,16 +531,34 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
   async function generateMealPlan() {
     setGeneratingPlan(true)
     setMealPlan(null)
+    setMealPlanError(null)
     setAddedMeals(new Set())
     setShowMealPlan(true)
     try {
       const res = await window.fetch('/api/ai/meal-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_training_day: isTrainingDay }),
+        body: JSON.stringify({
+          is_training_day: isTrainingDay,
+          current_hour: new Date().getHours(),
+          already_logged: logs.map(l => ({
+            meal_type: l.meal_type,
+            name: l.name,
+            calories: l.calories ?? 0,
+            protein_g: l.protein_g ?? 0,
+            carbs_g: l.carbs_g ?? 0,
+            fats_g: l.fats_g ?? 0,
+          })),
+        }),
       })
       const plan = await res.json() as MealPlan
+      if (!res.ok || !Array.isArray(plan.meals)) {
+        setMealPlanError('Couldn\'t generate a plan right now. Try again.')
+        return
+      }
       setMealPlan(plan)
+    } catch {
+      setMealPlanError('Couldn\'t generate a plan right now. Try again.')
     } finally {
       setGeneratingPlan(false)
     }
@@ -1269,7 +1290,9 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
             <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-border shrink-0">
               <div className="flex items-center gap-2">
                 <Sparkles size={14} className="text-orange-400" />
-                <span className="text-sm font-bold text-foreground">Today&apos;s Meal Plan</span>
+                <span className="text-sm font-bold text-foreground">
+                  {mealPlan && (mealPlan.already_logged_calories ?? 0) > 0 ? 'What to eat next' : 'Today\'s Meal Plan'}
+                </span>
               </div>
               <button onClick={() => setShowMealPlan(false)} className="text-zinc-500 hover:text-zinc-300 transition-colors">
                 <X size={18} />
@@ -1283,13 +1306,27 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                   <Loader2 size={22} className="text-orange-400 animate-spin" />
                   <span className="text-sm">Generating your personalised plan…</span>
                 </div>
+              ) : mealPlanError ? (
+                <div className="flex flex-col items-center gap-3 py-10 text-zinc-500">
+                  <span className="text-sm text-center">{mealPlanError}</span>
+                  <button onClick={generateMealPlan} className="text-xs text-orange-400 hover:text-orange-300 transition-colors">Try again</button>
+                </div>
               ) : mealPlan ? (
                 <>
+                  {/* Context banner when there are already-logged meals */}
+                  {(mealPlan.already_logged_calories ?? 0) > 0 && (
+                    <div className="text-xs text-zinc-500 pb-1">
+                      Already eaten: <span className="text-zinc-300 font-medium">{mealPlan.already_logged_calories} kcal · {mealPlan.already_logged_protein_g}g protein</span>
+                    </div>
+                  )}
+
                   {/* Totals pills */}
                   <div className="flex gap-2 flex-wrap">
-                    {[
-                      { label: 'kcal', value: mealPlan.total_calories },
-                      { label: 'protein', value: `${mealPlan.total_protein_g}g` },
+                    {mealPlan.meals.length === 0 ? (
+                      <div className="text-sm text-zinc-400 py-2">You&apos;ve hit your targets for today. Great work!</div>
+                    ) : [
+                      { label: 'kcal remaining', value: mealPlan.total_calories },
+                      { label: 'protein remaining', value: `${mealPlan.total_protein_g}g` },
                     ].map(({ label, value }) => (
                       <div key={label} className="bg-card border border-border rounded-xl px-3 py-1.5 text-xs text-zinc-400">
                         <span className="font-bold text-foreground">{value}</span> {label}
@@ -1299,7 +1336,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
 
                   {/* Meal items */}
                   <div className="space-y-2.5">
-                    {mealPlan.meals.map((item, idx) => {
+                    {(mealPlan.meals ?? []).map((item, idx) => {
                       const added = addedMeals.has(idx)
                       const adding = addingMealIdx === idx
                       const MEAL_DOT_CLASS: Record<string, string> = {

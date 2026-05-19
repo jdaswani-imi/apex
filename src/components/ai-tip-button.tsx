@@ -4,6 +4,21 @@ import { useState } from 'react'
 import { Sparkles, X, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+function renderTip(text: string) {
+  return text.split('\n').filter(Boolean).map((line, i) => {
+    const parts = line.split(/\*\*(.+?)\*\*/g)
+    return (
+      <p key={i} className={i > 0 ? 'mt-2' : ''}>
+        {parts.map((part, j) =>
+          j % 2 === 1
+            ? <span key={j} className="font-semibold text-orange-300">{part}</span>
+            : part
+        )}
+      </p>
+    )
+  })
+}
+
 type Page = 'food' | 'today' | 'training' | 'sleep' | 'supplements'
 
 export function AITipButton({ page, className }: { page: Page; className?: string }) {
@@ -55,7 +70,7 @@ export function AITipButton({ page, className }: { page: Page; className?: strin
                   <span className="text-xs">Reading your data…</span>
                 </div>
               ) : (
-                <p className="text-sm text-zinc-200 leading-relaxed">{tip}</p>
+                <div className="text-sm text-zinc-300 leading-relaxed">{renderTip(tip!)}</div>
               )}
             </div>
             {!loading && (

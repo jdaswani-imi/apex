@@ -5,8 +5,8 @@ import { X, Loader2, TrendingUp, TrendingDown, Minus, Sunrise } from 'lucide-rea
 import type { MorningIntelligence } from '@/app/api/intelligence/morning/route'
 import { FLAG_LABELS, type DayFlag } from '@/lib/intelligence'
 
-const CACHE_KEY_PREFIX = 'apex_morning_v1_'
-const DISMISS_KEY_PREFIX = 'apex_morning_dismiss_v1_'
+const CACHE_KEY_PREFIX = 'apex_morning_v2_'
+const DISMISS_KEY_PREFIX = 'apex_morning_dismiss_v2_'
 
 const TONE_CONFIG = {
   recovery: {
@@ -70,11 +70,15 @@ export function MorningIntelligenceCard() {
   const dismissKey = `${DISMISS_KEY_PREFIX}${today}`
 
   useEffect(() => {
-    // Clean up old keys
+    // Clean up old keys (including previous cache versions)
     try {
       for (const k of Object.keys(localStorage)) {
-        if ((k.startsWith(CACHE_KEY_PREFIX) || k.startsWith(DISMISS_KEY_PREFIX)) && !k.endsWith(today)) {
-          localStorage.removeItem(k)
+        if (k.startsWith('apex_morning_')) {
+          if (!k.startsWith(CACHE_KEY_PREFIX) && !k.startsWith(DISMISS_KEY_PREFIX)) {
+            localStorage.removeItem(k)
+          } else if (!k.endsWith(today)) {
+            localStorage.removeItem(k)
+          }
         }
       }
     } catch {}
@@ -98,8 +102,8 @@ export function MorningIntelligenceCard() {
       }
     } catch {}
 
-    // Fetch
-    fetch('/api/intelligence/morning')
+    // Fetch — bust HTTP cache so code fixes take effect immediately
+    fetch(`/api/intelligence/morning?t=${today}`)
       .then(r => r.json())
       .then((d: MorningIntelligence) => {
         setData(d)

@@ -42,7 +42,7 @@ export async function GET() {
   cutoff.setDate(cutoff.getDate() - 8)
   const fromDate = cutoff.toISOString().split('T')[0]
 
-  const [dailyLogs, recoveries, sleeps, sessions, goals, trainingConfig, suppResult] = await Promise.all([
+  const [dailyLogs, recoveries, sleeps, sessions, goals, trainingConfig, suppResult, foodResult] = await Promise.all([
     getRecentDailyLogs(8),
     getRecentRecovery(8),
     getRecentSleep(8),
@@ -55,9 +55,24 @@ export async function GET() {
       .eq('user_id', user.id)
       .gte('date', fromDate)
       .order('date', { ascending: false }),
+    supabase
+      .from('food_logs')
+      .select('date, calories, protein_g, carbs_g, fats_g')
+      .eq('user_id', user.id)
+      .gte('date', fromDate),
   ])
 
   const suppLogs = suppResult.data ?? []
+
+  // Aggregate food_logs by date
+  const foodByDate: Record<string, { calories: number; protein_g: number; carbs_g: number; fats_g: number }> = {}
+  for (const row of (foodResult.data ?? [])) {
+    if (!foodByDate[row.date]) foodByDate[row.date] = { calories: 0, protein_g: 0, carbs_g: 0, fats_g: 0 }
+    foodByDate[row.date].calories += row.calories ?? 0
+    foodByDate[row.date].protein_g += row.protein_g ?? 0
+    foodByDate[row.date].carbs_g += row.carbs_g ?? 0
+    foodByDate[row.date].fats_g += row.fats_g ?? 0
+  }
 
   const logByDate = Object.fromEntries(dailyLogs.map(l => [l.date, l]))
   const recovByDate = Object.fromEntries(recoveries.map(r => [r.date, r]))
@@ -80,9 +95,22 @@ export async function GET() {
     const d = new Date()
     d.setDate(d.getDate() - i)
     const date = d.toISOString().split('T')[0]
+    const baseLog = logByDate[date] ?? null
+    const foodAgg = foodByDate[date] ?? null
+    // Merge food_logs aggregates into daily_log — food_logs is the authoritative
+    // source for nutrition since food entries are stored there, not daily_logs
+    const log = foodAgg
+      ? {
+          ...(baseLog ?? { id: '', user_id: user.id, date, created_at: '', weight_kg: null, steps: null, notes: null, day_rating_training: null, day_rating_nutrition: null, day_rating_sleep: null, day_rating_supplements: null, feeling_recovery: null, feeling_sleep_quality: null, feeling_sleep_hours: null, feeling_strain: null }),
+          calories: foodAgg.calories > 0 ? Math.round(foodAgg.calories) : (baseLog?.calories ?? null),
+          protein_g: foodAgg.protein_g > 0 ? Math.round(foodAgg.protein_g * 10) / 10 : (baseLog?.protein_g ?? null),
+          carbs_g: foodAgg.carbs_g > 0 ? Math.round(foodAgg.carbs_g * 10) / 10 : (baseLog?.carbs_g ?? null),
+          fats_g: foodAgg.fats_g > 0 ? Math.round(foodAgg.fats_g * 10) / 10 : (baseLog?.fats_g ?? null),
+        }
+      : baseLog
     dayDataList.push({
       date,
-      log: logByDate[date] ?? null,
+      log,
       recovery: recovByDate[date] ?? null,
       sleep: sleepByDate[date] ?? null,
       supplements: suppsByDate[date] ?? [],
