@@ -13,7 +13,7 @@ export async function GET() {
   const start = new Date()
   start.setDate(start.getDate() - 30)
 
-  const url = new URL('https://api.prod.whoop.com/developer/v2/activity/sleep')
+  const url = new URL('https://api.prod.whoop.com/developer/v2/cycle')
   url.searchParams.set('start', start.toISOString())
   url.searchParams.set('limit', '3')
 

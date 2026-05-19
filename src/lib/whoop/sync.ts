@@ -144,6 +144,7 @@ export async function syncWhoopData(userId: string, days = 7) {
         zone_3_min: zones ? Math.round(zones.zone_three_milli / 60000) : null,
         zone_4_min: zones ? Math.round(zones.zone_four_milli / 60000) : null,
         zone_5_min: zones ? Math.round(zones.zone_five_milli / 60000) : null,
+        steps: (score.steps as number) ?? null,
         synced_at: new Date().toISOString(),
       }, { onConflict: 'user_id,date' })
       results.cycles++
