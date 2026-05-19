@@ -1,6 +1,10 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+
+// Session-level cache keyed by date string. Evicted on any mutation so stale
+// data never lingers, but navigating back to an already-viewed date is instant.
+const foodCache = new Map<string, FoodLog[]>()
 import { UtensilsCrossed, Plus, Trash2, ChevronDown, X, Search, Loader2, Star, BookmarkPlus, Sparkles, Check, Pencil, Camera } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { FoodLog } from '@/lib/types'
@@ -141,8 +145,8 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
   const viewDate = viewDateProp ?? todayStr
   const isToday = viewDate === todayStr
   const dateLabel = new Date(viewDate + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
-  const [logs, setLogs] = useState<FoodLog[]>([])
-  const [loading, setLoading] = useState(true)
+  const [logs, setLogs] = useState<FoodLog[]>(() => foodCache.get(viewDate) ?? [])
+  const [loading, setLoading] = useState(!foodCache.has(viewDate))
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
@@ -202,8 +206,16 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
   }, [showForm])
 
   const fetchLogs = useCallback(async () => {
+    const cached = foodCache.get(viewDate)
+    if (cached) {
+      setLogs(cached)
+      setLoading(false)
+      return
+    }
+    setLoading(true)
     const res = await window.fetch(`/api/food?date=${viewDate}`)
     const data = await res.json()
+    foodCache.set(viewDate, data)
     setLogs(data)
     setLoading(false)
   }, [viewDate])
@@ -424,7 +436,12 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
 
     if (res.ok) {
       const item: FoodLog = await res.json()
-      setLogs(prev => [...prev, item])
+      foodCache.delete(viewDate)
+      setLogs(prev => {
+        const updated = [...prev, item]
+        foodCache.set(viewDate, updated)
+        return updated
+      })
       setRecentLoaded(false)
       // Stay open for the same meal — just clear the food selection
       const keepMeal = form.meal_type
@@ -489,7 +506,11 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
   async function remove(id: string) {
     setDeletingId(id)
     await window.fetch(`/api/food/${id}`, { method: 'DELETE' })
-    setLogs(prev => prev.filter(l => l.id !== id))
+    setLogs(prev => {
+      const updated = prev.filter(l => l.id !== id)
+      foodCache.set(viewDate, updated)
+      return updated
+    })
     setDeletingId(null)
   }
 
@@ -522,7 +543,11 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
     })
     if (res.ok) {
       const updated: FoodLog = await res.json()
-      setLogs(prev => prev.map(l => l.id === id ? updated : l))
+      setLogs(prev => {
+        const next = prev.map(l => l.id === id ? updated : l)
+        foodCache.set(viewDate, next)
+        return next
+      })
       setEditingId(null)
     }
     setSavingEdit(false)
@@ -581,7 +606,11 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
     })
     if (res.ok) {
       const logged: FoodLog = await res.json()
-      setLogs(prev => [...prev, logged])
+      setLogs(prev => {
+        const updated = [...prev, logged]
+        foodCache.set(viewDate, updated)
+        return updated
+      })
       setAddedMeals(prev => new Set([...prev, idx]))
     }
     setAddingMealIdx(null)

@@ -48,37 +48,49 @@ interface TodayData {
   alternativeSession: string | null
 }
 
+interface DayCard {
+  today: TodayData
+  next: NextWorkout | null
+}
+
 interface Props {
   isToday: boolean
   date: string
 }
 
+// Session-level cache: avoids re-fetching the same date within a browsing session.
+// Cleared when the page is fully reloaded (module re-evaluated).
+const cache = new Map<string, DayCard>()
+
 export function TodayWorkoutCard({ isToday, date }: Props) {
   const router = useRouter()
-  const [data, setData] = useState<TodayData | null>(null)
-  const [next, setNext] = useState<NextWorkout | null | undefined>(undefined)
+  const [card, setCard] = useState<DayCard | null>(() => cache.get(date) ?? null)
   const [starting, setStarting] = useState(false)
 
   useEffect(() => {
-    setData(null)
-    setNext(undefined)
-    fetch(`/api/training/today-template?date=${date}`)
+    const cached = cache.get(date)
+    if (cached) {
+      setCard(cached)
+      return
+    }
+
+    setCard(null)
+    const controller = new AbortController()
+
+    fetch(`/api/training/day-card?date=${date}`, { signal: controller.signal })
       .then(r => r.json())
-      .then((d: TodayData) => {
-        setData(d)
-        if (d.isRest || d.sessionDone) {
-          fetch(`/api/training/next-workout?after=${date}`)
-            .then(r => r.json())
-            .then(setNext)
-            .catch(() => setNext(null))
-        }
+      .then((d: DayCard) => {
+        cache.set(date, d)
+        setCard(d)
       })
-      .catch(() => setData(null))
+      .catch(() => {/* aborted or failed — leave as null (skeleton stays) */})
+
+    return () => controller.abort()
   }, [date])
 
   async function handleStart() {
-    if (!data?.template || starting) return
-    const { template } = data
+    const template = card?.today.template
+    if (!template || starting) return
     setStarting(true)
     try {
       const res = await fetch('/api/training/session', {
@@ -105,7 +117,7 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
   }
 
   // Loading skeleton
-  if (!data) {
+  if (!card) {
     return (
       <div className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl p-4 flex items-center gap-4 animate-pulse">
         <div className="w-12 h-12 rounded-2xl bg-zinc-800 flex-shrink-0" />
@@ -118,7 +130,8 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
     )
   }
 
-  const { isRest, template, sessionType, sessionDone, alternativeSession } = data
+  const { isRest, template, sessionType, sessionDone, alternativeSession } = card.today
+  const next = card.next
 
   // Rest day
   if (isRest) {
