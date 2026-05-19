@@ -1,0 +1,168 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e6]: A
+        - generic [ref=e7]: Apex
+      - navigation "Main navigation" [ref=e8]:
+        - link "Today" [ref=e9] [cursor=pointer]:
+          - /url: /
+          - img [ref=e10]
+          - generic [ref=e13]: Today
+        - link "Coach" [ref=e15] [cursor=pointer]:
+          - /url: /chat
+          - img [ref=e16]
+          - generic [ref=e18]: Coach
+        - link "Train" [ref=e19] [cursor=pointer]:
+          - /url: /training
+          - img [ref=e20]
+          - generic [ref=e26]: Train
+        - link "Food" [ref=e27] [cursor=pointer]:
+          - /url: /food
+          - img [ref=e28]
+          - generic [ref=e33]: Food
+        - link "More" [ref=e34] [cursor=pointer]:
+          - /url: /more
+          - img [ref=e35]
+          - generic [ref=e40]: More
+    - main [ref=e42]:
+      - generic [ref=e44]:
+        - generic [ref=e45]:
+          - generic [ref=e46]:
+            - paragraph [ref=e47]: Good evening
+            - generic [ref=e48]:
+              - button "Previous day" [ref=e49]:
+                - img [ref=e50]
+              - generic [ref=e52]: Today
+              - button "Next day" [disabled] [ref=e53]:
+                - img [ref=e54]
+          - generic [ref=e56]:
+            - link "Week view" [ref=e57] [cursor=pointer]:
+              - /url: /week
+              - img [ref=e58]
+            - generic [ref=e60]: J
+        - generic [ref=e61]:
+          - link "M 11" [ref=e62] [cursor=pointer]:
+            - /url: /?date=2026-05-11
+            - generic [ref=e63]: M
+            - generic [ref=e64]: "11"
+          - link "T 12" [ref=e66] [cursor=pointer]:
+            - /url: /?date=2026-05-12
+            - generic [ref=e67]: T
+            - generic [ref=e68]: "12"
+          - link "W 13" [ref=e70] [cursor=pointer]:
+            - /url: /?date=2026-05-13
+            - generic [ref=e71]: W
+            - generic [ref=e72]: "13"
+          - link "T 14" [ref=e74] [cursor=pointer]:
+            - /url: /?date=2026-05-14
+            - generic [ref=e75]: T
+            - generic [ref=e76]: "14"
+          - link "F 15" [ref=e78] [cursor=pointer]:
+            - /url: /
+            - generic [ref=e79]: F
+            - generic [ref=e80]: "15"
+          - generic [ref=e82]:
+            - generic [ref=e83]: S
+            - generic [ref=e84]: "16"
+          - generic [ref=e86]:
+            - generic [ref=e87]: S
+            - generic [ref=e88]: "17"
+        - generic [ref=e91]:
+          - generic [ref=e92]:
+            - img [ref=e93]
+            - generic [ref=e96]: Tomorrowland
+          - generic [ref=e97]:
+            - generic [ref=e98]:
+              - generic [ref=e99]: "70"
+              - generic [ref=e100]: days to go
+            - generic [ref=e101]: 11% done
+          - paragraph [ref=e104]: 24 July 2026 · Boom, Belgium
+        - generic [ref=e105]:
+          - generic [ref=e106]:
+            - img [ref=e107]
+            - generic [ref=e110]: Daily Brief
+          - generic [ref=e111]:
+            - img [ref=e112]
+            - generic [ref=e114]: Analysing your data…
+        - generic [ref=e121]:
+          - link "Nutrition — log food" [ref=e122] [cursor=pointer]:
+            - /url: /food
+            - generic [ref=e123]:
+              - generic [ref=e124]: Nutrition
+              - img [ref=e126]
+            - paragraph [ref=e131]: —
+            - paragraph [ref=e132]: log food
+          - generic [ref=e133]:
+            - generic [ref=e134]:
+              - generic [ref=e135]: Recovery
+              - img [ref=e137]
+            - paragraph [ref=e139]: 49%
+            - paragraph [ref=e140]: 🟡 Yellow — train smart
+          - generic [ref=e141]:
+            - generic [ref=e142]:
+              - generic [ref=e143]: Steps
+              - img [ref=e145]
+            - paragraph [ref=e148]: —
+            - paragraph [ref=e149]: target 10,000
+          - generic [ref=e150]:
+            - generic [ref=e151]:
+              - generic [ref=e152]: Weight
+              - img [ref=e154]
+            - paragraph [ref=e158]: —
+            - paragraph [ref=e159]: target 66kg
+        - generic [ref=e160]:
+          - generic [ref=e161]:
+            - img [ref=e162]
+            - generic [ref=e164]: Recovery Vitals
+          - generic [ref=e165]:
+            - generic [ref=e166]:
+              - paragraph [ref=e167]: "69"
+              - paragraph [ref=e168]: HRV · ms
+            - generic [ref=e169]:
+              - paragraph [ref=e170]: "58"
+              - paragraph [ref=e171]: RHR · bpm
+            - generic [ref=e172]:
+              - paragraph [ref=e173]: 93.4%
+              - paragraph [ref=e174]: SpO₂
+        - generic [ref=e175]:
+          - generic [ref=e176]:
+            - img [ref=e177]
+            - generic [ref=e179]: Last Night's Sleep
+          - generic [ref=e180]:
+            - generic [ref=e181]:
+              - paragraph [ref=e182]: 6.8h
+              - paragraph [ref=e183]: Duration
+            - generic [ref=e184]:
+              - paragraph [ref=e185]: 82%
+              - paragraph [ref=e186]: Performance
+            - generic [ref=e187]:
+              - paragraph [ref=e188]: 131m
+              - paragraph [ref=e189]: Deep
+            - generic [ref=e190]:
+              - paragraph [ref=e191]: 97m
+              - paragraph [ref=e192]: REM
+        - link "Supplement Stack 4/7 taken Humantra + Concentrace + Creatine HMB ✓ Seed DS-01 Daily Synbiotic ✓ Rituals Omega-3 DHA+EPA ✓ Ferroglobibin + OJ ✓ +3 more · tap to manage" [ref=e193] [cursor=pointer]:
+          - /url: /supplements
+          - generic [ref=e194]:
+            - generic [ref=e195]: Supplement Stack
+            - generic [ref=e196]: 4/7 taken
+          - generic [ref=e199]:
+            - generic [ref=e200]:
+              - generic [ref=e201]: Humantra + Concentrace + Creatine HMB
+              - generic [ref=e202]: ✓
+            - generic [ref=e203]:
+              - generic [ref=e204]: Seed DS-01 Daily Synbiotic
+              - generic [ref=e205]: ✓
+            - generic [ref=e206]:
+              - generic [ref=e207]: Rituals Omega-3 DHA+EPA
+              - generic [ref=e208]: ✓
+            - generic [ref=e209]:
+              - generic [ref=e210]: Ferroglobibin + OJ
+              - generic [ref=e211]: ✓
+            - paragraph [ref=e212]: +3 more · tap to manage
+        - button "AI Tip" [ref=e214]:
+          - img [ref=e215]
+          - generic [ref=e218]: AI Tip
+  - button "Open Next.js Dev Tools" [ref=e224] [cursor=pointer]:
+    - img [ref=e225]

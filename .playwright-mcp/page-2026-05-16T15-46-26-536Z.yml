@@ -1,0 +1,203 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e5]:
+      - list [ref=e7]:
+        - listitem [ref=e8]:
+          - link "A Apex Personal Coach" [ref=e9] [cursor=pointer]:
+            - /url: /
+            - generic [ref=e11]: A
+            - generic [ref=e12]:
+              - generic [ref=e13]: Apex
+              - generic [ref=e14]: Personal Coach
+      - list [ref=e18]:
+        - listitem [ref=e19]:
+          - link "Today" [ref=e20] [cursor=pointer]:
+            - /url: /
+            - img [ref=e21]
+            - generic [ref=e24]: Today
+        - listitem [ref=e25]:
+          - link "Coach" [ref=e26] [cursor=pointer]:
+            - /url: /chat
+            - img [ref=e27]
+            - generic [ref=e29]: Coach
+        - listitem [ref=e30]:
+          - link "Train" [ref=e31] [cursor=pointer]:
+            - /url: /training
+            - img [ref=e32]
+            - generic [ref=e38]: Train
+        - listitem [ref=e39]:
+          - link "Food" [ref=e40] [cursor=pointer]:
+            - /url: /food
+            - img [ref=e41]
+            - generic [ref=e46]: Food
+        - listitem [ref=e47]:
+          - link "More" [ref=e48] [cursor=pointer]:
+            - /url: /more
+            - img [ref=e49]
+            - generic [ref=e54]: More
+      - button "Toggle Sidebar" [ref=e56]
+    - main [ref=e57]:
+      - generic [ref=e58]:
+        - button "Toggle Sidebar" [ref=e59]:
+          - img
+          - generic [ref=e60]: Toggle Sidebar
+        - separator [ref=e61]
+      - main [ref=e62]:
+        - generic [ref=e64]:
+          - generic [ref=e65]:
+            - generic [ref=e66]:
+              - paragraph [ref=e67]: Good evening
+              - generic [ref=e68]:
+                - button "Previous day" [ref=e69]:
+                  - img [ref=e70]
+                - generic [ref=e72]: Today
+                - button "Next day" [disabled] [ref=e73]:
+                  - img [ref=e74]
+            - generic [ref=e76]:
+              - link "Week view" [ref=e77] [cursor=pointer]:
+                - /url: /week
+                - img [ref=e78]
+              - button "Account menu" [ref=e80]: J
+          - generic [ref=e81]:
+            - link "M 11" [ref=e82] [cursor=pointer]:
+              - /url: /?date=2026-05-11
+              - generic [ref=e83]: M
+              - generic [ref=e84]: "11"
+            - link "T 12" [ref=e86] [cursor=pointer]:
+              - /url: /?date=2026-05-12
+              - generic [ref=e87]: T
+              - generic [ref=e88]: "12"
+            - link "W 13" [ref=e90] [cursor=pointer]:
+              - /url: /?date=2026-05-13
+              - generic [ref=e91]: W
+              - generic [ref=e92]: "13"
+            - link "T 14" [ref=e94] [cursor=pointer]:
+              - /url: /?date=2026-05-14
+              - generic [ref=e95]: T
+              - generic [ref=e96]: "14"
+            - link "F 15" [ref=e98] [cursor=pointer]:
+              - /url: /?date=2026-05-15
+              - generic [ref=e99]: F
+              - generic [ref=e100]: "15"
+            - link "S 16" [ref=e102] [cursor=pointer]:
+              - /url: /
+              - generic [ref=e103]: S
+              - generic [ref=e104]: "16"
+            - generic [ref=e106]:
+              - generic [ref=e107]: S
+              - generic [ref=e108]: "17"
+          - generic [ref=e111]:
+            - generic [ref=e112]:
+              - img [ref=e113]
+              - generic [ref=e116]: Tomorrowland
+            - generic [ref=e117]:
+              - generic [ref=e118]:
+                - generic [ref=e119]: "69"
+                - generic [ref=e120]: days to go
+              - generic [ref=e121]: 13% done
+            - paragraph [ref=e124]: 24 July 2026 · Boom, Belgium
+          - generic [ref=e125]:
+            - generic [ref=e126]:
+              - img [ref=e127]
+              - generic [ref=e130]: Daily Brief
+            - generic [ref=e131]:
+              - generic [ref=e132]:
+                - generic [ref=e133]:
+                  - img [ref=e134]
+                  - generic [ref=e138]: "42"
+                - generic [ref=e139]:
+                  - generic [ref=e140]: Low
+                  - paragraph [ref=e141]: Light active recovery only; prioritize nutrition and sleep before intensity
+              - generic [ref=e142]:
+                - generic [ref=e143]:
+                  - generic [ref=e145]: "1"
+                  - generic [ref=e146]: Consume 140g protein immediately today
+                - generic [ref=e147]:
+                  - generic [ref=e149]: "2"
+                  - generic [ref=e150]: Increase caloric intake to 2100kcal
+                - generic [ref=e151]:
+                  - generic [ref=e153]: "3"
+                  - generic [ref=e154]: Monitor lipid levels; reduce triglycerides
+              - paragraph [ref=e156]: “7-day protein averaging 113g is consistently 19% below target, limiting recovery.”
+              - link "Ask Apex to elaborate" [ref=e157] [cursor=pointer]:
+                - /url: /chat
+                - generic [ref=e158]: Ask Apex to elaborate
+                - img [ref=e159]
+          - generic [ref=e167]:
+            - link "Nutrition — tap to log food" [ref=e168] [cursor=pointer]:
+              - /url: /food
+              - generic [ref=e169]:
+                - generic [ref=e170]: Nutrition
+                - img [ref=e172]
+              - generic [ref=e177]:
+                - paragraph [ref=e178]: —
+                - paragraph [ref=e179]: tap to log food
+            - generic [ref=e180]:
+              - generic [ref=e181]:
+                - img [ref=e183]
+                - paragraph [ref=e185]: 34%
+                - paragraph [ref=e186]: Yellow · train smart
+              - generic [ref=e187]:
+                - img [ref=e189]
+                - paragraph [ref=e192]: —
+                - paragraph [ref=e193]: target 10,000
+              - generic [ref=e194]:
+                - img [ref=e196]
+                - paragraph [ref=e200]: —
+                - paragraph [ref=e201]: target 66kg
+          - generic [ref=e202]:
+            - generic [ref=e203]:
+              - img [ref=e204]
+              - generic [ref=e206]: Recovery Vitals
+            - generic [ref=e207]:
+              - generic [ref=e208]:
+                - paragraph [ref=e209]: "57"
+                - paragraph [ref=e210]: HRV · ms
+              - generic [ref=e211]:
+                - paragraph [ref=e212]: "65"
+                - paragraph [ref=e213]: RHR · bpm
+              - generic [ref=e214]:
+                - paragraph [ref=e215]: 90.0%
+                - paragraph [ref=e216]: SpO₂
+          - generic [ref=e217]:
+            - generic [ref=e218]:
+              - img [ref=e219]
+              - generic [ref=e221]: Last Night's Sleep
+            - generic [ref=e222]:
+              - generic [ref=e223]:
+                - paragraph [ref=e224]: 7.2h
+                - paragraph [ref=e225]: Duration
+              - generic [ref=e226]:
+                - paragraph [ref=e227]: 66%
+                - paragraph [ref=e228]: Performance
+              - generic [ref=e229]:
+                - paragraph [ref=e230]: 145m
+                - paragraph [ref=e231]: Deep
+              - generic [ref=e232]:
+                - paragraph [ref=e233]: 102m
+                - paragraph [ref=e234]: REM
+          - link "Supplement Stack 4/7 taken Humantra + Concentrace + Creatine HMB ✓ Seed DS-01 Daily Synbiotic ✓ Rituals Omega-3 DHA+EPA ✓ Rituals Essential Men 18+ Multivitamin ✓ +3 more · tap to manage" [ref=e235] [cursor=pointer]:
+            - /url: /supplements?date=2026-05-16
+            - generic [ref=e236]:
+              - generic [ref=e237]: Supplement Stack
+              - generic [ref=e238]: 4/7 taken
+            - generic [ref=e241]:
+              - generic [ref=e242]:
+                - generic [ref=e243]: Humantra + Concentrace + Creatine HMB
+                - generic [ref=e244]: ✓
+              - generic [ref=e245]:
+                - generic [ref=e246]: Seed DS-01 Daily Synbiotic
+                - generic [ref=e247]: ✓
+              - generic [ref=e248]:
+                - generic [ref=e249]: Rituals Omega-3 DHA+EPA
+                - generic [ref=e250]: ✓
+              - generic [ref=e251]:
+                - generic [ref=e252]: Rituals Essential Men 18+ Multivitamin
+                - generic [ref=e253]: ✓
+              - paragraph [ref=e254]: +3 more · tap to manage
+          - button "AI Tip" [ref=e256]:
+            - img [ref=e257]
+            - generic [ref=e260]: AI Tip
+  - button "Open Next.js Dev Tools" [ref=e266] [cursor=pointer]:
+    - img [ref=e267]
+  - alert [ref=e270]

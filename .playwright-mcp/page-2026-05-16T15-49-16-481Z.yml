@@ -1,0 +1,100 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e5]:
+      - list [ref=e7]:
+        - listitem [ref=e8]:
+          - link "A Apex Personal Coach" [ref=e9] [cursor=pointer]:
+            - /url: /
+            - generic [ref=e11]: A
+            - generic [ref=e12]:
+              - generic [ref=e13]: Apex
+              - generic [ref=e14]: Personal Coach
+      - list [ref=e18]:
+        - listitem [ref=e19]:
+          - link "Today" [ref=e20] [cursor=pointer]:
+            - /url: /
+            - img [ref=e21]
+            - generic [ref=e24]: Today
+        - listitem [ref=e25]:
+          - link "Coach" [ref=e26] [cursor=pointer]:
+            - /url: /chat
+            - img [ref=e27]
+            - generic [ref=e29]: Coach
+        - listitem [ref=e30]:
+          - link "Train" [ref=e31] [cursor=pointer]:
+            - /url: /training
+            - img [ref=e32]
+            - generic [ref=e38]: Train
+        - listitem [ref=e39]:
+          - link "Food" [ref=e40] [cursor=pointer]:
+            - /url: /food
+            - img [ref=e41]
+            - generic [ref=e46]: Food
+        - listitem [ref=e47]:
+          - link "More" [ref=e48] [cursor=pointer]:
+            - /url: /more
+            - img [ref=e49]
+            - generic [ref=e54]: More
+      - button "Toggle Sidebar" [ref=e56]
+    - main [ref=e57]:
+      - generic [ref=e58]:
+        - button "Toggle Sidebar" [ref=e59]:
+          - img
+          - generic [ref=e60]: Toggle Sidebar
+        - separator [ref=e61]
+      - main [ref=e62]:
+        - generic [ref=e64]:
+          - generic [ref=e65]:
+            - heading "More" [level=1] [ref=e66]
+            - paragraph [ref=e67]: Tracking & grooming
+          - generic [ref=e68]:
+            - paragraph [ref=e69]: Track
+            - generic [ref=e70]:
+              - link "Supplements Daily stack adherence" [ref=e71] [cursor=pointer]:
+                - /url: /supplements
+                - img [ref=e73]
+                - generic [ref=e76]:
+                  - paragraph [ref=e77]: Supplements
+                  - paragraph [ref=e78]: Daily stack adherence
+                - img [ref=e79]
+              - link "Sleep WHOOP sleep data & recovery" [ref=e81] [cursor=pointer]:
+                - /url: /sleep
+                - img [ref=e83]
+                - generic [ref=e85]:
+                  - paragraph [ref=e86]: Sleep
+                  - paragraph [ref=e87]: WHOOP sleep data & recovery
+                - img [ref=e88]
+              - link "Progress Body metrics & trends" [ref=e90] [cursor=pointer]:
+                - /url: /progress
+                - img [ref=e92]
+                - generic [ref=e95]:
+                  - paragraph [ref=e96]: Progress
+                  - paragraph [ref=e97]: Body metrics & trends
+                - img [ref=e98]
+              - link "Lab Reports Blood & urine test analysis" [ref=e100] [cursor=pointer]:
+                - /url: /lab
+                - img [ref=e102]
+                - generic [ref=e104]:
+                  - paragraph [ref=e105]: Lab Reports
+                  - paragraph [ref=e106]: Blood & urine test analysis
+                - img [ref=e107]
+          - generic [ref=e109]:
+            - paragraph [ref=e110]: Grooming
+            - generic [ref=e111]:
+              - link "Skincare Morning & evening routine" [ref=e112] [cursor=pointer]:
+                - /url: /skincare
+                - img [ref=e114]
+                - generic [ref=e117]:
+                  - paragraph [ref=e118]: Skincare
+                  - paragraph [ref=e119]: Morning & evening routine
+                - img [ref=e120]
+              - link "Hair Hair care routine" [ref=e122] [cursor=pointer]:
+                - /url: /hair
+                - img [ref=e124]
+                - generic [ref=e128]:
+                  - paragraph [ref=e129]: Hair
+                  - paragraph [ref=e130]: Hair care routine
+                - img [ref=e131]
+  - button "Open Next.js Dev Tools" [ref=e138] [cursor=pointer]:
+    - img [ref=e139]
+  - alert [ref=e142]

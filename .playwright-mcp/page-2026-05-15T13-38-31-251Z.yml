@@ -1,0 +1,79 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - main [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - img [ref=e7]
+          - generic [ref=e9]:
+            - generic [ref=e10]: Apex
+            - generic [ref=e11]: Personal optimisation coach
+        - generic [ref=e12]:
+          - generic [ref=e75]: How's my recovery trend this week?
+          - generic [ref=e76]:
+            - generic [ref=e83]:
+              - img [ref=e84]
+              - text: Checked training history
+            - generic [ref=e88]:
+              - paragraph [ref=e89]: "Here's your recovery picture for the week, Jason:"
+              - paragraph [ref=e91]:
+                - strong [ref=e92]: 7-Day Recovery Scores
+              - paragraph [ref=e93]: "```"
+              - paragraph [ref=e94]: Fri 09 → 75 🟢
+              - paragraph [ref=e95]: Sat 10 → 16 🔴
+              - paragraph [ref=e96]: Sun 11 → 62 🟡
+              - paragraph [ref=e97]: Mon 12 → 86 🟢
+              - paragraph [ref=e98]: Tue 13 → 80 🟢
+              - paragraph [ref=e99]: Wed 14 → 54 🟡
+              - paragraph [ref=e100]: Thu 15 → 49 🟡 ← Today
+              - paragraph [ref=e101]: "```"
+              - paragraph [ref=e103]:
+                - strong [ref=e104]: "The pattern is clear:"
+              - list [ref=e105]:
+                - listitem [ref=e106]: You had a strong mid-week block (Mon–Tue at 80–86) 🔥
+                - listitem [ref=e107]:
+                  - text: But you've been trending
+                  - strong [ref=e108]: downward since Tuesday
+                  - text: — 80 → 54 → 49
+                - listitem [ref=e109]: That 16 on Saturday is a red flag — whatever happened that night hit you hard and the cumulative effect is still showing up
+              - paragraph [ref=e111]:
+                - strong [ref=e112]: "Today's read: YELLOW at 49"
+              - paragraph [ref=e113]:
+                - text: HRV is 69ms, resting HR 58bpm — not bad, but your body is telling you not to push hard. Stairmaster is on the schedule — keep it at
+                - strong [ref=e114]: RPE 7–8 max
+                - text: ", steady state, 25–35 mins. Don't try to grind through this one."
+              - paragraph [ref=e116]:
+                - strong [ref=e117]: "The concern for Tomorrowland:"
+              - paragraph [ref=e118]: Sleep has also been creeping down — 7.7h earlier in the week down to 6.8h last night. Recovery follows sleep closely. If you want to trend back into the 70s+ by next week, tonight needs to be a hard stop by midnight, Magnesium Glycinate done, Sleep + Restore taken.
+              - paragraph [ref=e120]:
+                - text: You've got 70 days. Protecting your recovery
+                - emphasis [ref=e121]: is
+                - text: training.
+        - generic [ref=e23]:
+          - textbox "Message Apex..." [ref=e24]
+          - button [disabled] [ref=e25]:
+            - img [ref=e26]
+    - navigation "Main navigation" [ref=e29]:
+      - generic [ref=e30]:
+        - link "Today" [ref=e31] [cursor=pointer]:
+          - /url: /
+          - img [ref=e32]
+          - generic [ref=e35]: Today
+        - link "Coach" [ref=e36] [cursor=pointer]:
+          - /url: /chat
+          - img [ref=e38]
+          - generic [ref=e40]: Coach
+        - link "Train" [ref=e42] [cursor=pointer]:
+          - /url: /training
+          - img [ref=e43]
+          - generic [ref=e49]: Train
+        - link "Food" [ref=e50] [cursor=pointer]:
+          - /url: /food
+          - img [ref=e51]
+          - generic [ref=e56]: Food
+        - link "More" [ref=e57] [cursor=pointer]:
+          - /url: /more
+          - img [ref=e58]
+          - generic [ref=e63]: More
+  - button "Open Next.js Dev Tools" [ref=e69] [cursor=pointer]:
+    - img [ref=e70]
+  - alert [ref=e73]

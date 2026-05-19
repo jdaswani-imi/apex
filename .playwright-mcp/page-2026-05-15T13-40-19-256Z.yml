@@ -1,0 +1,35 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - main [ref=e3]:
+      - generic [ref=e4]:
+        - heading "Skincare" [level=1] [ref=e5]
+        - paragraph [ref=e6]: Morning & evening routine
+        - generic [ref=e7]:
+          - img [ref=e9]
+          - paragraph [ref=e12]: Coming soon
+          - paragraph [ref=e13]: Track your skincare routine and log morning & evening products here.
+    - navigation "Main navigation" [ref=e14]:
+      - generic [ref=e15]:
+        - link "Today" [ref=e16] [cursor=pointer]:
+          - /url: /
+          - img [ref=e17]
+          - generic [ref=e20]: Today
+        - link "Coach" [ref=e21] [cursor=pointer]:
+          - /url: /chat
+          - img [ref=e22]
+          - generic [ref=e24]: Coach
+        - link "Train" [ref=e25] [cursor=pointer]:
+          - /url: /training
+          - img [ref=e26]
+          - generic [ref=e32]: Train
+        - link "Food" [ref=e33] [cursor=pointer]:
+          - /url: /food
+          - img [ref=e34]
+          - generic [ref=e39]: Food
+        - link "More" [ref=e40] [cursor=pointer]:
+          - /url: /more
+          - img [ref=e41]
+          - generic [ref=e46]: More
+  - button "Open Next.js Dev Tools" [ref=e52] [cursor=pointer]:
+    - img [ref=e53]
+  - alert [ref=e56]

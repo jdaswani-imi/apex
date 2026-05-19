@@ -1,0 +1,47 @@
+- generic [active] [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e26] [cursor=pointer]:
+    - img [ref=e27]
+  - alert [ref=e30]
+  - generic [ref=e31]:
+    - main [ref=e32]:
+      - generic [ref=e277]:
+        - generic [ref=e278]:
+          - img [ref=e280]
+          - generic [ref=e282]:
+            - generic [ref=e283]: Apex
+            - generic [ref=e284]: Personal optimisation coach
+        - generic [ref=e286]:
+          - paragraph [ref=e287]: Ask me anything — I know your data
+          - generic [ref=e288]:
+            - button "What should I eat to hit protein today?" [ref=e289] [cursor=pointer]
+            - button "Give me today's workout" [ref=e290] [cursor=pointer]
+            - button "How's my progress to Tomorrowland?" [ref=e291] [cursor=pointer]
+            - button "What time should I sleep tonight?" [ref=e292] [cursor=pointer]
+            - button "Log 150g chicken breast for lunch" [ref=e293] [cursor=pointer]
+            - button "How's my recovery trend this week?" [ref=e294] [cursor=pointer]
+        - generic [ref=e296]:
+          - textbox "Message Apex..." [ref=e297]
+          - button [disabled] [ref=e298]:
+            - img [ref=e299]
+    - navigation "Main navigation" [ref=e216]:
+      - generic [ref=e217]:
+        - link "Today" [ref=e218] [cursor=pointer]:
+          - /url: /
+          - img [ref=e220]
+          - generic [ref=e223]: Today
+        - link "Coach" [ref=e225] [cursor=pointer]:
+          - /url: /chat
+          - img [ref=e226]
+          - generic [ref=e228]: Coach
+        - link "Train" [ref=e229] [cursor=pointer]:
+          - /url: /training
+          - img [ref=e230]
+          - generic [ref=e236]: Train
+        - link "Food" [ref=e237] [cursor=pointer]:
+          - /url: /food
+          - img [ref=e238]
+          - generic [ref=e243]: Food
+        - link "More" [ref=e244] [cursor=pointer]:
+          - /url: /more
+          - img [ref=e245]
+          - generic [ref=e250]: More
