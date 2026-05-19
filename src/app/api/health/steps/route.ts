@@ -28,12 +28,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'date and steps are required' }, { status: 400 })
   }
 
-  const { error } = await adminClient.from('daily_steps').upsert({
+  const { error } = await adminClient.from('daily_logs').upsert({
     user_id: profile.user_id,
     date,
     steps,
-    source: 'apple_health',
-    updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id,date' })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
