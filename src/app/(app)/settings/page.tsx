@@ -116,8 +116,8 @@ export default function SettingsPage() {
   if (section === null) {
     return (
       <div className="px-4 md:px-6 pt-4 md:pt-6 pb-8">
-        <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#fff', marginBottom: '8px' }}>Settings</h1>
-        <p style={{ fontSize: '14px', color: '#52525b', marginBottom: '24px' }}>Everything the AI uses to coach you</p>
+        <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '8px' }}>Settings</h1>
+        <p style={{ fontSize: '14px', color: 'var(--muted-foreground)', marginBottom: '24px' }}>Everything the AI uses to coach you</p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {/* Complete Profile */}
@@ -139,24 +139,24 @@ export default function SettingsPage() {
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: '15px', fontWeight: 600, color: '#f97316' }}>Complete your profile</div>
-              <div style={{ fontSize: '12px', color: '#71717a', marginTop: '2px' }}>Full questionnaire — helps the AI coach know you</div>
+              <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Full questionnaire — helps the AI coach know you</div>
             </div>
             <ChevronRight size={18} color="#f97316" />
           </a>
 
           {/* Whoop connection */}
           <div style={{
-            backgroundColor: whoopConnected ? '#0a1f0a' : '#111',
-            border: `1px solid ${whoopConnected ? '#14532d' : '#1c1c1c'}`,
+            backgroundColor: whoopConnected ? 'rgba(34,197,94,0.08)' : 'var(--card)',
+            border: `1px solid ${whoopConnected ? 'rgba(34,197,94,0.25)' : 'var(--border)'}`,
             borderRadius: '16px', padding: '16px 20px',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             marginBottom: '8px',
           }}>
             <div>
-              <div style={{ fontSize: '15px', fontWeight: 600, color: whoopConnected ? '#4ade80' : '#fff' }}>
+              <div style={{ fontSize: '15px', fontWeight: 600, color: whoopConnected ? '#4ade80' : 'var(--foreground)' }}>
                 {whoopConnected ? '✓ Whoop Connected' : 'Connect Whoop'}
               </div>
-              <div style={{ fontSize: '12px', color: '#52525b', marginTop: '2px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
                 {whoopConnected ? 'Recovery, sleep and strain syncing' : 'Sync recovery, sleep and strain'}
               </div>
             </div>
@@ -164,7 +164,7 @@ export default function SettingsPage() {
               <a
                 href="/api/whoop/login"
                 style={{
-                  backgroundColor: '#fff', color: '#000',
+                  backgroundColor: 'var(--foreground)', color: 'var(--background)',
                   fontWeight: 600, padding: '8px 16px',
                   borderRadius: '10px', fontSize: '13px',
                   textDecoration: 'none',
@@ -180,7 +180,7 @@ export default function SettingsPage() {
                   alert('Synced!')
                 }}
                 style={{
-                  backgroundColor: '#14532d', color: '#4ade80',
+                  backgroundColor: 'rgba(34,197,94,0.15)', color: '#4ade80',
                   fontWeight: 600, padding: '8px 16px',
                   borderRadius: '10px', fontSize: '13px',
                   border: 'none', cursor: 'pointer',
@@ -197,16 +197,16 @@ export default function SettingsPage() {
               onClick={() => setSection(item.key as Section)}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                backgroundColor: '#111', border: '1px solid #1c1c1c',
+                backgroundColor: 'var(--card)', border: '1px solid var(--border)',
                 borderRadius: '16px', padding: '16px 20px',
                 cursor: 'pointer', textAlign: 'left', width: '100%',
               }}
             >
               <div>
-                <div style={{ fontSize: '15px', fontWeight: 600, color: '#fff' }}>{item.label}</div>
-                <div style={{ fontSize: '12px', color: '#52525b', marginTop: '2px' }}>{item.desc}</div>
+                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--foreground)' }}>{item.label}</div>
+                <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{item.desc}</div>
               </div>
-              <ChevronRight size={18} color="#3f3f46" />
+              <ChevronRight size={18} className="text-muted-foreground/40" />
             </button>
           ))}
         </div>
@@ -215,13 +215,13 @@ export default function SettingsPage() {
   }
 
   const inputStyle: React.CSSProperties = {
-    width: '100%', backgroundColor: '#111', border: '1px solid #27272a',
+    width: '100%', backgroundColor: 'var(--card)', border: '1px solid var(--border)',
     borderRadius: '10px', padding: '10px 14px', fontSize: '14px',
-    color: '#fff', outline: 'none', fontFamily: 'inherit',
+    color: 'var(--foreground)', outline: 'none', fontFamily: 'inherit',
   }
 
   const labelStyle: React.CSSProperties = {
-    fontSize: '12px', color: '#71717a', fontWeight: 500,
+    fontSize: '12px', color: 'var(--muted-foreground)', fontWeight: 500,
     textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px', display: 'block',
   }
 
@@ -232,7 +232,7 @@ export default function SettingsPage() {
       onClick={() => save(table, payload)}
       disabled={saving}
       style={{
-        width: '100%', backgroundColor: '#fff', color: '#000',
+        width: '100%', backgroundColor: 'var(--foreground)', color: 'var(--background)',
         fontWeight: 600, padding: '14px', borderRadius: '14px',
         border: 'none', cursor: 'pointer', fontSize: '15px', marginTop: '8px',
       }}
@@ -243,17 +243,30 @@ export default function SettingsPage() {
 
   return (
     <div className="px-4 md:px-6 pt-4 md:pt-6 pb-8">
+      <style>{`
+        .settings-form input:focus-visible,
+        .settings-form select:focus-visible,
+        .settings-form textarea:focus-visible {
+          outline: 2px solid var(--ring);
+          outline-offset: 2px;
+        }
+        .settings-form button:focus-visible {
+          outline: 2px solid var(--ring);
+          outline-offset: 2px;
+          border-radius: 8px;
+        }
+      `}</style>
       <button
         onClick={() => setSection(null)}
-        style={{ background: 'none', border: 'none', color: '#7c3aed', fontSize: '14px', cursor: 'pointer', marginBottom: '20px', padding: 0 }}
+        className="bg-transparent border-none text-primary text-sm cursor-pointer mb-5 p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
       >
         ← Back
       </button>
 
       {/* PROFILE */}
       {section === 'profile' && profile && (
-        <div>
-          <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', marginBottom: '20px' }}>Profile</h2>
+        <div className="settings-form">
+          <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '20px' }}>Profile</h2>
           {[
             { key: 'name', label: 'Name', type: 'text' },
             { key: 'age', label: 'Age', type: 'number' },
@@ -288,8 +301,8 @@ export default function SettingsPage() {
 
       {/* GOALS */}
       {section === 'goals' && goals && (
-        <div>
-          <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', marginBottom: '20px' }}>Goals & Targets</h2>
+        <div className="settings-form">
+          <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '20px' }}>Goals & Targets</h2>
           {[
             { key: 'start_weight_kg', label: 'Start Weight (kg)', type: 'number' },
             { key: 'current_weight_kg', label: 'Current Weight (kg)', type: 'number' },
@@ -318,8 +331,8 @@ export default function SettingsPage() {
 
       {/* TRAINING */}
       {section === 'training' && training && (
-        <div>
-          <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', marginBottom: '20px' }}>Training Split</h2>
+        <div className="settings-form">
+          <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '20px' }}>Training Split</h2>
           {[
             { key: 'gym_name', label: 'Gym Name', type: 'text' },
             { key: 'smith_machine_bar_kg', label: 'Smith Machine Bar Weight (kg)', type: 'number' },
@@ -340,7 +353,7 @@ export default function SettingsPage() {
             <label style={labelStyle}>Training Split by Day</label>
             {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                <span style={{ fontSize: '12px', color: '#71717a', width: '80px', flexShrink: 0 }}>{day}</span>
+                <span style={{ fontSize: '12px', color: 'var(--muted-foreground)', width: '80px', flexShrink: 0 }}>{day}</span>
                 <input
                   type="text"
                   value={((training?.training_split as Record<string, string> | null)?.[String(i)]) ?? ''}
@@ -359,11 +372,11 @@ export default function SettingsPage() {
 
       {/* SUPPLEMENTS */}
       {section === 'supplements' && (
-        <div>
-          <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', marginBottom: '20px' }}>Supplement Stack</h2>
+        <div className="settings-form">
+          <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '20px' }}>Supplement Stack</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
             {supplements.map((s, i) => (
-              <div key={(s.id as string) ?? i} style={{ backgroundColor: '#111', border: '1px solid #1c1c1c', borderRadius: '14px', padding: '14px' }}>
+              <div key={(s.id as string) ?? i} style={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ flex: 1, marginRight: '10px' }}>
                     <input
@@ -402,7 +415,7 @@ export default function SettingsPage() {
                     {/* Capsules + Frequency row */}
                     <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: '11px', color: '#52525b', display: 'block', marginBottom: '4px' }}>Capsules / serving</label>
+                        <label style={{ fontSize: '11px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '4px' }}>Capsules / serving</label>
                         <input
                           type="number"
                           min={1}
@@ -416,7 +429,7 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div style={{ flex: 2 }}>
-                        <label style={{ fontSize: '11px', color: '#52525b', display: 'block', marginBottom: '4px' }}>Frequency</label>
+                        <label style={{ fontSize: '11px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '4px' }}>Frequency</label>
                         <select
                           value={(s.frequency_type as string) ?? 'daily'}
                           onChange={e => {
@@ -434,7 +447,7 @@ export default function SettingsPage() {
                     {(s.frequency_type as string) === 'every_n_days' && (
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: '11px', color: '#52525b', display: 'block', marginBottom: '4px' }}>Every how many days?</label>
+                          <label style={{ fontSize: '11px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '4px' }}>Every how many days?</label>
                           <input
                             type="number"
                             min={2}
@@ -448,7 +461,7 @@ export default function SettingsPage() {
                           />
                         </div>
                         <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: '11px', color: '#52525b', display: 'block', marginBottom: '4px' }}>Start / anchor date</label>
+                          <label style={{ fontSize: '11px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '4px' }}>Start / anchor date</label>
                           <input
                             type="date"
                             value={(s.frequency_anchor_date as string) ?? new Date().toISOString().split('T')[0]}
@@ -475,9 +488,9 @@ export default function SettingsPage() {
                 <button
                   onClick={() => saveSupplement(s)}
                   style={{
-                    marginTop: '10px', width: '100%', backgroundColor: '#1c1c1c',
+                    marginTop: '10px', width: '100%', backgroundColor: 'var(--secondary)',
                     border: 'none', borderRadius: '8px', padding: '8px',
-                    fontSize: '12px', color: '#a1a1aa', cursor: 'pointer',
+                    fontSize: '12px', color: 'var(--muted-foreground)', cursor: 'pointer',
                   }}
                 >
                   Save this supplement
@@ -497,9 +510,9 @@ export default function SettingsPage() {
             }}
             style={{
               display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center',
-              width: '100%', backgroundColor: '#111', border: '1px dashed #27272a',
+              width: '100%', backgroundColor: 'var(--card)', border: '1px dashed var(--border)',
               borderRadius: '14px', padding: '14px', cursor: 'pointer',
-              fontSize: '14px', color: '#71717a',
+              fontSize: '14px', color: 'var(--muted-foreground)',
             }}
           >
             <Plus size={16} /> Add supplement
@@ -509,8 +522,8 @@ export default function SettingsPage() {
 
       {/* LIFESTYLE */}
       {section === 'lifestyle' && lifestyle && (
-        <div>
-          <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', marginBottom: '20px' }}>Lifestyle</h2>
+        <div className="settings-form">
+          <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '20px' }}>Lifestyle</h2>
           {[
             { key: 'diet_type', label: 'Diet Type', type: 'text' },
             { key: 'wake_time_weekday', label: 'Wake Time (Weekday)', type: 'time' },
@@ -538,9 +551,9 @@ export default function SettingsPage() {
 
       {/* CYCLE TRACKING */}
       {section === 'cycle' && (
-        <div>
-          <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>Cycle Tracking</h2>
-          <p style={{ fontSize: '13px', color: '#52525b', marginBottom: '20px' }}>Log your period so Apex can factor your cycle phase into coaching.</p>
+        <div className="settings-form">
+          <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '4px' }}>Cycle Tracking</h2>
+          <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', marginBottom: '20px' }}>Log your period so Apex can factor your cycle phase into coaching.</p>
 
           {/* Current phase banner */}
           {cycles.length > 0 && (() => {
@@ -571,10 +584,10 @@ export default function SettingsPage() {
                   <span style={{ fontSize: '13px', fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     {phaseLabels[info.phase]} phase
                   </span>
-                  <span style={{ fontSize: '12px', color: '#71717a' }}>Day {info.cycleDay} of {info.cycleLength}</span>
+                  <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>Day {info.cycleDay} of {info.cycleLength}</span>
                 </div>
-                <p style={{ fontSize: '13px', color: '#a1a1aa', margin: 0 }}>{phaseNotes[info.phase]}</p>
-                <p style={{ fontSize: '11px', color: '#52525b', margin: '6px 0 0' }}>
+                <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', margin: 0 }}>{phaseNotes[info.phase]}</p>
+                <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', margin: '6px 0 0' }}>
                   ~{info.daysUntilNextPeriod} days until next period
                 </p>
               </div>
@@ -582,8 +595,8 @@ export default function SettingsPage() {
           })()}
 
           {/* Log new period */}
-          <div style={{ backgroundColor: '#111', border: '1px solid #1c1c1c', borderRadius: '16px', padding: '16px', marginBottom: '16px' }}>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: '#e4e4e7', marginBottom: '12px' }}>Log a period</div>
+          <div style={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '16px', marginBottom: '16px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--foreground)', marginBottom: '12px' }}>Log a period</div>
             <div style={fieldStyle}>
               <label style={labelStyle}>Period start date</label>
               <input type="date" value={newCycle.period_start_date}
@@ -606,8 +619,8 @@ export default function SettingsPage() {
               onClick={logCycle}
               disabled={saving || !newCycle.period_start_date}
               style={{
-                width: '100%', backgroundColor: newCycle.period_start_date ? '#fff' : '#27272a',
-                color: newCycle.period_start_date ? '#000' : '#52525b',
+                width: '100%', backgroundColor: newCycle.period_start_date ? 'var(--foreground)' : 'var(--muted)',
+                color: newCycle.period_start_date ? 'var(--background)' : 'var(--muted-foreground)',
                 fontWeight: 600, padding: '12px', borderRadius: '12px',
                 border: 'none', cursor: newCycle.period_start_date ? 'pointer' : 'default', fontSize: '14px',
               }}
@@ -619,19 +632,19 @@ export default function SettingsPage() {
           {/* History */}
           {cycles.length > 0 && (
             <div>
-              <div style={{ fontSize: '12px', color: '#52525b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>History</div>
+              <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>History</div>
               {cycles.map((c) => (
                 <div key={c.id as string} style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  backgroundColor: '#111', border: '1px solid #1c1c1c', borderRadius: '12px',
+                  backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px',
                   padding: '12px 16px', marginBottom: '8px',
                 }}>
                   <div>
-                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#e4e4e7' }}>{c.period_start_date as string}</div>
+                    <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--foreground)' }}>{c.period_start_date as string}</div>
                     {c.period_end_date != null && (
-                      <div style={{ fontSize: '12px', color: '#71717a' }}>Ended {c.period_end_date as string}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>Ended {c.period_end_date as string}</div>
                     )}
-                    <div style={{ fontSize: '12px', color: '#52525b' }}>{c.cycle_length_days as number}d cycle</div>
+                    <div style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>{c.cycle_length_days as number}d cycle</div>
                   </div>
                   <button onClick={() => deleteCycle(c.id as string)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--destructive)', padding: '4px' }}>
@@ -646,19 +659,19 @@ export default function SettingsPage() {
 
       {/* BASELINES */}
       {section === 'baselines' && (
-        <div>
-          <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', marginBottom: '20px' }}>Exercise Baselines</h2>
+        <div className="settings-form">
+          <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '20px' }}>Exercise Baselines</h2>
           {['push', 'pull', 'legs'].map(type => {
             const group = baselines.filter(b => b.session_type === type)
             if (group.length === 0) return null
             return (
               <div key={type} style={{ marginBottom: '24px' }}>
-                <div style={{ fontSize: '12px', color: '#7c3aed', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
                   {type}
                 </div>
                 {group.map((b) => (
-                  <div key={b.id as string} style={{ backgroundColor: '#111', border: '1px solid #1c1c1c', borderRadius: '12px', padding: '14px', marginBottom: '8px' }}>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#e4e4e7', marginBottom: '10px' }}>{b.exercise_name as string}</div>
+                  <div key={b.id as string} style={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--foreground)', marginBottom: '10px' }}>{b.exercise_name as string}</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
                       {[
                         { key: 'current_weight_kg', label: 'Weight' },
@@ -685,9 +698,9 @@ export default function SettingsPage() {
                     <button
                       onClick={() => saveBaseline(b)}
                       style={{
-                        marginTop: '10px', width: '100%', backgroundColor: '#1c1c1c',
+                        marginTop: '10px', width: '100%', backgroundColor: 'var(--secondary)',
                         border: 'none', borderRadius: '8px', padding: '8px',
-                        fontSize: '12px', color: '#a1a1aa', cursor: 'pointer',
+                        fontSize: '12px', color: 'var(--muted-foreground)', cursor: 'pointer',
                       }}
                     >
                       Save

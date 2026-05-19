@@ -26,7 +26,7 @@ const MEAL_COLORS: Record<MealType, { dot: string; label: string }> = {
   breakfast: { dot: 'bg-amber-400', label: 'text-amber-400' },
   lunch: { dot: 'bg-green-400', label: 'text-green-400' },
   dinner: { dot: 'bg-blue-400', label: 'text-blue-400' },
-  snack: { dot: 'bg-zinc-500', label: 'text-zinc-500' },
+  snack: { dot: 'bg-muted', label: 'text-muted-foreground' },
 }
 
 const OZ_PER_G = 1 / 28.3495
@@ -660,8 +660,8 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
             className={cn(
               'w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-200',
               showForm
-                ? 'bg-zinc-800 text-zinc-400'
-                : 'bg-orange-500 text-black hover:bg-orange-400',
+                ? 'bg-muted text-muted-foreground'
+                : 'bg-orange-500 text-primary-foreground hover:bg-orange-400',
             )}
           >
             {showForm ? <X size={18} /> : <Plus size={18} strokeWidth={2.5} />}
@@ -681,7 +681,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <UtensilsCrossed size={13} className="text-orange-400" />
-            <span className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">{dateLabel}</span>
+            <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">{dateLabel}</span>
           </div>
           <AITipButton page="food" />
         </div>
@@ -693,9 +693,9 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
               <span className="font-condensed text-3xl font-bold text-orange-400 leading-none">
                 {totals.calories > 0 ? totals.calories.toLocaleString() : '—'}
               </span>
-              <span className="text-zinc-600 text-xs">/ {calorieTarget.toLocaleString()} kcal</span>
+              <span className="text-muted-foreground/60 text-xs">/ {calorieTarget.toLocaleString()} kcal</span>
             </div>
-            <span className={cn('text-xs font-semibold', calPct >= 90 ? 'text-green-400' : 'text-zinc-500')}>
+            <span className={cn('text-xs font-semibold', calPct >= 90 ? 'text-green-400' : 'text-muted-foreground')}>
               {totals.calories > 0 ? `${calPct}%` : '0%'}
             </span>
           </div>
@@ -720,11 +720,11 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
             const pct = target ? Math.min(100, Math.round((value / target) * 100)) : null
             return (
               <div key={label} className="bg-white/[0.03] rounded-xl p-3">
-                <p className={cn('font-condensed text-xl font-bold leading-none', value > 0 ? color : 'text-zinc-700')}>
+                <p className={cn('font-condensed text-xl font-bold leading-none', value > 0 ? color : 'text-muted-foreground/40')}>
                   {value > 0 ? `${Math.round(value)}` : '—'}
-                  {value > 0 && <span className="text-[10px] font-normal text-zinc-600 ml-0.5">g</span>}
+                  {value > 0 && <span className="text-[10px] font-normal text-muted-foreground/60 ml-0.5">g</span>}
                 </p>
-                <p className="text-zinc-600 text-[10px] mt-1 font-medium">{label}</p>
+                <p className="text-muted-foreground/60 text-[10px] mt-1 font-medium">{label}</p>
                 {pct !== null && value > 0 && (
                   <div className="w-full bg-white/5 rounded-full h-0.5 mt-1.5">
                     <div className={cn('h-0.5 rounded-full', bar)} style={{ width: `${pct}%` }} />
@@ -740,7 +740,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
       {showForm && (
         <div ref={formRef} className="bg-card border border-border rounded-2xl p-4 mb-4 space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold shrink-0">Add Food</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold shrink-0">Add Food</p>
             {/* Tab switcher + close */}
             <div className="flex items-center gap-1.5 ml-auto">
             <div className="flex bg-white/[0.04] rounded-lg p-0.5 gap-0.5">
@@ -749,7 +749,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                 onClick={() => { setFormTab('search'); setCustomForm(EMPTY_CUSTOM); setCustomSaved(false) }}
                 className={cn(
                   'text-[10px] font-semibold px-2.5 py-1 rounded-md transition-all',
-                  formTab === 'search' ? 'bg-orange-500 text-black' : 'text-zinc-500 hover:text-zinc-300',
+                  formTab === 'search' ? 'bg-orange-500 text-primary-foreground' : 'text-muted-foreground hover:text-foreground/80',
                 )}
               >
                 Search
@@ -759,7 +759,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                 onClick={() => { setFormTab('photo'); clearSelection(); setAiEstimated(false); setAiNotes(null); clearPhotos() }}
                 className={cn(
                   'flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-md transition-all',
-                  formTab === 'photo' ? 'bg-orange-500 text-black' : 'text-zinc-500 hover:text-zinc-300',
+                  formTab === 'photo' ? 'bg-orange-500 text-primary-foreground' : 'text-muted-foreground hover:text-foreground/80',
                 )}
               >
                 <Camera size={10} />
@@ -770,7 +770,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                 onClick={() => { setFormTab('create'); clearSelection() }}
                 className={cn(
                   'flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-md transition-all',
-                  formTab === 'create' ? 'bg-orange-500 text-black' : 'text-zinc-500 hover:text-zinc-300',
+                  formTab === 'create' ? 'bg-orange-500 text-primary-foreground' : 'text-muted-foreground hover:text-foreground/80',
                 )}
               >
                 <BookmarkPlus size={10} />
@@ -780,7 +780,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
             <button
               type="button"
               onClick={closeForm}
-              className="w-6 h-6 rounded-lg flex items-center justify-center text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.06] transition-all shrink-0"
+              className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground/60 hover:text-foreground/80 hover:bg-white/[0.06] transition-all shrink-0"
               aria-label="Close"
             >
               <X size={13} />
@@ -790,7 +790,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
 
           {formTab === 'photo' ? (
             <div className="space-y-3">
-              <p className="text-[10px] text-zinc-600">Add one or more photos — AI estimates combined macros.</p>
+              <p className="text-[10px] text-muted-foreground/60">Add one or more photos — AI estimates combined macros.</p>
 
               <input
                 ref={photoInputRef}
@@ -811,7 +811,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                       <button
                         type="button"
                         onClick={() => removePhoto(i)}
-                        className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center text-zinc-300 hover:text-white transition-colors"
+                        className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center text-foreground/80 hover:text-white transition-colors"
                       >
                         <X size={10} />
                       </button>
@@ -821,7 +821,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                   <button
                     type="button"
                     onClick={() => photoInputRef.current?.click()}
-                    className="w-20 h-20 rounded-xl border border-dashed border-white/[0.10] flex flex-col items-center justify-center gap-1 text-zinc-600 hover:text-zinc-400 hover:border-white/20 transition-all shrink-0"
+                    className="w-20 h-20 rounded-xl border border-dashed border-white/[0.10] flex flex-col items-center justify-center gap-1 text-muted-foreground/60 hover:text-muted-foreground hover:border-white/20 transition-all shrink-0"
                   >
                     <Plus size={16} strokeWidth={2} />
                     <span className="text-[9px]">Add</span>
@@ -834,11 +834,11 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                 <button
                   type="button"
                   onClick={() => photoInputRef.current?.click()}
-                  className="w-full h-28 bg-white/[0.03] border border-dashed border-white/[0.10] rounded-2xl flex flex-col items-center justify-center gap-2 text-zinc-500 hover:text-zinc-300 hover:border-orange-500/40 hover:bg-orange-500/[0.04] transition-all"
+                  className="w-full h-28 bg-white/[0.03] border border-dashed border-white/[0.10] rounded-2xl flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-foreground/80 hover:border-orange-500/40 hover:bg-orange-500/[0.04] transition-all"
                 >
                   <Camera size={20} className="text-orange-400" />
                   <span className="text-xs font-medium">Tap to add photos</span>
-                  <span className="text-[10px] text-zinc-700">JPG, PNG, WEBP · multiple OK</span>
+                  <span className="text-[10px] text-muted-foreground/40">JPG, PNG, WEBP · multiple OK</span>
                 </button>
               )}
 
@@ -848,14 +848,14 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                 placeholder="Add context… e.g. 'large portion, ate about half'"
                 value={photoDesc}
                 onChange={e => setPhotoDesc(e.target.value)}
-                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors"
+                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/40 outline-none focus:border-orange-500/50 transition-colors"
               />
 
               <button
                 type="button"
                 onClick={analyzePhotos}
                 disabled={analyzing || photoFiles.length === 0}
-                className="w-full bg-orange-500 text-black font-bold py-2.5 rounded-xl text-sm disabled:opacity-40 hover:bg-orange-400 transition-colors active:scale-[0.98] flex items-center justify-center gap-2"
+                className="w-full bg-orange-500 text-primary-foreground font-bold py-2.5 rounded-xl text-sm disabled:opacity-40 hover:bg-orange-400 transition-colors active:scale-[0.98] flex items-center justify-center gap-2"
               >
                 {analyzing ? (
                   <><Loader2 size={14} className="animate-spin" /> Analyzing {photoFiles.length > 1 ? `${photoFiles.length} photos` : 'photo'}…</>
@@ -870,24 +870,24 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
               {!selectedResult ? (
                 <div className="space-y-2">
                   <div className="relative">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" />
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
                     <input
                       type="text"
                       placeholder="Search food database…"
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
-                      className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-9 pr-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors"
+                      className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-9 pr-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/40 outline-none focus:border-orange-500/50 transition-colors"
                       autoFocus
                     />
                     {searching && (
-                      <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 animate-spin" />
+                      <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 animate-spin" />
                     )}
                   </div>
 
                   {/* Recent foods (shown when not searching) */}
                   {showRecent && (
                     <div>
-                      <p className="text-[9px] text-zinc-700 uppercase tracking-wider font-semibold px-1 mb-1.5">Recent</p>
+                      <p className="text-[9px] text-muted-foreground/40 uppercase tracking-wider font-semibold px-1 mb-1.5">Recent</p>
                       <div className="bg-background border border-border rounded-xl overflow-hidden">
                         {recentFoods.map((r, i) => (
                           <button
@@ -896,8 +896,8 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                             onClick={() => pickRecent(r)}
                             className="w-full text-left px-3 py-2.5 hover:bg-white/[0.04] transition-colors border-b border-white/[0.04] last:border-b-0"
                           >
-                            <p className="text-sm text-zinc-100 truncate leading-snug">{r.name}</p>
-                            <p className="text-[10px] text-zinc-600 mt-0.5">
+                            <p className="text-sm text-foreground truncate leading-snug">{r.name}</p>
+                            <p className="text-[10px] text-muted-foreground/60 mt-0.5">
                               {[
                                 r.calories !== null && `${r.calories} kcal`,
                                 r.protein_g !== null && `${r.protein_g}g P`,
@@ -922,7 +922,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                           className="w-full text-left px-3 py-2.5 hover:bg-white/[0.04] transition-colors border-b border-white/[0.04] last:border-b-0"
                         >
                           <div className="flex items-center gap-1.5">
-                            <p className="text-sm text-zinc-100 truncate leading-snug flex-1">{r.name}</p>
+                            <p className="text-sm text-foreground truncate leading-snug flex-1">{r.name}</p>
                             {r.source === 'custom' && (
                               <span className="shrink-0 text-[8px] font-bold uppercase tracking-wider text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded-full">Mine</span>
                             )}
@@ -930,7 +930,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                               <span className="shrink-0 text-[8px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded-full">USDA</span>
                             )}
                           </div>
-                          <p className="text-[10px] text-zinc-600 mt-0.5">
+                          <p className="text-[10px] text-muted-foreground/60 mt-0.5">
                             {[
                               r.brand,
                               r.per100.calories !== null && `${Math.round(r.per100.calories)} kcal`,
@@ -938,7 +938,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                               r.per100.carbs_g !== null && `${r1(r.per100.carbs_g)}g C`,
                               r.per100.fats_g !== null && `${r1(r.per100.fats_g)}g F`,
                             ].filter(Boolean).join(' · ')}
-                            <span className="text-zinc-700"> per 100g</span>
+                            <span className="text-muted-foreground/40"> per 100g</span>
                           </p>
                         </button>
                       ))}
@@ -946,7 +946,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                   )}
 
                   {searchQuery.length >= 2 && !searching && searchResults.length === 0 && (
-                    <p className="text-zinc-700 text-xs px-1">
+                    <p className="text-muted-foreground/40 text-xs px-1">
                       No results — fill in manually below or{' '}
                       <button type="button" className="text-orange-500 underline" onClick={() => { setFormTab('create'); setCustomForm(f => ({ ...f, name: searchQuery })) }}>
                         create a custom food
@@ -957,7 +957,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                   {/* Manual name entry divider */}
                   <div className="flex items-center gap-2">
                     <div className="h-px flex-1 bg-white/[0.04]" />
-                    <span className="text-[10px] text-zinc-700 uppercase tracking-wider">or enter manually</span>
+                    <span className="text-[10px] text-muted-foreground/40 uppercase tracking-wider">or enter manually</span>
                     <div className="h-px flex-1 bg-white/[0.04]" />
                   </div>
 
@@ -966,7 +966,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                     placeholder="Food name"
                     value={form.name}
                     onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors"
+                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/40 outline-none focus:border-orange-500/50 transition-colors"
                   />
                 </div>
               ) : (
@@ -975,19 +975,19 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-semibold text-zinc-100 leading-snug truncate">{selectedResult.name}</p>
+                        <p className="text-sm font-semibold text-foreground leading-snug truncate">{selectedResult.name}</p>
                         {selectedResult.source === 'custom' && (
                           <Star size={11} className="text-orange-400 shrink-0 fill-orange-400" />
                         )}
                       </div>
                       {selectedResult.brand && (
-                        <p className="text-[11px] text-zinc-600 mt-0.5">{selectedResult.brand}</p>
+                        <p className="text-[11px] text-muted-foreground/60 mt-0.5">{selectedResult.brand}</p>
                       )}
                     </div>
                     <button
                       type="button"
                       onClick={clearSelection}
-                      className="text-zinc-700 hover:text-zinc-400 transition-colors shrink-0 mt-0.5"
+                      className="text-muted-foreground/40 hover:text-muted-foreground transition-colors shrink-0 mt-0.5"
                     >
                       <X size={14} />
                     </button>
@@ -995,7 +995,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
 
                   {/* Serving size + unit toggle */}
                   <div className="flex items-center gap-2 mt-3">
-                    <p className="text-[10px] text-zinc-600 uppercase tracking-wider font-semibold shrink-0">Serving</p>
+                    <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider font-semibold shrink-0">Serving</p>
                     <input
                       type="number"
                       inputMode="decimal"
@@ -1003,7 +1003,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                       step="any"
                       value={servingG}
                       onChange={e => setServingG(e.target.value)}
-                      className="w-20 bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 py-1 text-sm text-zinc-200 outline-none focus:border-orange-500/50 transition-colors text-center"
+                      className="w-20 bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 py-1 text-sm text-foreground/90 outline-none focus:border-orange-500/50 transition-colors text-center"
                     />
                     {/* g / oz toggle */}
                     <div className="flex bg-white/[0.04] rounded-lg p-0.5 gap-0.5">
@@ -1014,14 +1014,14 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                           onClick={() => switchUnit(u)}
                           className={cn(
                             'text-[10px] font-semibold px-2 py-0.5 rounded-md transition-all',
-                            servingUnit === u ? 'bg-orange-500 text-black' : 'text-zinc-500 hover:text-zinc-300',
+                            servingUnit === u ? 'bg-orange-500 text-primary-foreground' : 'text-muted-foreground hover:text-foreground/80',
                           )}
                         >
                           {u}
                         </button>
                       ))}
                     </div>
-                    <span className="text-zinc-700 text-[10px] ml-auto">
+                    <span className="text-muted-foreground/40 text-[10px] ml-auto">
                       {selectedResult.per100.calories !== null && `${Math.round(selectedResult.per100.calories)} kcal/100g`}
                     </span>
                   </div>
@@ -1034,9 +1034,9 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                   <Camera size={13} className="text-orange-400 shrink-0 mt-0.5" />
                   <div className="min-w-0">
                     <p className="text-[11px] font-semibold text-orange-300">AI estimate — review before logging</p>
-                    {aiNotes && <p className="text-[10px] text-zinc-500 mt-0.5 leading-snug">{aiNotes}</p>}
+                    {aiNotes && <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{aiNotes}</p>}
                   </div>
-                  <button type="button" onClick={() => { setAiEstimated(false); setAiNotes(null) }} className="text-zinc-700 hover:text-zinc-400 shrink-0 mt-0.5"><X size={12} /></button>
+                  <button type="button" onClick={() => { setAiEstimated(false); setAiNotes(null) }} className="text-muted-foreground/40 hover:text-muted-foreground shrink-0 mt-0.5"><X size={12} /></button>
                 </div>
               )}
 
@@ -1045,13 +1045,13 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                 <select
                   value={form.meal_type}
                   onChange={e => setForm(p => ({ ...p, meal_type: e.target.value as MealType }))}
-                  className="w-full appearance-none bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-zinc-300 outline-none focus:border-orange-500/50 transition-colors pr-8"
+                  className="w-full appearance-none bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-foreground/80 outline-none focus:border-orange-500/50 transition-colors pr-8"
                 >
                   {MEAL_TYPES.map(t => (
                     <option key={t} value={t}>{MEAL_LABELS[t]}</option>
                   ))}
                 </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" />
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
               </div>
 
               {/* Macros row */}
@@ -1063,7 +1063,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                   { key: 'fats_g' as const, label: 'Fat', placeholder: '0g' },
                 ].map(({ key, label, placeholder }) => (
                   <div key={key}>
-                    <p className="text-[9px] text-zinc-700 uppercase tracking-wider font-semibold mb-1 px-1">{label}</p>
+                    <p className="text-[9px] text-muted-foreground/40 uppercase tracking-wider font-semibold mb-1 px-1">{label}</p>
                     <input
                       type="number"
                       inputMode="decimal"
@@ -1072,7 +1072,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                       placeholder={placeholder}
                       value={form[key]}
                       onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
-                      className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-2 py-2 text-sm text-zinc-300 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors text-center"
+                      className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-2 py-2 text-sm text-foreground/80 placeholder-muted-foreground/40 outline-none focus:border-orange-500/50 transition-colors text-center"
                     />
                   </div>
                 ))}
@@ -1081,7 +1081,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
               <button
                 type="submit"
                 disabled={saving || (!form.name.trim() && !selectedResult)}
-                className="w-full bg-orange-500 text-black font-bold py-2.5 rounded-xl text-sm disabled:opacity-40 hover:bg-orange-400 transition-colors active:scale-[0.98]"
+                className="w-full bg-orange-500 text-primary-foreground font-bold py-2.5 rounded-xl text-sm disabled:opacity-40 hover:bg-orange-400 transition-colors active:scale-[0.98]"
               >
                 {saving ? 'Adding…' : 'Add to Log'}
               </button>
@@ -1089,33 +1089,33 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
           ) : (
             /* Create custom food tab */
             <div className="space-y-3">
-              <p className="text-[10px] text-zinc-600">Save a food once — it&apos;ll appear in your personal search results.</p>
+              <p className="text-[10px] text-muted-foreground/60">Save a food once — it&apos;ll appear in your personal search results.</p>
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="col-span-2">
-                  <p className="text-[9px] text-zinc-700 uppercase tracking-wider font-semibold mb-1 px-1">Food Name *</p>
+                  <p className="text-[9px] text-muted-foreground/40 uppercase tracking-wider font-semibold mb-1 px-1">Food Name *</p>
                   <input
                     type="text"
                     placeholder="e.g. My Protein Shake"
                     value={customForm.name}
                     onChange={e => setCustomForm(p => ({ ...p, name: e.target.value }))}
-                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors"
+                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/40 outline-none focus:border-orange-500/50 transition-colors"
                     autoFocus
                   />
                 </div>
                 <div className="col-span-2">
-                  <p className="text-[9px] text-zinc-700 uppercase tracking-wider font-semibold mb-1 px-1">Brand (optional)</p>
+                  <p className="text-[9px] text-muted-foreground/40 uppercase tracking-wider font-semibold mb-1 px-1">Brand (optional)</p>
                   <input
                     type="text"
                     placeholder="Brand name"
                     value={customForm.brand}
                     onChange={e => setCustomForm(p => ({ ...p, brand: e.target.value }))}
-                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors"
+                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/40 outline-none focus:border-orange-500/50 transition-colors"
                   />
                 </div>
               </div>
 
-              <p className="text-[9px] text-zinc-600 uppercase tracking-wider font-semibold px-1">Macros per 100g</p>
+              <p className="text-[9px] text-muted-foreground/60 uppercase tracking-wider font-semibold px-1">Macros per 100g</p>
               <div className="grid grid-cols-4 gap-2">
                 {[
                   { key: 'calories_per_100g' as const, label: 'Cal' },
@@ -1124,7 +1124,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                   { key: 'fats_per_100g' as const, label: 'Fat' },
                 ].map(({ key, label }) => (
                   <div key={key}>
-                    <p className="text-[9px] text-zinc-700 uppercase tracking-wider font-semibold mb-1 px-1">{label}</p>
+                    <p className="text-[9px] text-muted-foreground/40 uppercase tracking-wider font-semibold mb-1 px-1">{label}</p>
                     <input
                       type="number"
                       inputMode="decimal"
@@ -1133,14 +1133,14 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                       placeholder="0"
                       value={customForm[key]}
                       onChange={e => setCustomForm(p => ({ ...p, [key]: e.target.value }))}
-                      className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-2 py-2 text-sm text-zinc-300 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors text-center"
+                      className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-2 py-2 text-sm text-foreground/80 placeholder-muted-foreground/40 outline-none focus:border-orange-500/50 transition-colors text-center"
                     />
                   </div>
                 ))}
               </div>
 
               <div>
-                <p className="text-[9px] text-zinc-700 uppercase tracking-wider font-semibold mb-1 px-1">Default Serving (g)</p>
+                <p className="text-[9px] text-muted-foreground/40 uppercase tracking-wider font-semibold mb-1 px-1">Default Serving (g)</p>
                 <input
                   type="number"
                   inputMode="decimal"
@@ -1148,7 +1148,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                   step="any"
                   value={customForm.serving_g}
                   onChange={e => setCustomForm(p => ({ ...p, serving_g: e.target.value }))}
-                  className="w-28 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-zinc-300 outline-none focus:border-orange-500/50 transition-colors"
+                  className="w-28 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-foreground/80 outline-none focus:border-orange-500/50 transition-colors"
                 />
               </div>
 
@@ -1156,7 +1156,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                 type="button"
                 onClick={saveCustomFood}
                 disabled={savingCustom || !customForm.name.trim()}
-                className="w-full bg-orange-500 text-black font-bold py-2.5 rounded-xl text-sm disabled:opacity-40 hover:bg-orange-400 transition-colors active:scale-[0.98]"
+                className="w-full bg-orange-500 text-primary-foreground font-bold py-2.5 rounded-xl text-sm disabled:opacity-40 hover:bg-orange-400 transition-colors active:scale-[0.98]"
               >
                 {savingCustom ? 'Saving…' : customSaved ? 'Saved! ✓' : 'Save & Log Food'}
               </button>
@@ -1169,7 +1169,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-16 bg-zinc-900/60 rounded-2xl animate-pulse" />
+            <div key={i} className="h-16 bg-card rounded-2xl animate-pulse" />
           ))}
         </div>
       ) : (
@@ -1188,11 +1188,11 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                   </div>
                   <div className="flex items-center gap-2">
                     {groupCals > 0 && (
-                      <span className="text-zinc-600 text-[10px] font-medium">{groupCals} kcal</span>
+                      <span className="text-muted-foreground/60 text-[10px] font-medium">{groupCals} kcal</span>
                     )}
                     <button
                       onClick={() => openFormForMeal(type)}
-                      className="w-5 h-5 rounded-md bg-white/[0.06] flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.10] transition-all"
+                      className="w-5 h-5 rounded-md bg-white/[0.06] flex items-center justify-center text-muted-foreground hover:text-foreground/90 hover:bg-white/[0.10] transition-all"
                       title={`Add to ${MEAL_LABELS[type]}`}
                     >
                       <Plus size={11} strokeWidth={2.5} />
@@ -1203,7 +1203,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                 {items.length === 0 ? (
                   <button
                     onClick={() => openFormForMeal(type)}
-                    className="w-full bg-zinc-900/40 border border-dashed border-white/[0.06] rounded-2xl px-4 py-3 flex items-center gap-2 text-zinc-700 hover:text-zinc-500 hover:border-white/[0.10] transition-all"
+                    className="w-full bg-card/60 border border-dashed border-white/[0.06] rounded-2xl px-4 py-3 flex items-center gap-2 text-muted-foreground/40 hover:text-muted-foreground hover:border-white/[0.10] transition-all"
                   >
                     <Plus size={13} strokeWidth={2} />
                     <span className="text-xs">Add {MEAL_LABELS[type].toLowerCase()}</span>
@@ -1218,20 +1218,20 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                               type="text"
                               value={editForm.name}
                               onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))}
-                              className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-zinc-100 outline-none focus:border-orange-500/50 transition-colors"
+                              className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-orange-500/50 transition-colors"
                               autoFocus
                             />
                             <div className="relative">
                               <select
                                 value={editForm.meal_type}
                                 onChange={e => setEditForm(p => ({ ...p, meal_type: e.target.value as MealType }))}
-                                className="w-full appearance-none bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-zinc-300 outline-none focus:border-orange-500/50 transition-colors pr-8"
+                                className="w-full appearance-none bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-foreground/80 outline-none focus:border-orange-500/50 transition-colors pr-8"
                               >
                                 {MEAL_TYPES.map(t => (
                                   <option key={t} value={t}>{MEAL_LABELS[t]}</option>
                                 ))}
                               </select>
-                              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" />
+                              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
                             </div>
                             <div className="grid grid-cols-4 gap-2">
                               {[
@@ -1241,7 +1241,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                                 { key: 'fats_g' as const, label: 'Fat' },
                               ].map(({ key, label }) => (
                                 <div key={key}>
-                                  <p className="text-[9px] text-zinc-700 uppercase tracking-wider font-semibold mb-1 px-1">{label}</p>
+                                  <p className="text-[9px] text-muted-foreground/40 uppercase tracking-wider font-semibold mb-1 px-1">{label}</p>
                                   <input
                                     type="number"
                                     inputMode="decimal"
@@ -1249,7 +1249,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                                     step="any"
                                     value={editForm[key]}
                                     onChange={e => setEditForm(p => ({ ...p, [key]: e.target.value }))}
-                                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-2 py-2 text-sm text-zinc-300 placeholder-zinc-700 outline-none focus:border-orange-500/50 transition-colors text-center"
+                                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-2 py-2 text-sm text-foreground/80 placeholder-muted-foreground/40 outline-none focus:border-orange-500/50 transition-colors text-center"
                                   />
                                 </div>
                               ))}
@@ -1258,13 +1258,13 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                               <button
                                 onClick={() => saveEdit(item.id)}
                                 disabled={savingEdit || !editForm.name.trim()}
-                                className="flex-1 bg-orange-500 text-black font-bold py-2 rounded-xl text-sm disabled:opacity-40 hover:bg-orange-400 transition-colors"
+                                className="flex-1 bg-orange-500 text-primary-foreground font-bold py-2 rounded-xl text-sm disabled:opacity-40 hover:bg-orange-400 transition-colors"
                               >
                                 {savingEdit ? 'Saving…' : 'Save'}
                               </button>
                               <button
                                 onClick={() => setEditingId(null)}
-                                className="w-10 flex items-center justify-center rounded-xl bg-white/[0.04] text-zinc-500 hover:text-zinc-300 transition-colors"
+                                className="w-10 flex items-center justify-center rounded-xl bg-white/[0.04] text-muted-foreground hover:text-foreground/80 transition-colors"
                               >
                                 <X size={15} />
                               </button>
@@ -1273,8 +1273,8 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                         ) : (
                           <div className="px-4 py-3 flex items-center gap-3">
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-zinc-100 truncate">{item.name}</p>
-                              <p className="text-zinc-600 text-xs mt-0.5">
+                              <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
+                              <p className="text-muted-foreground/60 text-xs mt-0.5">
                                 {[
                                   item.calories !== null && `${item.calories} kcal`,
                                   item.protein_g !== null && `${item.protein_g}g P`,
@@ -1285,14 +1285,14 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                             </div>
                             <button
                               onClick={() => startEdit(item)}
-                              className="w-8 h-8 rounded-xl flex items-center justify-center text-zinc-700 hover:text-zinc-300 hover:bg-white/[0.06] transition-all duration-150 shrink-0"
+                              className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground/40 hover:text-foreground/80 hover:bg-white/[0.06] transition-all duration-150 shrink-0"
                             >
                               <Pencil size={13} />
                             </button>
                             <button
                               onClick={() => remove(item.id)}
                               disabled={deletingId === item.id}
-                              className="w-8 h-8 rounded-xl flex items-center justify-center text-zinc-700 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150 shrink-0 disabled:opacity-40"
+                              className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground/40 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150 shrink-0 disabled:opacity-40"
                             >
                               <Trash2 size={14} />
                             </button>
@@ -1323,7 +1323,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                   {mealPlan && (mealPlan.already_logged_calories ?? 0) > 0 ? 'What to eat next' : 'Today\'s Meal Plan'}
                 </span>
               </div>
-              <button onClick={() => setShowMealPlan(false)} className="text-zinc-500 hover:text-zinc-300 transition-colors">
+              <button onClick={() => setShowMealPlan(false)} className="text-muted-foreground hover:text-foreground/80 transition-colors">
                 <X size={18} />
               </button>
             </div>
@@ -1331,12 +1331,12 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
             {/* Sheet body */}
             <div className="overflow-y-auto p-4 flex-1 space-y-3">
               {generatingPlan ? (
-                <div className="flex flex-col items-center gap-3 py-10 text-zinc-500">
+                <div className="flex flex-col items-center gap-3 py-10 text-muted-foreground">
                   <Loader2 size={22} className="text-orange-400 animate-spin" />
                   <span className="text-sm">Generating your personalised plan…</span>
                 </div>
               ) : mealPlanError ? (
-                <div className="flex flex-col items-center gap-3 py-10 text-zinc-500">
+                <div className="flex flex-col items-center gap-3 py-10 text-muted-foreground">
                   <span className="text-sm text-center">{mealPlanError}</span>
                   <button onClick={generateMealPlan} className="text-xs text-orange-400 hover:text-orange-300 transition-colors">Try again</button>
                 </div>
@@ -1344,20 +1344,20 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                 <>
                   {/* Context banner when there are already-logged meals */}
                   {(mealPlan.already_logged_calories ?? 0) > 0 && (
-                    <div className="text-xs text-zinc-500 pb-1">
-                      Already eaten: <span className="text-zinc-300 font-medium">{mealPlan.already_logged_calories} kcal · {mealPlan.already_logged_protein_g}g protein</span>
+                    <div className="text-xs text-muted-foreground pb-1">
+                      Already eaten: <span className="text-foreground/80 font-medium">{mealPlan.already_logged_calories} kcal · {mealPlan.already_logged_protein_g}g protein</span>
                     </div>
                   )}
 
                   {/* Totals pills */}
                   <div className="flex gap-2 flex-wrap">
                     {mealPlan.meals.length === 0 ? (
-                      <div className="text-sm text-zinc-400 py-2">You&apos;ve hit your targets for today. Great work!</div>
+                      <div className="text-sm text-muted-foreground py-2">You&apos;ve hit your targets for today. Great work!</div>
                     ) : [
                       { label: 'kcal remaining', value: mealPlan.total_calories },
                       { label: 'protein remaining', value: `${mealPlan.total_protein_g}g` },
                     ].map(({ label, value }) => (
-                      <div key={label} className="bg-card border border-border rounded-xl px-3 py-1.5 text-xs text-zinc-400">
+                      <div key={label} className="bg-card border border-border rounded-xl px-3 py-1.5 text-xs text-muted-foreground">
                         <span className="font-bold text-foreground">{value}</span> {label}
                       </div>
                     ))}
@@ -1370,30 +1370,30 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                       const adding = addingMealIdx === idx
                       const MEAL_DOT_CLASS: Record<string, string> = {
                         breakfast: 'bg-amber-400', lunch: 'bg-green-400',
-                        dinner: 'bg-blue-400', snack: 'bg-zinc-500',
+                        dinner: 'bg-blue-400', snack: 'bg-muted',
                       }
                       return (
                         <div key={idx} className={cn('bg-card border border-border rounded-2xl p-3.5 transition-opacity', added && 'opacity-50')}>
                           <div className="flex items-start justify-between gap-2.5">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 mb-1">
-                                <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', MEAL_DOT_CLASS[item.meal_type] ?? 'bg-zinc-500')} />
-                                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">{item.meal_type}</span>
-                                <span className="text-[10px] text-zinc-700">· {item.prep_note}</span>
+                                <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', MEAL_DOT_CLASS[item.meal_type] ?? 'bg-muted')} />
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{item.meal_type}</span>
+                                <span className="text-[10px] text-muted-foreground/40">· {item.prep_note}</span>
                               </div>
-                              <p className="text-sm font-semibold text-zinc-100 mb-1">{item.name}</p>
-                              <p className="text-xs text-zinc-500 mb-2 leading-relaxed">{item.description}</p>
+                              <p className="text-sm font-semibold text-foreground mb-1">{item.name}</p>
+                              <p className="text-xs text-muted-foreground mb-2 leading-relaxed">{item.description}</p>
                               <div className="flex gap-2">
                                 {[
                                   { label: 'P', value: item.protein_g, color: 'text-orange-400' },
                                   { label: 'C', value: item.carbs_g, color: 'text-yellow-400' },
                                   { label: 'F', value: item.fats_g, color: 'text-blue-400' },
                                 ].map(({ label, value, color }) => (
-                                  <span key={label} className="text-[11px] text-zinc-500">
+                                  <span key={label} className="text-[11px] text-muted-foreground">
                                     <span className={cn('font-bold', color)}>{value}</span>{label}
                                   </span>
                                 ))}
-                                <span className="text-[11px] text-zinc-700">{item.calories} kcal</span>
+                                <span className="text-[11px] text-muted-foreground/40">{item.calories} kcal</span>
                               </div>
                             </div>
                             <button
@@ -1423,7 +1423,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                   {/* Regenerate */}
                   <button
                     onClick={generateMealPlan}
-                    className="w-full bg-transparent border border-border rounded-xl py-2.5 text-sm text-zinc-500 hover:text-zinc-300 hover:border-white/15 transition-all flex items-center justify-center gap-1.5"
+                    className="w-full bg-transparent border border-border rounded-xl py-2.5 text-sm text-muted-foreground hover:text-foreground/80 hover:border-white/15 transition-all flex items-center justify-center gap-1.5"
                   >
                     <Sparkles size={12} /> Generate new plan
                   </button>

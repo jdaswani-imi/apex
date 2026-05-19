@@ -19,10 +19,10 @@ function NextBadge({ next }: { next: NextWorkout | null | undefined }) {
   const exStr = t?.exerciseCount ? ` · ${t.exerciseCount} ex` : ''
   return (
     <div className="mt-3 pt-3 border-t border-white/[0.05] flex items-center gap-2">
-      <CalendarClock size={12} className="text-zinc-500 flex-shrink-0" />
+      <CalendarClock size={12} className="text-muted-foreground/50 flex-shrink-0" />
       <div className="flex-1 min-w-0">
-        <span className="text-zinc-400 text-xs font-semibold">{next.dayLabel}</span>
-        <span className="text-zinc-600 text-xs"> — {label}{exStr}</span>
+        <span className="text-muted-foreground text-xs font-semibold">{next.dayLabel}</span>
+        <span className="text-muted-foreground/40 text-xs"> — {label}{exStr}</span>
       </div>
       {t && (
         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
@@ -58,8 +58,6 @@ interface Props {
   date: string
 }
 
-// Session-level cache: avoids re-fetching the same date within a browsing session.
-// Cleared when the page is fully reloaded (module re-evaluated).
 const cache = new Map<string, DayCard>()
 
 export function TodayWorkoutCard({ isToday, date }: Props) {
@@ -83,7 +81,7 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
         cache.set(date, d)
         setCard(d)
       })
-      .catch(() => {/* aborted or failed — leave as null (skeleton stays) */})
+      .catch(() => {})
 
     return () => controller.abort()
   }, [date])
@@ -116,15 +114,14 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
     }
   }
 
-  // Loading skeleton
   if (!card) {
     return (
-      <div className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl p-4 flex items-center gap-4 animate-pulse">
-        <div className="w-12 h-12 rounded-2xl bg-zinc-800 flex-shrink-0" />
+      <div className="bg-card border border-border rounded-2xl p-4 flex items-center gap-4 animate-pulse">
+        <div className="w-12 h-12 rounded-2xl bg-muted flex-shrink-0" />
         <div className="flex-1 space-y-2">
-          <div className="h-2 bg-zinc-800 rounded w-20" />
-          <div className="h-4 bg-zinc-800 rounded w-32" />
-          <div className="h-2 bg-zinc-800 rounded w-24" />
+          <div className="h-2 bg-muted rounded w-20" />
+          <div className="h-4 bg-muted rounded w-32" />
+          <div className="h-2 bg-muted rounded w-24" />
         </div>
       </div>
     )
@@ -133,20 +130,19 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
   const { isRest, template, sessionType, sessionDone, alternativeSession } = card.today
   const next = card.next
 
-  // Rest day
   if (isRest) {
     return (
-      <div className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl p-4">
+      <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center flex-shrink-0">
-            <Moon size={20} className="text-indigo-400" />
+          <div className="w-12 h-12 rounded-2xl bg-muted border border-border flex items-center justify-center flex-shrink-0">
+            <Moon size={20} className="text-muted-foreground" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-0.5">
+            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-0.5">
               {isToday ? "Today's Session" : 'Session'}
             </p>
-            <p className="text-white font-semibold text-base">Rest Day</p>
-            <p className="text-zinc-600 text-xs mt-0.5">Recovery · light activity encouraged</p>
+            <p className="text-foreground font-semibold text-base">Rest Day</p>
+            <p className="text-muted-foreground/60 text-xs mt-0.5">Recovery · light activity encouraged</p>
           </div>
         </div>
         <NextBadge next={next} />
@@ -154,7 +150,6 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
     )
   }
 
-  // No template — show completed or generic link
   if (!template) {
     if (sessionDone) {
       const displayName = alternativeSession
@@ -163,20 +158,20 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
       return (
         <a
           href="/training"
-          className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl p-4 hover:border-green-500/20 transition-all duration-200 no-underline block"
+          className="bg-card border border-border rounded-2xl p-4 hover:border-green-500/20 transition-all duration-200 no-underline block"
         >
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center justify-center flex-shrink-0">
               <CheckCircle2 size={20} className="text-green-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-0.5">
+              <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-0.5">
                 {isToday ? "Today's Session" : 'Session'}
               </p>
-              <p className="text-white font-semibold text-base truncate">{displayName}</p>
-              <p className="text-green-500 text-xs mt-0.5 font-medium">Nice work — training done for today</p>
+              <p className="text-foreground font-semibold text-base truncate">{displayName}</p>
+              <p className="text-green-500 text-xs mt-0.5 font-medium">Training done for today</p>
             </div>
-            <ChevronRight size={16} className="text-zinc-700 flex-shrink-0" />
+            <ChevronRight size={16} className="text-muted-foreground/30 flex-shrink-0" />
           </div>
           <NextBadge next={next} />
         </a>
@@ -185,69 +180,62 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
     return (
       <a
         href="/training"
-        className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl p-4 flex items-center gap-4 hover:border-orange-500/20 transition-all duration-200 no-underline block"
+        className="bg-card border border-border rounded-2xl p-4 flex items-center gap-4 hover:border-primary/20 transition-all duration-200 no-underline block"
       >
-        <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center flex-shrink-0">
-          <Dumbbell size={20} className="text-orange-400" />
+        <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+          <Dumbbell size={20} className="text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-0.5">
+          <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-0.5">
             {isToday ? "Today's Session" : 'Session'}
           </p>
-          <p className="text-white font-semibold text-base truncate">{sessionType}</p>
-          <p className="text-zinc-600 text-xs mt-0.5">
+          <p className="text-foreground font-semibold text-base truncate">{sessionType}</p>
+          <p className="text-muted-foreground/60 text-xs mt-0.5">
             {isToday ? 'Tap to log session' : 'No session logged'}
           </p>
         </div>
-        <ChevronRight size={16} className="text-zinc-700 flex-shrink-0" />
+        <ChevronRight size={16} className="text-muted-foreground/30 flex-shrink-0" />
       </a>
     )
   }
 
-  // Completed (template match or alternative session)
   if (sessionDone) {
     const isAlternative = !!alternativeSession
     const displayName = isAlternative
       ? alternativeSession!.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
       : template.name
-    const subtext = isAlternative
-      ? 'Nice work — training done for today'
-      : 'Completed · great work'
+    const subtext = isAlternative ? 'Training done for today' : 'Completed'
 
     return (
       <a
         href="/training"
-        className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl p-4 hover:border-green-500/20 transition-all duration-200 no-underline block"
+        className="bg-card border border-border rounded-2xl p-4 hover:border-green-500/20 transition-all duration-200 no-underline block"
       >
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center justify-center flex-shrink-0">
             <CheckCircle2 size={20} className="text-green-400" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-0.5">
+            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-0.5">
               {isToday ? "Today's Session" : 'Session'}
             </p>
-            <p className="text-white font-semibold text-base truncate">{displayName}</p>
+            <p className="text-foreground font-semibold text-base truncate">{displayName}</p>
             <p className="text-green-500 text-xs mt-0.5 font-medium">{subtext}</p>
           </div>
-          <ChevronRight size={16} className="text-zinc-700 flex-shrink-0" />
+          <ChevronRight size={16} className="text-muted-foreground/30 flex-shrink-0" />
         </div>
         <NextBadge next={next} />
       </a>
     )
   }
 
-  // Ready to start — expanded CTA
+  // Ready to start
   return (
     <div
-      className="rounded-2xl overflow-hidden transition-all duration-200"
-      style={{ border: `1px solid ${template.color}33`, backgroundColor: '#0f0f0f' }}
+      className="bg-card rounded-2xl overflow-hidden transition-all duration-200"
+      style={{ border: `1px solid ${template.color}33` }}
     >
-      {/* Top accent stripe */}
-      <div className="h-0.5 w-full" style={{ background: `linear-gradient(90deg, ${template.color}cc, ${template.color}22)` }} />
-
       <div className="p-4">
-        {/* Header row */}
         <div className="flex items-start gap-3 mb-4">
           <div
             className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
@@ -256,12 +244,12 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
             <Dumbbell size={20} style={{ color: template.color }} />
           </div>
           <div className="flex-1 min-w-0 pt-0.5">
-            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-0.5">
+            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-0.5">
               {isToday ? "Today's Session" : 'Session'}
             </p>
-            <p className="text-white font-semibold text-base leading-tight truncate">{template.name}</p>
+            <p className="text-foreground font-semibold text-base leading-tight truncate">{template.name}</p>
             {template.description && (
-              <p className="text-zinc-500 text-xs mt-0.5 leading-snug">{template.description}</p>
+              <p className="text-muted-foreground/60 text-xs mt-0.5 leading-snug">{template.description}</p>
             )}
           </div>
           {template.exerciseCount > 0 && (
@@ -274,18 +262,17 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
           )}
         </div>
 
-        {/* Start button — full width, prominent */}
         <button
           onClick={handleStart}
           disabled={starting}
           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-200 disabled:opacity-60 active:scale-[0.98]"
-          style={{ backgroundColor: template.color, color: '#fff' }}
+          style={{ backgroundColor: template.color, color: '#0d0c0b' }}
         >
           {starting ? (
             <Loader2 size={16} className="animate-spin" />
           ) : (
             <>
-              <Play size={15} fill="#fff" />
+              <Play size={15} fill="#0d0c0b" />
               Start Workout
             </>
           )}

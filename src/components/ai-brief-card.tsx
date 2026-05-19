@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react'
 import { Sparkles, Loader2, ChevronRight, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
+import { cn } from '@/lib/utils'
 import type { DailyBrief } from '@/app/api/ai-brief/route'
 
-const READINESS_COLORS: Record<string, { ring: string; label: string; bg: string }> = {
-  Peak:     { ring: '#4ade80', label: 'text-green-400',  bg: 'rgba(74,222,128,0.08)' },
-  Good:     { ring: '#a3e635', label: 'text-lime-400',   bg: 'rgba(163,230,53,0.08)' },
-  Moderate: { ring: '#facc15', label: 'text-yellow-400', bg: 'rgba(250,204,21,0.08)' },
-  Low:      { ring: '#f87171', label: 'text-red-400',    bg: 'rgba(248,113,113,0.08)' },
+const READINESS_CONFIG: Record<string, { label: string; bar: string; text: string; bg: string; border: string }> = {
+  Peak:     { label: 'Peak',     bar: 'bg-green-400',  text: 'text-green-400',  bg: 'bg-green-500/10',  border: 'border-green-500/25' },
+  Good:     { label: 'Good',     bar: 'bg-lime-400',   text: 'text-lime-400',   bg: 'bg-lime-500/10',   border: 'border-lime-500/25' },
+  Moderate: { label: 'Moderate', bar: 'bg-yellow-400', text: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/25' },
+  Low:      { label: 'Low',      bar: 'bg-red-400',    text: 'text-red-400',    bg: 'bg-red-500/10',    border: 'border-red-500/25' },
 }
 
 const STORAGE_PREFIX = 'apex_brief_'
@@ -87,23 +88,21 @@ export function AiBriefCard(props: AiBriefCardProps) {
 
   if (error) return null
 
-  const colors = brief ? (READINESS_COLORS[brief.readiness_label] ?? READINESS_COLORS.Moderate) : READINESS_COLORS.Moderate
-  const circumference = 2 * Math.PI * 22
-  const dash = brief ? (brief.readiness / 100) * circumference : 0
+  const cfg = brief ? (READINESS_CONFIG[brief.readiness_label] ?? READINESS_CONFIG.Moderate) : READINESS_CONFIG.Moderate
 
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
-          <Sparkles size={12} className="text-orange-500" />
-          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Daily Brief</span>
+          <Sparkles size={12} className="text-primary" />
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Daily Brief</span>
         </div>
         {!loading && (
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="text-zinc-600 hover:text-zinc-400 transition-colors disabled:opacity-40"
+            className="text-muted-foreground/40 hover:text-muted-foreground transition-colors disabled:opacity-40"
             aria-label="Refresh brief"
           >
             <RefreshCw size={11} className={refreshing ? 'animate-spin' : ''} />
@@ -112,71 +111,53 @@ export function AiBriefCard(props: AiBriefCardProps) {
       </div>
 
       {loading || refreshing ? (
-        <div className="flex items-center gap-2.5 px-4 py-4 text-zinc-600">
+        <div className="flex items-center gap-2.5 px-4 py-4 text-muted-foreground/40">
           <Loader2 size={13} className="animate-spin" />
           <span className="text-xs">Analysing your data…</span>
         </div>
       ) : brief ? (
         <div className="px-4 pt-4 pb-4 space-y-4">
-          {/* Readiness row */}
-          <div className="flex items-center gap-4">
-            {/* Circular readiness gauge */}
-            <div className="relative w-14 h-14 shrink-0">
-              <svg width="56" height="56" viewBox="0 0 52 52">
-                <circle cx="26" cy="26" r="22" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
-                <circle
-                  cx="26" cy="26" r="22"
-                  fill="none"
-                  stroke={colors.ring}
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeDasharray={`${dash} ${circumference}`}
-                  transform="rotate(-90 26 26)"
-                  style={{ transition: 'stroke-dasharray 0.8s ease' }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-sm font-bold" style={{ color: colors.ring }}>
-                  {brief.readiness}
-                </span>
-              </div>
+          {/* Readiness row — flat bar + label, no circular gauge */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Readiness</span>
+              <span className={cn('text-xs font-bold px-2 py-0.5 rounded-full border', cfg.text, cfg.bg, cfg.border)}>
+                {cfg.label}
+              </span>
             </div>
-
-            <div className="flex-1 min-w-0">
+            <div className="w-full bg-white/5 rounded-full h-1.5">
               <div
-                className="inline-block rounded-lg px-2 py-0.5 text-xs font-bold mb-1.5"
-                style={{ backgroundColor: colors.bg, border: `1px solid ${colors.ring}33`, color: colors.ring }}
-              >
-                {brief.readiness_label}
-              </div>
-              <p className="text-xs text-zinc-500 leading-relaxed">{brief.training_rec}</p>
+                className={cn('h-1.5 rounded-full transition-all duration-500', cfg.bar)}
+                style={{ width: `${brief.readiness}%` }}
+              />
             </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">{brief.training_rec}</p>
           </div>
 
           {/* Priorities */}
           <div className="space-y-2">
             {brief.priorities.map((p, i) => (
               <div key={i} className="flex items-center gap-2.5">
-                <div className="w-5 h-5 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
-                  <span className="text-[9px] font-bold text-orange-500">{i + 1}</span>
+                <div className="w-5 h-5 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <span className="text-[9px] font-bold text-primary">{i + 1}</span>
                 </div>
-                <span className="text-sm text-zinc-300">{p}</span>
+                <span className="text-sm text-foreground/80">{p}</span>
               </div>
             ))}
           </div>
 
           {/* Insight */}
           <div className="bg-secondary/40 rounded-xl px-3 py-2.5">
-            <p className="text-xs text-zinc-500 leading-relaxed italic">&ldquo;{brief.insight}&rdquo;</p>
+            <p className="text-xs text-muted-foreground leading-relaxed italic">&ldquo;{brief.insight}&rdquo;</p>
           </div>
 
           {/* Ask Coach CTA */}
           <Link
             href="/chat"
-            className="flex items-center justify-between bg-orange-500/[0.07] border border-orange-500/15 rounded-xl px-3 py-2.5 hover:bg-orange-500/10 transition-colors"
+            className="flex items-center justify-between bg-primary/[0.07] border border-primary/15 rounded-xl px-3 py-2.5 hover:bg-primary/10 transition-colors"
           >
-            <span className="text-xs text-zinc-400">Ask Apex to elaborate</span>
-            <ChevronRight size={13} className="text-orange-500 shrink-0" />
+            <span className="text-xs text-muted-foreground">Ask Apex to elaborate</span>
+            <ChevronRight size={13} className="text-primary shrink-0" />
           </Link>
         </div>
       ) : null}

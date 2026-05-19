@@ -14,21 +14,21 @@ interface WhoopData {
 }
 
 function recoveryColor(score: number | null) {
-  if (score === null) return '#52525b'
+  if (score === null) return 'var(--muted-foreground)'
   if (score >= 67) return '#4ade80'
   if (score >= 34) return '#facc15'
   return '#f87171'
 }
 
 function recoveryBg(score: number | null) {
-  if (score === null) return 'rgba(82,82,91,0.15)'
+  if (score === null) return 'var(--muted)'
   if (score >= 67) return 'rgba(74,222,128,0.12)'
   if (score >= 34) return 'rgba(250,204,21,0.12)'
   return 'rgba(248,113,113,0.12)'
 }
 
 function strainColor(strain: number | null) {
-  if (strain === null) return '#52525b'
+  if (strain === null) return 'var(--muted-foreground)'
   if (strain >= 18) return '#f87171'
   if (strain >= 14) return '#fb923c'
   if (strain >= 10) return '#facc15'
@@ -53,7 +53,7 @@ function fmtTime(iso: string | null) {
 }
 
 function MiniBar({ value, max, color }: { value: number; max: number; color: string }) {
-  const pct = Math.min(100, Math.round((value / max) * 100))
+  const scale = Math.min(1, value / max)
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
       <div style={{
@@ -64,11 +64,12 @@ function MiniBar({ value, max, color }: { value: number; max: number; color: str
       }}>
         <div style={{
           width: '100%',
-          height: `${pct}%`,
+          height: '100%',
           backgroundColor: color,
           borderRadius: '3px 3px 0 0',
-          transition: 'height 0.5s ease',
-          minHeight: pct > 0 ? '3px' : '0',
+          transform: `scaleY(${scale})`,
+          transformOrigin: 'bottom',
+          transition: 'transform 0.5s ease',
         }} />
       </div>
     </div>
@@ -84,22 +85,20 @@ function StatPill({ label, value, unit, icon: Icon, color, bg }: {
   bg: string
 }) {
   return (
-    <div style={{
-      backgroundColor: bg,
-      borderRadius: '16px',
-      padding: '14px',
-      display: 'flex', flexDirection: 'column', gap: '8px',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <Icon size={13} color={color} />
-        <span style={{ fontSize: '10px', color: '#71717a', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</span>
+    <div className="rounded-2xl p-3.5 flex flex-col gap-2" style={{ backgroundColor: bg }}>
+      <div className="flex items-center gap-1.5">
+        <Icon size={13} style={{ color }} />
+        <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-[0.08em]">{label}</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px' }}>
-        <span style={{ fontSize: '26px', fontWeight: 700, color: value !== null ? color : '#3f3f46', lineHeight: 1 }}>
+      <div className="flex items-baseline gap-1">
+        <span
+          className={`text-[26px] font-bold leading-none${value === null ? ' text-muted-foreground' : ''}`}
+          style={value !== null ? { color } : undefined}
+        >
           {value ?? '—'}
         </span>
         {unit && value !== null && (
-          <span style={{ fontSize: '12px', color: '#71717a', fontWeight: 500 }}>{unit}</span>
+          <span className="text-xs text-muted-foreground font-medium">{unit}</span>
         )}
       </div>
     </div>
@@ -129,8 +128,8 @@ function SleepStageBar({ deep, rem, light, awake }: {
         {stages.slice(0, 3).map(s => (
           <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
             <div style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: s.color }} />
-            <span style={{ fontSize: '11px', color: '#71717a' }}>{s.label}</span>
-            <span style={{ fontSize: '11px', color: '#a1a1aa', fontWeight: 600 }}>{s.value ?? 0}m</span>
+            <span style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>{s.label}</span>
+            <span style={{ fontSize: '11px', color: 'var(--foreground)', fontWeight: 600 }}>{s.value ?? 0}m</span>
           </div>
         ))}
       </div>
@@ -148,7 +147,7 @@ function RecoveryTab({ data }: { data: WhoopData }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
       {/* Today's key metrics */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+      <div className="grid grid-cols-2 gap-2.5">
         <StatPill
           label="Recovery"
           value={latest?.recovery_score ?? null}
@@ -162,8 +161,8 @@ function RecoveryTab({ data }: { data: WhoopData }) {
           value={latest?.hrv_rmssd_milli ? Math.round(latest.hrv_rmssd_milli) : null}
           unit="ms"
           icon={Activity}
-          color="#a78bfa"
-          bg="rgba(167,139,250,0.1)"
+          color="#60a5fa"
+          bg="rgba(96,165,250,0.1)"
         />
         <StatPill
           label="Resting HR"
@@ -193,7 +192,7 @@ function RecoveryTab({ data }: { data: WhoopData }) {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Thermometer size={14} color="#fb923c" />
-            <span style={{ fontSize: '12px', color: '#71717a', fontWeight: 600 }}>Skin Temperature</span>
+            <span style={{ fontSize: '12px', color: 'var(--muted-foreground)', fontWeight: 600 }}>Skin Temperature</span>
           </div>
           <span style={{ fontSize: '15px', fontWeight: 700, color: '#fb923c' }}>
             {latest.skin_temp_celsius.toFixed(1)}°C
@@ -204,12 +203,12 @@ function RecoveryTab({ data }: { data: WhoopData }) {
       {/* 14-day recovery trend */}
       {records.length > 1 && (
         <div style={{
-          backgroundColor: '#0a0a0a',
+          backgroundColor: 'var(--card)',
           border: '1px solid rgba(255,255,255,0.05)',
           borderRadius: '18px',
           padding: '16px',
         }}>
-          <p style={{ fontSize: '10px', color: '#52525b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>
+          <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>
             14-Day Recovery Trend
           </p>
           <div style={{ display: 'flex', gap: '4px', alignItems: 'flex-end', height: '64px' }}>
@@ -224,8 +223,8 @@ function RecoveryTab({ data }: { data: WhoopData }) {
             ))}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
-            <span style={{ fontSize: '9px', color: '#3f3f46' }}>{records.length > 0 ? fmtDate(records[0].date) : ''}</span>
-            <span style={{ fontSize: '9px', color: '#3f3f46' }}>{records.length > 0 ? fmtDate(records[records.length - 1].date) : ''}</span>
+            <span style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>{records.length > 0 ? fmtDate(records[0].date) : ''}</span>
+            <span style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>{records.length > 0 ? fmtDate(records[records.length - 1].date) : ''}</span>
           </div>
         </div>
       )}
@@ -233,17 +232,17 @@ function RecoveryTab({ data }: { data: WhoopData }) {
       {/* HRV trend */}
       {records.filter(r => r.hrv_rmssd_milli !== null).length > 1 && (
         <div style={{
-          backgroundColor: '#0a0a0a',
+          backgroundColor: 'var(--card)',
           border: '1px solid rgba(255,255,255,0.05)',
           borderRadius: '18px',
           padding: '16px',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-            <p style={{ fontSize: '10px', color: '#52525b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               HRV Trend
             </p>
             {avgHrv && (
-              <span style={{ fontSize: '11px', color: '#a78bfa', fontWeight: 700 }}>avg {avgHrv}ms</span>
+              <span style={{ fontSize: '11px', color: 'var(--foreground)', fontWeight: 700 }}>avg {avgHrv}ms</span>
             )}
           </div>
           <div style={{ display: 'flex', gap: '4px', alignItems: 'flex-end', height: '48px' }}>
@@ -251,7 +250,7 @@ function RecoveryTab({ data }: { data: WhoopData }) {
               const maxHrv = Math.max(...records.map(x => x.hrv_rmssd_milli ?? 0), 1)
               return (
                 <div key={i} style={{ flex: 1, height: '100%' }}>
-                  <MiniBar value={r.hrv_rmssd_milli ?? 0} max={maxHrv} color="#a78bfa" />
+                  <MiniBar value={r.hrv_rmssd_milli ?? 0} max={maxHrv} color="#60a5fa" />
                 </div>
               )
             })}
@@ -261,13 +260,13 @@ function RecoveryTab({ data }: { data: WhoopData }) {
 
       {/* Recent records */}
       <div style={{
-        backgroundColor: '#0a0a0a',
+        backgroundColor: 'var(--card)',
         border: '1px solid rgba(255,255,255,0.05)',
         borderRadius: '18px',
         overflow: 'hidden',
       }}>
         <div style={{ padding: '14px 16px 10px' }}>
-          <p style={{ fontSize: '10px', color: '#52525b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             Recent
           </p>
         </div>
@@ -288,14 +287,14 @@ function RecoveryTab({ data }: { data: WhoopData }) {
               </span>
             </div>
             <div style={{ flex: 1 }}>
-              <p style={{ fontSize: '13px', color: '#e4e4e7', fontWeight: 500 }}>{fmtDate(r.date)}</p>
-              <p style={{ fontSize: '11px', color: '#52525b', marginTop: '2px' }}>
+              <p style={{ fontSize: '13px', color: 'var(--foreground)', fontWeight: 500 }}>{fmtDate(r.date)}</p>
+              <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
                 {r.hrv_rmssd_milli ? `HRV ${Math.round(r.hrv_rmssd_milli)}ms` : ''}
                 {r.hrv_rmssd_milli && r.resting_heart_rate ? ' · ' : ''}
                 {r.resting_heart_rate ? `RHR ${r.resting_heart_rate}bpm` : ''}
               </p>
             </div>
-            <div style={{ fontSize: '12px', color: '#52525b' }}>
+            <div style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>
               {r.spo2_percentage ? `${r.spo2_percentage}%` : ''}
             </div>
           </div>
@@ -314,14 +313,14 @@ function SleepTab({ data }: { data: WhoopData }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
       {/* Key metrics */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+      <div className="grid grid-cols-2 gap-2.5">
         <StatPill
           label="Duration"
           value={latest?.duration_hrs ? `${latest.duration_hrs.toFixed(1)}` : null}
           unit="hrs"
           icon={Moon}
-          color="#818cf8"
-          bg="rgba(129,140,248,0.1)"
+          color="#60a5fa"
+          bg="rgba(96,165,250,0.1)"
         />
         <StatPill
           label="Performance"
@@ -352,16 +351,16 @@ function SleepTab({ data }: { data: WhoopData }) {
       {/* Sleep stages for last night */}
       {latest && (
         <div style={{
-          backgroundColor: '#0a0a0a',
+          backgroundColor: 'var(--card)',
           border: '1px solid rgba(255,255,255,0.05)',
           borderRadius: '18px',
           padding: '16px',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <p style={{ fontSize: '10px', color: '#52525b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               Sleep Stages
             </p>
-            <div style={{ fontSize: '11px', color: '#52525b' }}>
+            <div style={{ fontSize: '11px', color: 'var(--muted-foreground)' }}>
               {fmtTime(latest.start_time)} → {fmtTime(latest.end_time)}
             </div>
           </div>
@@ -377,18 +376,18 @@ function SleepTab({ data }: { data: WhoopData }) {
       {/* 14-day sleep duration trend */}
       {records.length > 1 && (
         <div style={{
-          backgroundColor: '#0a0a0a',
+          backgroundColor: 'var(--card)',
           border: '1px solid rgba(255,255,255,0.05)',
           borderRadius: '18px',
           padding: '16px',
         }}>
-          <p style={{ fontSize: '10px', color: '#52525b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>
+          <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>
             Sleep Duration Trend
           </p>
           <div style={{ display: 'flex', gap: '4px', alignItems: 'flex-end', height: '64px' }}>
             {records.map((r, i) => (
               <div key={i} style={{ flex: 1, height: '100%' }}>
-                <MiniBar value={r.duration_hrs ?? 0} max={Math.max(maxDur, 9)} color="#818cf8" />
+                <MiniBar value={r.duration_hrs ?? 0} max={Math.max(maxDur, 9)} color="#60a5fa" />
               </div>
             ))}
           </div>
@@ -396,7 +395,7 @@ function SleepTab({ data }: { data: WhoopData }) {
             <div style={{ width: '100%', height: '1px', background: 'rgba(255,255,255,0.06)', position: 'relative' }}>
               <span style={{
                 position: 'absolute', right: 0, top: '-14px',
-                fontSize: '9px', color: '#52525b',
+                fontSize: '9px', color: 'var(--muted-foreground)',
               }}>8h target</span>
             </div>
           </div>
@@ -405,13 +404,13 @@ function SleepTab({ data }: { data: WhoopData }) {
 
       {/* Recent records */}
       <div style={{
-        backgroundColor: '#0a0a0a',
+        backgroundColor: 'var(--card)',
         border: '1px solid rgba(255,255,255,0.05)',
         borderRadius: '18px',
         overflow: 'hidden',
       }}>
         <div style={{ padding: '14px 16px 10px' }}>
-          <p style={{ fontSize: '10px', color: '#52525b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             Recent Nights
           </p>
         </div>
@@ -423,15 +422,15 @@ function SleepTab({ data }: { data: WhoopData }) {
           }}>
             <div style={{
               width: '36px', height: '36px', borderRadius: '10px',
-              backgroundColor: 'rgba(129,140,248,0.1)',
+              backgroundColor: 'rgba(96,165,250,0.08)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0,
             }}>
-              <Moon size={15} color="#818cf8" />
+              <Moon size={15} color="#60a5fa" />
             </div>
             <div style={{ flex: 1 }}>
-              <p style={{ fontSize: '13px', color: '#e4e4e7', fontWeight: 500 }}>{fmtDate(s.date)}</p>
-              <p style={{ fontSize: '11px', color: '#52525b', marginTop: '2px' }}>
+              <p style={{ fontSize: '13px', color: 'var(--foreground)', fontWeight: 500 }}>{fmtDate(s.date)}</p>
+              <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
                 {s.duration_hrs ? fmtDuration(s.duration_hrs) : '—'}
                 {s.deep_sleep_min ? ` · Deep ${s.deep_sleep_min}m` : ''}
                 {s.rem_min ? ` · REM ${s.rem_min}m` : ''}
@@ -441,7 +440,7 @@ function SleepTab({ data }: { data: WhoopData }) {
               <p style={{ fontSize: '14px', fontWeight: 700, color: s.sleep_performance_pct && s.sleep_performance_pct >= 70 ? '#34d399' : s.sleep_performance_pct && s.sleep_performance_pct >= 50 ? '#facc15' : '#f87171' }}>
                 {s.sleep_performance_pct ? `${s.sleep_performance_pct}%` : '—'}
               </p>
-              <p style={{ fontSize: '10px', color: '#52525b' }}>perf</p>
+              <p style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>perf</p>
             </div>
           </div>
         ))}
@@ -459,7 +458,7 @@ function StrainTab({ data }: { data: WhoopData }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
       {/* Today's strain */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+      <div className="grid grid-cols-2 gap-2.5">
         <StatPill
           label="Day Strain"
           value={latest?.strain ? latest.strain.toFixed(1) : null}
@@ -496,12 +495,12 @@ function StrainTab({ data }: { data: WhoopData }) {
       {/* 14-day strain trend */}
       {records.length > 1 && (
         <div style={{
-          backgroundColor: '#0a0a0a',
+          backgroundColor: 'var(--card)',
           border: '1px solid rgba(255,255,255,0.05)',
           borderRadius: '18px',
           padding: '16px',
         }}>
-          <p style={{ fontSize: '10px', color: '#52525b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>
+          <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }}>
             Strain Trend
           </p>
           <div style={{ display: 'flex', gap: '4px', alignItems: 'flex-end', height: '64px' }}>
@@ -512,8 +511,8 @@ function StrainTab({ data }: { data: WhoopData }) {
             ))}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
-            <span style={{ fontSize: '9px', color: '#3f3f46' }}>{records.length > 0 ? fmtDate(records[0].date) : ''}</span>
-            <span style={{ fontSize: '9px', color: '#3f3f46' }}>{records.length > 0 ? fmtDate(records[records.length - 1].date) : ''}</span>
+            <span style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>{records.length > 0 ? fmtDate(records[0].date) : ''}</span>
+            <span style={{ fontSize: '9px', color: 'var(--muted-foreground)' }}>{records.length > 0 ? fmtDate(records[records.length - 1].date) : ''}</span>
           </div>
         </div>
       )}
@@ -521,13 +520,13 @@ function StrainTab({ data }: { data: WhoopData }) {
       {/* Recent workouts */}
       {data.workouts.length > 0 && (
         <div style={{
-          backgroundColor: '#0a0a0a',
+          backgroundColor: 'var(--card)',
           border: '1px solid rgba(255,255,255,0.05)',
           borderRadius: '18px',
           overflow: 'hidden',
         }}>
           <div style={{ padding: '14px 16px 10px' }}>
-            <p style={{ fontSize: '10px', color: '#52525b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               Workouts
             </p>
           </div>
@@ -550,10 +549,10 @@ function StrainTab({ data }: { data: WhoopData }) {
                     <Dumbbell size={15} color="#f97316" />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: '13px', color: '#e4e4e7', fontWeight: 600 }}>
+                    <p style={{ fontSize: '13px', color: 'var(--foreground)', fontWeight: 600 }}>
                       {w.sport_name ?? 'Workout'}
                     </p>
-                    <p style={{ fontSize: '11px', color: '#52525b', marginTop: '2px' }}>
+                    <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
                       {w.start_time ? new Date(w.start_time).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '—'}
                       {totalMin > 0 ? ` · ${Math.round(totalMin)}min` : ''}
                     </p>
@@ -564,7 +563,7 @@ function StrainTab({ data }: { data: WhoopData }) {
                         {w.strain.toFixed(1)}
                       </p>
                     )}
-                    {kcal && <p style={{ fontSize: '10px', color: '#52525b' }}>{kcal} kcal</p>}
+                    {kcal && <p style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{kcal} kcal</p>}
                   </div>
                 </div>
 
@@ -600,7 +599,7 @@ function StrainTab({ data }: { data: WhoopData }) {
                       </span>
                     ))}
                     {w.avg_heart_rate && (
-                      <span style={{ fontSize: '10px', color: '#52525b' }}>avg {w.avg_heart_rate}bpm</span>
+                      <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>avg {w.avg_heart_rate}bpm</span>
                     )}
                   </div>
                 )}
@@ -612,13 +611,13 @@ function StrainTab({ data }: { data: WhoopData }) {
 
       {/* Daily cycles list */}
       <div style={{
-        backgroundColor: '#0a0a0a',
+        backgroundColor: 'var(--card)',
         border: '1px solid rgba(255,255,255,0.05)',
         borderRadius: '18px',
         overflow: 'hidden',
       }}>
         <div style={{ padding: '14px 16px 10px' }}>
-          <p style={{ fontSize: '10px', color: '#52525b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             Daily Cycles
           </p>
         </div>
@@ -639,14 +638,14 @@ function StrainTab({ data }: { data: WhoopData }) {
               </span>
             </div>
             <div style={{ flex: 1 }}>
-              <p style={{ fontSize: '13px', color: '#e4e4e7', fontWeight: 500 }}>{fmtDate(c.date)}</p>
-              <p style={{ fontSize: '11px', color: '#52525b', marginTop: '2px' }}>
+              <p style={{ fontSize: '13px', color: 'var(--foreground)', fontWeight: 500 }}>{fmtDate(c.date)}</p>
+              <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>
                 {c.avg_heart_rate ? `avg ${c.avg_heart_rate}bpm` : ''}
                 {c.avg_heart_rate && c.max_heart_rate ? ' · ' : ''}
                 {c.max_heart_rate ? `max ${c.max_heart_rate}bpm` : ''}
               </p>
             </div>
-            <div style={{ fontSize: '12px', color: '#52525b' }}>
+            <div style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>
               {c.kilojoule ? `${Math.round(c.kilojoule / 4.184)} kcal` : ''}
             </div>
           </div>
@@ -711,24 +710,19 @@ export default function ProgressPage() {
       <div className="px-4 md:px-6 pt-4 md:pt-6">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
           <div>
-            <p style={{ fontSize: '10px', color: '#52525b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Whoop</p>
-            <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#fff', lineHeight: 1.1 }}>Progress</h1>
+            <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Whoop</p>
+            <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--foreground)', lineHeight: 1.1 }}>Progress</h1>
           </div>
           <button
             onClick={handleSync}
             disabled={syncing}
-            style={{
-              width: '36px', height: '36px', borderRadius: '12px',
-              backgroundColor: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.15)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: syncing ? 'default' : 'pointer', opacity: syncing ? 0.5 : 1,
-            }}
+            className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/15 flex items-center justify-center disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
           >
-            <RefreshCw size={15} color="#f97316" style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
+            <RefreshCw size={15} color="#f97316" className={syncing ? 'animate-spin' : ''} />
           </button>
         </div>
         {lastSynced && (
-          <p style={{ fontSize: '10px', color: '#3f3f46', marginBottom: '16px' }}>
+          <p style={{ fontSize: '10px', color: 'var(--muted-foreground)', marginBottom: '16px' }}>
             Synced {new Date(lastSynced).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
           </p>
         )}
@@ -743,7 +737,7 @@ export default function ProgressPage() {
           }}>
             <div>
               <p style={{ fontSize: '13px', fontWeight: 600, color: '#fca5a5' }}>WHOOP session expired</p>
-              <p style={{ fontSize: '11px', color: '#71717a', marginTop: '2px' }}>Reconnect to sync fresh data</p>
+              <p style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Reconnect to sync fresh data</p>
             </div>
             <a
               href="/api/whoop/login"
@@ -759,22 +753,14 @@ export default function ProgressPage() {
         )}
 
       {/* Tab bar */}
-        <div style={{
-          display: 'flex', gap: '4px',
-          backgroundColor: '#111', borderRadius: '12px', padding: '4px',
-          marginBottom: '20px', marginTop: lastSynced ? '0' : '16px',
-        }}>
+        <div className={`flex gap-1 bg-secondary rounded-xl p-1 mb-5${lastSynced ? '' : ' mt-4'}`}>
           {tabs.map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setTab(key)}
-              style={{
-                flex: 1, padding: '8px', borderRadius: '8px', border: 'none',
-                backgroundColor: tab === key ? '#fff' : 'transparent',
-                color: tab === key ? '#000' : '#71717a',
-                fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-                transition: 'all 0.2s',
-              }}
+              className={`flex-1 py-2 rounded-lg border-none text-[13px] font-semibold cursor-pointer transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background ${
+                tab === key ? 'bg-foreground text-background' : 'bg-transparent text-muted-foreground'
+              }`}
             >
               {label}
             </button>
@@ -798,17 +784,13 @@ export default function ProgressPage() {
             }}>
               <Activity size={28} color="#f97316" />
             </div>
-            <p style={{ fontSize: '16px', fontWeight: 700, color: '#fff', marginBottom: '8px' }}>No WHOOP data yet</p>
-            <p style={{ fontSize: '13px', color: '#52525b', marginBottom: '20px' }}>
+            <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '8px' }}>No WHOOP data yet</p>
+            <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', marginBottom: '20px' }}>
               Connect your WHOOP in Settings to start tracking
             </p>
             <button
               onClick={handleSync}
-              style={{
-                backgroundColor: '#f97316', color: '#000', fontWeight: 700,
-                fontSize: '14px', padding: '12px 24px', borderRadius: '12px',
-                border: 'none', cursor: 'pointer',
-              }}
+              className="bg-[#f97316] text-[#0d0c0b] font-bold text-sm px-6 py-3 rounded-xl border-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             >
               Sync Now
             </button>

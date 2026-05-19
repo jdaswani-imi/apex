@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-19T00:00:00.000Z",
+  "title": "Design System: Apex",
+  "extensions": {
+    "colorMeta": {
+      "warm-cinder":       { "role": "neutral",   "displayName": "Warm Cinder",       "canonical": "oklch(22% 0.012 55)", "tonalRamp": ["#1a1612","#201c18","#2a2520","#302b25","#38302a","#454038","#5c5548","#7a7060"] },
+      "deep-amber-clay":   { "role": "neutral",   "displayName": "Deep Amber Clay",   "canonical": "oklch(24% 0.014 55)", "tonalRamp": ["#1a1612","#201c18","#2a2520","#302b25","#38302a","#454038","#5c5548","#7a7060"] },
+      "dark-forge-brown":  { "role": "neutral",   "displayName": "Dark Forge Brown",  "canonical": "oklch(17% 0.010 55)", "tonalRamp": ["#0d0b09","#141210","#1a1612","#201c18","#2a2520","#302b25","#38302a","#454038"] },
+      "ash-oak":           { "role": "neutral",   "displayName": "Ash Oak",           "canonical": "oklch(30% 0.014 55)", "tonalRamp": ["#1a1612","#201c18","#2a2520","#302b25","#38302a","#454038","#5c5548","#7a7060"] },
+      "warm-bone":         { "role": "neutral",   "displayName": "Warm Bone",         "canonical": "oklch(95% 0.008 60)", "tonalRamp": ["#302b25","#454038","#7a7060","#a89e94","#ccc4bc","#ddd7d1","#ece8e4","#f5f0eb"] },
+      "faded-linen":       { "role": "neutral",   "displayName": "Faded Linen",       "canonical": "oklch(82% 0.008 55)", "tonalRamp": ["#454038","#5c5548","#7a7060","#a89e94","#ccc4bc","#ddd7d1","#ece8e4","#f5f0eb"] },
+      "signal-orange":     { "role": "primary",   "displayName": "Signal Orange",     "canonical": "oklch(68% 0.22 42)",  "tonalRamp": ["#3d1a05","#6b2e09","#a84b12","#cc5e15","#f97316","#fb9c4e","#fdc28f","#fee8d3"] },
+      "performance-green": { "role": "tertiary",  "displayName": "Performance Green", "canonical": "oklch(73% 0.22 150)", "tonalRamp": ["#052112","#0a3d22","#115c35","#197a49","#22c55e","#5ad48a","#96e6b4","#d4f5e4"] },
+      "alert-coral":       { "role": "error",     "displayName": "Alert Coral",       "canonical": "oklch(72% 0.20 22)",  "tonalRamp": ["#3d0505","#6b0a0a","#991414","#cc2a2a","#ff6b6b","#ff9e9e","#ffc8c8","#ffe8e8"] }
+    },
+    "typographyMeta": {
+      "display":  { "displayName": "Display",  "purpose": "Hero numerals. Days-to-event count. One per screen maximum." },
+      "headline": { "displayName": "Headline", "purpose": "Primary metric values on cards: steps, weight, calories, recovery score. The dominant visual element." },
+      "title":    { "displayName": "Title",    "purpose": "Section headings, card titles, navigation labels." },
+      "body":     { "displayName": "Body",     "purpose": "Descriptions, insight text, contextual notes. Max 65ch." },
+      "label":    { "displayName": "Label",    "purpose": "Card category headings and metric unit suffixes. Always uppercase." }
+    },
+    "shadows": [
+      { "name": "accent-glow",  "value": "0 0 24px rgba(249,115,22,0.25)",  "purpose": "Primary CTA hover; active metric cells. Never at rest." },
+      { "name": "green-glow",   "value": "0 0 24px rgba(34,197,94,0.25)",   "purpose": "Goal-complete state indicator." }
+    ],
+    "motion": [
+      { "name": "ease-out-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default for all state transitions." },
+      { "name": "duration-fast",     "value": "150ms",                         "purpose": "Nav hover, border color shifts." },
+      { "name": "duration-medium",   "value": "300ms",                         "purpose": "Progress bar fills, card transitions." },
+      { "name": "duration-slow",     "value": "500ms",                         "purpose": "Progress bar fills on initial load." }
+    ],
+    "breakpoints": [
+      { "name": "md", "value": "768px", "purpose": "Mobile-to-desktop breakpoint. Bottom nav hides; sidebar appears." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary action. Used for form submits, CTA actions.",
+      "html": "<button class=\"ds-btn-primary\">Log Food</button>",
+      "css": ".ds-btn-primary { background: #f97316; color: #0d0c0b; padding: 10px 20px; border-radius: 12px; border: none; font-family: Barlow, sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 150ms cubic-bezier(0.4,0,0.2,1), box-shadow 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-primary:hover { background: #ea6c12; box-shadow: 0 0 24px rgba(249,115,22,0.25); } .ds-btn-primary:focus-visible { outline: 2px solid #f97316; outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.3; pointer-events: none; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action. Used for cancel, navigate-back, destructive confirmation.",
+      "html": "<button class=\"ds-btn-ghost\">Cancel</button>",
+      "css": ".ds-btn-ghost { background: transparent; color: #ccc4bc; padding: 10px 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.10); font-family: Barlow, sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-ghost:hover { background: #454038; } .ds-btn-ghost:focus-visible { outline: 2px solid #f97316; outline-offset: 2px; }"
+    },
+    {
+      "name": "Data Card",
+      "kind": "card",
+      "refersTo": "card-default",
+      "description": "The primary content container. Wraps all metric groupings.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-header\"><span class=\"ds-card-label\">Recovery</span><div class=\"ds-card-icon\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#f97316\" stroke-width=\"2\"><path d=\"M13 2L3 14h9l-1 8 10-12h-9l1-8z\"/></svg></div></div><p class=\"ds-card-metric\">87<span class=\"ds-card-unit\">%</span></p></div>",
+      "css": ".ds-card { background: #38302a; border: 1px solid rgba(255,255,255,0.10); border-radius: 17px; padding: 16px; transition: border-color 200ms cubic-bezier(0.4,0,0.2,1); } .ds-card:hover { border-color: rgba(255,255,255,0.20); } .ds-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; } .ds-card-label { font-family: Barlow, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #ccc4bc; } .ds-card-icon { width: 28px; height: 28px; border-radius: 8px; background: rgba(249,115,22,0.10); display: flex; align-items: center; justify-content: center; } .ds-card-metric { font-family: \"Barlow Condensed\", Barlow, sans-serif; font-size: 30px; font-weight: 700; line-height: 1; color: #f97316; } .ds-card-unit { font-family: Barlow, sans-serif; font-size: 10px; font-weight: 700; color: #ccc4bc; margin-left: 2px; vertical-align: baseline; }"
+    },
+    {
+      "name": "Progress Bar",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Linear progress indicator. Orange when incomplete, green when target met.",
+      "html": "<div class=\"ds-progress\"><div class=\"ds-progress-fill\" style=\"width: 73%\"></div></div>",
+      "css": ".ds-progress { width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 9999px; overflow: hidden; } .ds-progress-fill { height: 100%; border-radius: 9999px; background: #f97316; transition: width 500ms cubic-bezier(0.4,0,0.2,1); } .ds-progress-fill.complete { background: #22c55e; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-green",
+      "description": "Semantic state pill. Green/Yellow/Red for recovery zone; Orange for primary context.",
+      "html": "<span class=\"ds-badge ds-badge-green\">Green</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-family: Barlow, sans-serif; font-size: 10px; font-weight: 700; border: 1px solid; } .ds-badge-green { background: rgba(34,197,94,0.15); color: #22c55e; border-color: rgba(34,197,94,0.30); } .ds-badge-orange { background: rgba(249,115,22,0.15); color: #f97316; border-color: rgba(249,115,22,0.30); } .ds-badge-yellow { background: rgba(234,179,8,0.15); color: #eab308; border-color: rgba(234,179,8,0.30); } .ds-badge-red { background: rgba(255,107,107,0.15); color: #ff6b6b; border-color: rgba(255,107,107,0.30); }"
+    },
+    {
+      "name": "Nav Item (Active)",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Active navigation state — sidebar and bottom tab.",
+      "html": "<a class=\"ds-nav-item ds-nav-item-active\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\"><path d=\"M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/></svg><span>Today</span></a>",
+      "css": ".ds-nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; font-family: Barlow, sans-serif; font-size: 14px; font-weight: 500; text-decoration: none; transition: color 150ms, background 150ms; } .ds-nav-item-active { background: rgba(249,115,22,0.15); color: #f97316; } .ds-nav-item:not(.ds-nav-item-active) { color: rgba(245,240,235,0.40); } .ds-nav-item:not(.ds-nav-item-active):hover { color: rgba(245,240,235,0.80); background: rgba(255,255,255,0.05); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Performance Lab",
+    "overview": "Apex is instrumentation, not an application. Every screen exists to surface one answer fast: what does my body need right now? The aesthetic is clinical but not cold — warm-toned materials (brown, bone, amber) stand in for the stainless steel of an actual lab. Numbers are the primary design element; spacing, typography, and hierarchy exist only to make them scannable in under two seconds.\n\nThe system rejects everything that dilutes signal: no background illustrations, no achievement iconography, no encouraging microcopy that restates what the data already says. Information density is a feature, not a problem to solve. Cards are grouping devices, not decorative containers. Glow is reserved for live state and alert, never ornament.\n\nThis is a tool for one person who understands what HRV, strain, and sleep performance mean. It does not explain. It does not celebrate. It reports.",
+    "keyCharacteristics": [
+      "Warm-brown dark palette grounded by a single orange accent at ≤15% surface coverage",
+      "Condensed bold numerals (Barlow Condensed 700) as the dominant visual element",
+      "Flat tonal layering for depth; no drop shadows",
+      "Uppercase micro-labels (10px, 700 weight, tracked wide) as the taxonomic layer",
+      "All interactive elements navigate to detail; the dashboard surface never expands inline"
+    ],
+    "rules": [
+      { "name": "The One Accent Rule",          "body": "Signal Orange is the only non-semantic color on any given screen. Its scarcity is the signal.",                           "section": "colors" },
+      { "name": "The Warm-Only Rule",           "body": "Every neutral is brown-shifted. Cool greys (zinc, slate) are prohibited.",                                              "section": "colors" },
+      { "name": "The Condensed-for-Numbers Rule","body": "Every numeric value ≥1.5rem uses Barlow Condensed 700. Barlow regular is for prose.",                                 "section": "typography" },
+      { "name": "The Scale Gap Rule",           "body": "Labels (10px) and body (14px) have a 1.4× step. Headline (30px) and body (14px) have a 2.1× step. A flat scale is prohibited.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule",     "body": "No surface has a shadow at rest. Shadow appears only as an interaction response or semantic alert.",                     "section": "elevation" }
+    ],
+    "dos": [
+      "Do use Barlow Condensed 700 for every numeric value ≥1.5rem.",
+      "Do keep cards flat: bg-card border border-border rounded-2xl p-4.",
+      "Do use semantic colors only for their defined meaning.",
+      "Do use uppercase micro-labels (10px, 700, tracking-wide) for card category headings.",
+      "Do express hover states through border opacity shift and accent glow on primary elements.",
+      "Do use text-muted-foreground, bg-muted, bg-card, border-border Tailwind tokens.",
+      "Do honor prefers-reduced-motion."
+    ],
+    "donts": [
+      "Don't introduce dense sidebar nav overload. Maximum five nav items.",
+      "Don't add achievement badges, streak counters, gamification iconography, or motivational filler copy.",
+      "Don't show twelve metrics per screen with no hierarchy.",
+      "Don't use cool greys (zinc-*, slate-* Tailwind utilities).",
+      "Don't use gradient text (background-clip: text).",
+      "Don't use side-stripe borders (border-left > 1px as a colored accent).",
+      "Don't build nested cards.",
+      "Don't use violet, purple, or blue as decorative accents.",
+      "Don't add blur-based glassmorphism decoratively.",
+      "Don't use the hero-metric template (big number, gradient accent, supporting stats ring)."
+    ]
+  }
+}

@@ -41,7 +41,7 @@ const QUALITY_COLORS: Record<string, string> = {
   Fair: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20',
   Poor: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
   Rough: 'text-red-400 bg-red-500/10 border-red-500/20',
-  'No Data': 'text-zinc-500 bg-zinc-500/10 border-zinc-500/20',
+  'No Data': 'text-muted-foreground bg-muted border-border',
 }
 
 const FLAG_COLORS: Record<DayFlag, string> = {
@@ -51,13 +51,13 @@ const FLAG_COLORS: Record<DayFlag, string> = {
   low_recovery: 'text-red-400 bg-red-500/10',
   skipped_training: 'text-yellow-400 bg-yellow-500/10',
   low_steps: 'text-sky-400 bg-sky-500/10',
-  no_data: 'text-zinc-500 bg-zinc-500/10',
+  no_data: 'text-muted-foreground bg-muted',
 }
 
 function TrendIcon({ trend }: { trend: string }) {
   if (trend === 'improving') return <TrendingUp size={11} className="text-green-400" />
   if (trend === 'declining') return <TrendingDown size={11} className="text-red-400" />
-  return <Minus size={11} className="text-zinc-500" />
+  return <Minus size={11} className="text-muted-foreground" />
 }
 
 export function MorningIntelligenceCard() {
@@ -123,7 +123,7 @@ export function MorningIntelligenceCard() {
 
   if (loading) {
     return (
-      <div className="bg-card border border-border rounded-2xl px-4 py-3 flex items-center gap-2.5 text-zinc-600">
+      <div className="bg-card border border-border rounded-2xl px-4 py-3 flex items-center gap-2.5 text-muted-foreground/40">
         <Loader2 size={13} className="animate-spin shrink-0" />
         <span className="text-xs">Loading morning check-in…</span>
       </div>
@@ -145,12 +145,12 @@ export function MorningIntelligenceCard() {
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Sunrise size={12} style={{ color: toneConfig.accent }} />
-          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Morning Check-in</span>
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Morning Check-in</span>
           <span className={`text-[10px] font-bold ${toneConfig.labelColor} ml-1`}>{toneConfig.label}</span>
         </div>
         <button
           onClick={handleDismiss}
-          className="text-zinc-600 hover:text-zinc-400 transition-colors"
+          className="text-muted-foreground/40 hover:text-muted-foreground transition-colors"
           aria-label="Dismiss"
         >
           <X size={13} />
@@ -159,11 +159,11 @@ export function MorningIntelligenceCard() {
 
       <div className="px-4 pt-3 pb-4 space-y-3">
         {/* AI message */}
-        <p className="text-sm text-zinc-200 leading-relaxed">{data.message}</p>
+        <p className="text-sm text-foreground/90 leading-relaxed">{data.message}</p>
 
         {/* Yesterday summary row */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">Yesterday</span>
+          <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest">Yesterday</span>
           {data.yesterday_score !== null && (
             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${qualityClass}`}>
               {data.yesterday_score}/100 · {data.yesterday_quality}
@@ -186,7 +186,7 @@ export function MorningIntelligenceCard() {
               const h = d.score !== null ? Math.max(4, Math.round((d.score / 100) * 28)) : 4
               const isYesterday = d.date === data.day_scores[0]?.date
               const barColor =
-                d.score === null ? 'bg-zinc-800' :
+                d.score === null ? 'bg-muted' :
                 d.score >= 85 ? 'bg-green-500/70' :
                 d.score >= 70 ? 'bg-lime-500/70' :
                 d.score >= 50 ? 'bg-yellow-500/70' :
@@ -210,9 +210,9 @@ export function MorningIntelligenceCard() {
 
         {/* Week avg + trend */}
         {(data.week_weighted_avg !== null || data.week_trend !== 'insufficient_data') && (
-          <div className="flex items-center gap-3 text-[10px] text-zinc-600">
+          <div className="flex items-center gap-3 text-[10px] text-muted-foreground/60">
             {data.week_weighted_avg !== null && (
-              <span>7-day avg <span className="text-zinc-400 font-semibold">{data.week_weighted_avg}</span></span>
+              <span>7-day avg <span className="text-muted-foreground font-semibold">{data.week_weighted_avg}</span></span>
             )}
             {data.week_trend !== 'insufficient_data' && (
               <span className="flex items-center gap-1">
@@ -226,7 +226,7 @@ export function MorningIntelligenceCard() {
         {/* Recovery actions */}
         {data.recovery_actions.length > 0 && (
           <div className="space-y-1.5 pt-0.5">
-            <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Today&apos;s focus</span>
+            <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">Today&apos;s focus</span>
             {data.recovery_actions.map((action, i) => (
               <div key={i} className="flex items-center gap-2">
                 <div
@@ -235,7 +235,7 @@ export function MorningIntelligenceCard() {
                 >
                   <span className="text-[8px] font-bold" style={{ color: toneConfig.accent }}>{i + 1}</span>
                 </div>
-                <span className="text-xs text-zinc-300">{action}</span>
+                <span className="text-xs text-foreground/80">{action}</span>
               </div>
             ))}
           </div>
