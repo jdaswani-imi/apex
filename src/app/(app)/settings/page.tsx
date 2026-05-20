@@ -19,6 +19,9 @@ export default function SettingsPage() {
   const [baselines, setBaselines] = useState<Record<string, unknown>[]>([])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [calculatingMacros, setCalculatingMacros] = useState(false)
+  const [pendingMacros, setPendingMacros] = useState<{ calories: number; protein_g: number; carbs_g: number; fats_g: number; explanation: string } | null>(null)
+  const [preMacros, setPreMacros] = useState<{ calories: unknown; protein_g: unknown } | null>(null)
   const [whoopConnected, setWhoopConnected] = useState(false)
   const [cycles, setCycles] = useState<Record<string, unknown>[]>([])
   const [newCycle, setNewCycle] = useState({ period_start_date: '', period_end_date: '', cycle_length_days: 28, notes: '' })
@@ -76,6 +79,34 @@ export default function SettingsPage() {
     setTimeout(() => setSaved(false), 2000)
   }
 
+  async function calculateMacros() {
+    setCalculatingMacros(true)
+    setPendingMacros(null)
+    try {
+      const res = await fetch('/api/ai/calculate-macros', { method: 'POST' })
+      const data = await res.json() as { calories?: number; protein_g?: number; carbs_g?: number; fats_g?: number; explanation?: string; error?: string }
+      if (data.error || !data.calories) return
+      setPreMacros({ calories: goals?.daily_calorie_target ?? null, protein_g: goals?.daily_protein_target_g ?? null })
+      setGoals(prev => ({ ...prev, daily_calorie_target: data.calories, daily_protein_target_g: data.protein_g }))
+      setPendingMacros({ calories: data.calories!, protein_g: data.protein_g!, carbs_g: data.carbs_g!, fats_g: data.fats_g!, explanation: data.explanation! })
+    } finally {
+      setCalculatingMacros(false)
+    }
+  }
+
+  function discardMacros() {
+    setGoals(prev => ({ ...prev, daily_calorie_target: preMacros?.calories, daily_protein_target_g: preMacros?.protein_g }))
+    setPendingMacros(null)
+    setPreMacros(null)
+  }
+
+  async function acceptMacros() {
+    if (!goals) return
+    await save('user_goals', goals)
+    setPendingMacros(null)
+    setPreMacros(null)
+  }
+
   async function saveSupplement(supp: Record<string, unknown>) {
     setSaving(true)
     await fetch('/api/settings/supplement', {
@@ -122,7 +153,7 @@ export default function SettingsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {/* Complete Profile */}
           <a
-            href="/onboarding"
+            href="/onboarding?edit=true"
             style={{
               display: 'flex', alignItems: 'center', gap: '14px',
               backgroundColor: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)',
@@ -325,7 +356,70 @@ export default function SettingsPage() {
               />
             </div>
           ))}
-          {saveBtn('user_goals', goals)}
+          {/* AI macro calculator */}
+          <div style={{ marginBottom: '16px' }}>
+            <button
+              onClick={calculateMacros}
+              disabled={calculatingMacros || !!pendingMacros}
+              style={{
+                width: '100%', backgroundColor: 'rgba(249,115,22,0.1)',
+                color: '#f97316', fontWeight: 600, padding: '12px',
+                borderRadius: '12px', border: '1px solid rgba(249,115,22,0.25)',
+                cursor: (calculatingMacros || !!pendingMacros) ? 'not-allowed' : 'pointer', fontSize: '14px',
+                opacity: (calculatingMacros || !!pendingMacros) ? 0.5 : 1,
+              }}
+            >
+              {calculatingMacros ? 'Calculating...' : '✦ Calculate with AI'}
+            </button>
+            {pendingMacros && (
+              <div style={{
+                marginTop: '12px', padding: '14px',
+                backgroundColor: 'rgba(249,115,22,0.06)',
+                border: '1px solid rgba(249,115,22,0.2)',
+                borderRadius: '12px',
+              }}>
+                <div style={{ fontSize: '12px', color: '#f97316', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>AI Recommendation</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                  {[
+                    { label: 'Calories', value: pendingMacros.calories },
+                    { label: 'Protein', value: `${pendingMacros.protein_g}g` },
+                    { label: 'Carbs', value: `${pendingMacros.carbs_g}g` },
+                    { label: 'Fats', value: `${pendingMacros.fats_g}g` },
+                  ].map(({ label, value }) => (
+                    <div key={label} style={{ backgroundColor: 'rgba(249,115,22,0.08)', borderRadius: '8px', padding: '8px 10px' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--muted-foreground)', marginBottom: '2px' }}>{label}</div>
+                      <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--foreground)' }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--muted-foreground)', lineHeight: '1.5', marginBottom: '12px' }}>{pendingMacros.explanation}</p>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={acceptMacros}
+                    disabled={saving}
+                    style={{
+                      flex: 1, backgroundColor: '#f97316', color: '#fff',
+                      fontWeight: 600, padding: '10px', borderRadius: '10px',
+                      border: 'none', cursor: 'pointer', fontSize: '14px',
+                    }}
+                  >
+                    {saving ? 'Saving...' : 'Save these numbers'}
+                  </button>
+                  <button
+                    onClick={discardMacros}
+                    style={{
+                      flex: 1, backgroundColor: 'var(--card)', color: 'var(--muted-foreground)',
+                      fontWeight: 600, padding: '10px', borderRadius: '10px',
+                      border: '1px solid var(--border)', cursor: 'pointer', fontSize: '14px',
+                    }}
+                  >
+                    Discard
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          {!pendingMacros && saveBtn('user_goals', goals)}
         </div>
       )}
 

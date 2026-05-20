@@ -28,16 +28,16 @@ interface StepMeta {
 
 const STEPS: StepMeta[] = [
   { id: 'welcome',     label: 'Welcome',               icon: null,              color: '#f97316', section: null },
-  { id: 'interests',   label: 'Your Priorities',       icon: Star,              color: '#f97316', section: 'interests' },
   { id: 'physical',   label: 'Physical Profile',       icon: User,              color: '#f97316', section: 'physical' },
+  { id: 'interests',   label: 'Your Priorities',       icon: Star,              color: '#f97316', section: 'interests' },
   { id: 'lifestyle',  label: 'Lifestyle & Schedule',   icon: Calendar,          color: '#8b5cf6', section: 'lifestyle_ext' },
   { id: 'training',   label: 'Training & Gym',         icon: Dumbbell,          color: '#3b82f6', section: 'training_ext' },
   { id: 'nutrition',  label: 'Nutrition & Diet',       icon: UtensilsCrossed,   color: '#10b981', section: 'nutrition_ext' },
-  { id: 'supplements',label: 'Supplements',            icon: Pill,              color: '#f59e0b', section: 'supplements_ext' },
+  { id: 'mental',     label: 'Mental & Stress',        icon: Brain,             color: '#f43f5e', section: 'mental' },
   { id: 'sleep',      label: 'Sleep & Recovery',       icon: Moon,              color: '#6366f1', section: 'sleep_ext' },
+  { id: 'supplements',label: 'Supplements',            icon: Pill,              color: '#f59e0b', section: 'supplements_ext' },
   { id: 'skincare',   label: 'Skincare',               icon: Sparkles,          color: '#ec4899', section: 'skincare' },
   { id: 'hair',       label: 'Hair',                   icon: Wind,              color: '#14b8a6', section: 'hair' },
-  { id: 'mental',     label: 'Mental & Stress',        icon: Brain,             color: '#f43f5e', section: 'mental' },
   { id: 'travel',     label: 'Travel & Social',        icon: Plane,             color: '#06b6d4', section: 'travel' },
   { id: 'tech',       label: 'Tech & Wearables',       icon: Cpu,               color: '#84cc16', section: 'tech_prefs' },
   { id: 'coaching',   label: 'Coaching Preferences',   icon: Target,            color: '#f97316', section: 'coaching' },
@@ -972,7 +972,19 @@ function LifestyleStep({ data, set }: { data: StepData; set: StepSetter }) {
   )
 }
 
-function TrainingStep({ data, set }: { data: StepData; set: StepSetter }) {
+const GOAL_SESSION_MAP: Record<string, number> = {
+  'Fat Loss': 4,
+  'Muscle Gain': 5,
+  'Recomposition': 4,
+  'Performance': 5,
+  'General Health': 3,
+}
+
+function TrainingStep({ data, set, physicalData, lifestyleData }: {
+  data: StepData; set: StepSetter; physicalData?: StepData; lifestyleData?: StepData
+}) {
+  const [showScheduleSuggestion, setShowScheduleSuggestion] = useState(false)
+
   // Auto-sync sessions_per_week when training days are selected
   useEffect(() => {
     const days: string[] = data.training_days ?? []
@@ -997,6 +1009,29 @@ function TrainingStep({ data, set }: { data: StepData; set: StepSetter }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.training_experience])
 
+  // Compute schedule suggestion from goal + lifestyle
+  const goal = physicalData?.primary_goal as string | undefined
+  const commitments: EveningCommitment[] = (lifestyleData?.evening_commitments_list as EveningCommitment[] | undefined) ?? []
+  const busyDays = new Set(commitments.flatMap(c => c.days ?? []))
+  const ALL_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  const suggestedCount = goal ? (GOAL_SESSION_MAP[goal] ?? 4) : 4
+  const freeDays = ALL_DAYS.filter(d => !busyDays.has(d))
+  const scheduledDays: string[] = []
+  // Fill from free days first, then busy if needed, spreading through the week
+  const pool = [...freeDays, ...ALL_DAYS.filter(d => busyDays.has(d))]
+  // Prefer a spread pattern: avoid consecutive rest days gap > 2
+  for (const d of pool) {
+    if (scheduledDays.length >= suggestedCount) break
+    scheduledDays.push(d)
+  }
+  const hasScheduleContext = !!goal
+
+  function applyScheduleSuggestion() {
+    set('sessions_per_week', suggestedCount)
+    set('training_days', scheduledDays)
+    setShowScheduleSuggestion(false)
+  }
+
   const sportsOptions = [
     'Football', 'Cricket', 'Basketball', 'Tennis', 'Padel', 'Golf', 'Swimming',
     'Cycling', 'Running', 'Martial Arts', 'Boxing', 'Yoga', 'Pilates', 'Dance',
@@ -1015,6 +1050,57 @@ function TrainingStep({ data, set }: { data: StepData; set: StepSetter }) {
 
   return (
     <>
+      {hasScheduleContext && (
+        <div style={{ marginBottom: '24px' }}>
+          {!showScheduleSuggestion ? (
+            <button
+              onClick={() => setShowScheduleSuggestion(true)}
+              style={{
+                width: '100%', backgroundColor: 'rgba(59,130,246,0.08)',
+                border: '1px solid rgba(59,130,246,0.25)', borderRadius: '12px',
+                padding: '12px 16px', cursor: 'pointer', textAlign: 'left',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#60a5fa' }}>✦ Suggest my training schedule</div>
+                <div style={{ fontSize: '11px', color: '#52525b', marginTop: '2px' }}>Based on your {goal} goal{busyDays.size > 0 ? ' and your weekly commitments' : ''}</div>
+              </div>
+              <ChevronRight size={16} color="#60a5fa" />
+            </button>
+          ) : (
+            <div style={{
+              backgroundColor: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)',
+              borderRadius: '14px', padding: '16px',
+            }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#60a5fa', marginBottom: '12px' }}>Suggested schedule</div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                {scheduledDays.map(d => (
+                  <span key={d} style={{
+                    padding: '4px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+                    backgroundColor: 'rgba(59,130,246,0.15)', color: '#93c5fd',
+                  }}>{d}</span>
+                ))}
+              </div>
+              <p style={{ fontSize: '12px', color: '#71717a', lineHeight: 1.5, marginBottom: '12px' }}>
+                {suggestedCount} sessions/week for {goal?.toLowerCase() ?? 'your goal'}{busyDays.size > 0 ? `, avoiding your ${[...busyDays].join(', ')} commitments` : ''}.
+              </p>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={applyScheduleSuggestion} style={{
+                  flex: 2, padding: '10px', borderRadius: '10px', border: 'none',
+                  backgroundColor: '#3b82f6', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+                }}>Apply this schedule</button>
+                <button onClick={() => setShowScheduleSuggestion(false)} style={{
+                  flex: 1, padding: '10px', borderRadius: '10px',
+                  backgroundColor: 'transparent', border: '1px solid #27272a',
+                  color: '#52525b', fontSize: '13px', cursor: 'pointer',
+                }}>Dismiss</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <Field label="How long have you been training?">
         <Chips
           options={['< 1 year', '1–2 years', '2–5 years', '5–10 years', '10+ years']}
@@ -1140,8 +1226,45 @@ function TrainingStep({ data, set }: { data: StepData; set: StepSetter }) {
   )
 }
 
-function NutritionStep({ data, set, lifestyleData }: { data: StepData; set: StepSetter; lifestyleData?: StepData }) {
+function NutritionStep({ data, set, lifestyleData, physicalData, trainingData, whoopData }: {
+  data: StepData; set: StepSetter; lifestyleData?: StepData; physicalData?: StepData; trainingData?: StepData; whoopData?: WhoopContext | null
+}) {
   const dietType = data.diet_type ?? ''
+  const [macroCard, setMacroCard] = useState<MacroResult | null>(null)
+  const [macroLoading, setMacroLoading] = useState(false)
+  const [macroApplied, setMacroApplied] = useState(false)
+
+  const goal = physicalData?.primary_goal as string | undefined
+  const hasEnoughForMacros = !!(physicalData?.current_weight_kg && physicalData?.height_cm && physicalData?.age)
+
+  async function calculateMacros() {
+    setMacroLoading(true)
+    setMacroCard(null)
+    try {
+      const res = await fetch('/api/ai/calculate-macros', { method: 'POST' })
+      const d = await res.json() as MacroResult & { error?: string }
+      if (!d.error) setMacroCard(d)
+    } finally {
+      setMacroLoading(false)
+    }
+  }
+
+  async function applyMacros() {
+    if (!macroCard) return
+    await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table: 'user_goals', data: { daily_calorie_target: macroCard.calories, daily_protein_target_g: macroCard.protein_g } }),
+    })
+    // Auto-fill water based on weight
+    const weightKg = physicalData?.current_weight_kg as number | undefined
+    if (weightKg && !(data.water_liters)) {
+      const sessions = (trainingData?.sessions_per_week as number | undefined) ?? 0
+      set('water_liters', Math.round((weightKg * 0.033 + sessions * 0.5) * 2) / 2)
+    }
+    setMacroApplied(true)
+    setMacroCard(null)
+  }
 
   // Auto-fill caffeine cutoff based on target bedtime (6 hrs before sleep)
   useEffect(() => {
@@ -1326,6 +1449,77 @@ function NutritionStep({ data, set, lifestyleData }: { data: StepData; set: Step
         />
       </Field>
 
+      {/* AI macro + water calculator */}
+      {hasEnoughForMacros && (
+        <div style={{ marginBottom: '24px' }}>
+          {!macroCard && !macroApplied && (
+            <button
+              onClick={calculateMacros}
+              disabled={macroLoading}
+              style={{
+                width: '100%', backgroundColor: 'rgba(16,185,129,0.08)',
+                border: '1px solid rgba(16,185,129,0.25)', borderRadius: '12px',
+                padding: '12px 16px', cursor: macroLoading ? 'not-allowed' : 'pointer',
+                textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                opacity: macroLoading ? 0.7 : 1,
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#34d399' }}>
+                  {macroLoading ? 'Calculating…' : '✦ Calculate my calorie & macro targets'}
+                </div>
+                <div style={{ fontSize: '11px', color: '#52525b', marginTop: '2px' }}>
+                  Uses your {goal ? `${goal} goal` : 'goal'}, weight, training load{whoopData?.avgKilojoules ? ' + WHOOP energy data' : ''}
+                </div>
+              </div>
+              {!macroLoading && <ChevronRight size={16} color="#34d399" />}
+            </button>
+          )}
+          {macroApplied && (
+            <div style={{
+              backgroundColor: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)',
+              borderRadius: '12px', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '8px',
+            }}>
+              <Check size={14} color="#34d399" />
+              <span style={{ fontSize: '13px', color: '#34d399', fontWeight: 600 }}>Targets saved to your goals</span>
+            </div>
+          )}
+          {macroCard && (
+            <div style={{
+              backgroundColor: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)',
+              borderRadius: '14px', padding: '16px',
+            }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#34d399', marginBottom: '12px' }}>AI Recommendation</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                {[
+                  { label: 'Calories', value: String(macroCard.calories) },
+                  { label: 'Protein', value: `${macroCard.protein_g}g` },
+                  { label: 'Carbs', value: `${macroCard.carbs_g}g` },
+                  { label: 'Fats', value: `${macroCard.fats_g}g` },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ backgroundColor: '#181818', borderRadius: '10px', padding: '10px 12px' }}>
+                    <div style={{ fontSize: '11px', color: '#52525b', marginBottom: '2px' }}>{label}</div>
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#fff' }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: '12px', color: '#71717a', lineHeight: 1.6, marginBottom: '12px' }}>{macroCard.explanation}</p>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={applyMacros} style={{
+                  flex: 2, padding: '10px', borderRadius: '10px', border: 'none',
+                  backgroundColor: '#10b981', color: '#000', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+                }}>Apply targets</button>
+                <button onClick={() => setMacroCard(null)} style={{
+                  flex: 1, padding: '10px', borderRadius: '10px',
+                  backgroundColor: 'transparent', border: '1px solid #27272a',
+                  color: '#52525b', fontSize: '13px', cursor: 'pointer',
+                }}>Skip</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <Field label="Daily water intake">
         <Stepper value={data.water_liters ?? 2} onChange={v => set('water_liters', v)} min={0} max={8} step={1} suffix="L" />
       </Field>
@@ -1336,7 +1530,9 @@ function NutritionStep({ data, set, lifestyleData }: { data: StepData; set: Step
   )
 }
 
-function SupplementsStep({ data, set }: { data: StepData; set: StepSetter }) {
+function SupplementsStep({ data, set, physicalData, nutritionData, sleepData, mentalData, trainingData }: {
+  data: StepData; set: StepSetter; physicalData?: StepData; nutritionData?: StepData; sleepData?: StepData; mentalData?: StepData; trainingData?: StepData
+}) {
   // Auto-add supplements matched to known deficiencies
   useEffect(() => {
     const deficiencyMap: Record<string, string> = {
@@ -1355,6 +1551,64 @@ function SupplementsStep({ data, set }: { data: StepData; set: StepSetter }) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.deficiencies_list])
+
+  // Build smart suggestions with reasons based on all prior context
+  const goal = physicalData?.primary_goal as string | undefined
+  const sex = physicalData?.sex as string | undefined
+  const dietType = nutritionData?.diet_type as string | undefined
+  const sleepIssues: string[] = (sleepData?.sleep_issues as string[] | undefined) ?? []
+  const sleepQuality = sleepData?.quality_rating as number | undefined
+  const stress = mentalData?.work_stress as number | undefined
+  const sessions = trainingData?.sessions_per_week as number | undefined
+  const preferredTime = trainingData?.preferred_time as string | undefined
+
+  const isVegetarianOrVegan = dietType === 'Vegetarian' || dietType === 'Vegan'
+  const isVegan = dietType === 'Vegan'
+  const hasSleepIssues = sleepIssues.some(i => ['Hard to fall asleep', 'Wake up during night', 'Wake unrefreshed'].includes(i))
+  const poorSleep = (sleepQuality !== undefined && sleepQuality < 6) || hasSleepIssues
+  const highStress = stress !== undefined && stress >= 7
+  const isMuscleOrPerf = goal === 'Muscle Gain' || goal === 'Performance'
+  const trainsFrequently = sessions !== undefined && sessions >= 4
+  const morningTrainer = preferredTime === 'Morning'
+
+  const budgetTier = data.budget as string | undefined
+  const lowBudget = budgetTier === '< $50'
+
+  interface SmartSuggestion { name: string; reason: string; priority: number }
+  const suggestions: SmartSuggestion[] = []
+
+  if (isMuscleOrPerf || trainsFrequently)
+    suggestions.push({ name: 'Creatine', reason: `${goal ?? 'Training'} goal — most evidence-backed supplement for muscle output`, priority: 1 })
+  if (isVegetarianOrVegan)
+    suggestions.push({ name: 'Omega-3 / Fish oil', reason: 'No oily fish in your diet — essential for inflammation and brain health', priority: 2 })
+  if (isVegan)
+    suggestions.push({ name: 'Vitamin D3', reason: 'Vegan diet has no dietary D3 sources', priority: 1 })
+  if (isVegan && sex === 'Female')
+    suggestions.push({ name: 'Magnesium glycinate', reason: 'Vegan women commonly under-consume magnesium', priority: 2 })
+  if (poorSleep || hasSleepIssues)
+    suggestions.push({ name: 'Magnesium glycinate', reason: sleepIssues.includes('Hard to fall asleep') ? 'Helps with sleep onset — matches your reported issues' : 'Poor sleep quality — magnesium supports deeper sleep', priority: 1 })
+  if (sleepIssues.includes('Hard to fall asleep') && (sleepQuality ?? 10) < 6)
+    suggestions.push({ name: 'Melatonin', reason: 'Hard to fall asleep + low sleep quality — short-term onset support', priority: 2 })
+  if (highStress)
+    suggestions.push({ name: 'Ashwagandha', reason: `Stress level ${stress}/10 — ashwagandha is clinically shown to reduce cortisol`, priority: 2 })
+  if (morningTrainer && trainsFrequently)
+    suggestions.push({ name: 'Caffeine / pre-workout', reason: 'Morning training sessions — supports energy and output', priority: 3 })
+  if (goal === 'Fat Loss' && !isVegetarianOrVegan)
+    suggestions.push({ name: 'Omega-3 / Fish oil', reason: 'Supports fat oxidation and appetite regulation during a cut', priority: 3 })
+
+  // Deduplicate and sort by priority
+  const seen = new Set<string>()
+  const dedupedSuggestions = suggestions.filter(s => { if (seen.has(s.name)) return false; seen.add(s.name); return true })
+  const cappedSuggestions = lowBudget ? dedupedSuggestions.slice(0, 3) : dedupedSuggestions
+
+  // Auto-apply suggestions not already in considering_list on first load
+  useEffect(() => {
+    if (cappedSuggestions.length === 0) return
+    const current: string[] = data.considering_list ?? []
+    const toAdd = cappedSuggestions.map(s => s.name).filter(n => !current.includes(n))
+    if (toAdd.length > 0) set('considering_list', [...current, ...toAdd])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goal, dietType, sleepIssues.join(), stress, sessions, preferredTime])
 
   const consideringOptions = [
     'Creatine', 'Whey protein', 'Collagen', 'Omega-3 / Fish oil', 'Vitamin D3',
@@ -1377,6 +1631,35 @@ function SupplementsStep({ data, set }: { data: StepData; set: StepSetter }) {
 
   return (
     <>
+      {cappedSuggestions.length > 0 && (
+        <div style={{
+          backgroundColor: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)',
+          borderRadius: '14px', padding: '16px', marginBottom: '20px',
+        }}>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: '#fbbf24', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Suggested for you
+          </div>
+          {cappedSuggestions.map(s => (
+            <div key={s.name} style={{
+              display: 'flex', alignItems: 'flex-start', gap: '10px',
+              padding: '8px 0', borderBottom: '1px solid #1a1a1a',
+            }}>
+              <div style={{
+                width: '6px', height: '6px', borderRadius: '50%',
+                backgroundColor: '#f59e0b', marginTop: '5px', flexShrink: 0,
+              }} />
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>{s.name}</div>
+                <div style={{ fontSize: '11px', color: '#71717a', marginTop: '2px', lineHeight: 1.4 }}>{s.reason}</div>
+              </div>
+            </div>
+          ))}
+          <div style={{ fontSize: '11px', color: '#52525b', marginTop: '10px' }}>
+            These have been pre-selected in the list below. You can remove any that don&apos;t apply.
+          </div>
+        </div>
+      )}
+
       <div style={{ backgroundColor: '#111', border: '1px solid #1c1c1c', borderRadius: '16px', padding: '16px', marginBottom: '24px' }}>
         <div style={{ fontSize: '13px', color: '#71717a', lineHeight: '1.6' }}>
           Your supplement stack is managed in <strong style={{ color: '#f97316' }}>Settings → Supplement Stack</strong>. Add your supplements there for daily tracking. Answer the questions below to help the AI coach personalise your recommendations.
@@ -1438,22 +1721,85 @@ function SupplementsStep({ data, set }: { data: StepData; set: StepSetter }) {
   )
 }
 
-function SleepStep({ data, set, lifestyleData }: { data: StepData; set: StepSetter; lifestyleData?: StepData }) {
+interface SleepRoutineResult {
+  target_sleep_hours: number
+  target_bedtime: string
+  presleep_routine: string[]
+  environment_tips: string[]
+  recovery_priority: string[]
+  explanation: string
+}
+
+function SleepStep({ data, set, lifestyleData, physicalData, mentalData, trainingData, whoopData }: {
+  data: StepData; set: StepSetter; lifestyleData?: StepData; physicalData?: StepData; mentalData?: StepData; trainingData?: StepData; whoopData?: WhoopContext | null
+}) {
+  const [routineCard, setRoutineCard] = useState<SleepRoutineResult | null>(null)
+  const [routineLoading, setRoutineLoading] = useState(false)
+  const [routineApplied, setRoutineApplied] = useState(false)
+
   // Auto-suggest avg sleep hours from bedtime + wake times (if still at default 7)
   useEffect(() => {
     const bedtime = lifestyleData?.sleep_target_weeknight
     const wakeTimes = lifestyleData?.wake_times
     if (bedtime && wakeTimes && (data.avg_sleep_hours === undefined || data.avg_sleep_hours === 7)) {
-      const times: string[] = Object.values(wakeTimes)
+      const times: string[] = Object.values(wakeTimes as Record<string, string>)
       if (times.length > 0) {
         const wake = avgTimeStr(times)
-        const hrs = timeDiffHours(bedtime, wake)
+        const hrs = timeDiffHours(bedtime as string, wake)
         const clamped = Math.round(Math.min(12, Math.max(3, hrs)))
         if (clamped !== 7) set('avg_sleep_hours', clamped)
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lifestyleData?.sleep_target_weeknight, lifestyleData?.wake_times])
+
+  const wakeTimes = lifestyleData?.wake_times as Record<string, string> | undefined
+  const wakeTime = wakeTimes ? avgTimeStr(Object.values(wakeTimes)) : undefined
+  const hasContext = (data.sleep_issues as string[] | undefined)?.length || (data.quality_rating !== undefined) || whoopData?.avgSleepHours
+
+  async function getSleepRoutine() {
+    setRoutineLoading(true)
+    setRoutineCard(null)
+    try {
+      const res = await fetch('/api/ai/sleep-routine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sleep_issues: data.sleep_issues ?? [],
+          quality_rating: data.quality_rating ?? 6,
+          avg_sleep_hours: data.avg_sleep_hours ?? 7,
+          work_stress: mentalData?.work_stress ?? 5,
+          stress_impact: mentalData?.stress_impact ?? [],
+          primary_goal: physicalData?.primary_goal ?? 'General Health',
+          sleep_target_weeknight: lifestyleData?.sleep_target_weeknight,
+          wake_time: wakeTime,
+          training_days: trainingData?.training_days ?? [],
+          env_dark: data.env_dark,
+          env_cool: data.env_cool,
+          whoop_avg_sleep_hours: whoopData?.avgSleepHours ?? null,
+          whoop_avg_sleep_performance: whoopData?.avgSleepPerformance ?? null,
+          whoop_avg_recovery_score: whoopData?.avgRecoveryScore ?? null,
+        }),
+      })
+      const d = await res.json() as SleepRoutineResult & { error?: string }
+      if (!d.error) setRoutineCard(d)
+    } finally {
+      setRoutineLoading(false)
+    }
+  }
+
+  function applyRoutine() {
+    if (!routineCard) return
+    if (routineCard.target_sleep_hours) set('avg_sleep_hours', routineCard.target_sleep_hours)
+    // Pre-select pre-sleep routine items that match the AI suggestions
+    const presleepOptions = ['Phone off 1hr before bed', 'Read a book', 'Stretch / yoga', 'Shower / bath', 'Meditation / breathwork', 'Journaling', 'Dim lights', 'No screens', 'Supplements', 'Light snack / protein', 'Nothing specific']
+    const matched = routineCard.presleep_routine
+      .map(step => presleepOptions.find(o => step.toLowerCase().includes(o.toLowerCase().split(' ')[0])))
+      .filter((o): o is string => !!o)
+    if (matched.length > 0) set('presleep_routine_list', [...new Set([...(data.presleep_routine_list as string[] ?? []), ...matched])])
+    setRoutineApplied(true)
+    setRoutineCard(null)
+  }
 
   const sleepSupplementOptions = [
     'Magnesium glycinate', 'Magnesium threonate', 'Melatonin', 'L-theanine', 'Ashwagandha',
@@ -1469,6 +1815,19 @@ function SleepStep({ data, set, lifestyleData }: { data: StepData; set: StepSett
 
   return (
     <>
+      {whoopData?.avgSleepHours && (
+        <div style={{
+          backgroundColor: '#0d0d0d', border: '1px solid #1e1e1e', borderRadius: '12px',
+          padding: '12px 14px', marginBottom: '20px', fontSize: '12px', color: '#71717a', lineHeight: 1.5,
+        }}>
+          <span style={{ color: '#6366f1', fontWeight: 600 }}>WHOOP data: </span>
+          {whoopData.avgSleepHours.toFixed(1)}h avg sleep
+          {whoopData.avgSleepPerformance ? `, ${Math.round(whoopData.avgSleepPerformance)}% sleep performance` : ''}
+          {whoopData.avgRecoveryScore ? `, ${Math.round(whoopData.avgRecoveryScore)}% avg recovery` : ''}
+          {' '}— used to personalise your sleep protocol.
+        </div>
+      )}
+
       <Field label="Average hours of sleep per night">
         <Stepper value={data.avg_sleep_hours ?? 7} onChange={v => set('avg_sleep_hours', v)} min={3} max={12} suffix=" hrs" />
       </Field>
@@ -1483,6 +1842,86 @@ function SleepStep({ data, set, lifestyleData }: { data: StepData; set: StepSett
           multi
         />
       </Field>
+
+      {/* AI sleep protocol card */}
+      <div style={{ marginBottom: '24px' }}>
+        {!routineCard && !routineApplied && (
+          <button
+            onClick={getSleepRoutine}
+            disabled={routineLoading}
+            style={{
+              width: '100%', backgroundColor: 'rgba(99,102,241,0.08)',
+              border: '1px solid rgba(99,102,241,0.25)', borderRadius: '12px',
+              padding: '12px 16px', cursor: routineLoading ? 'not-allowed' : 'pointer',
+              textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              opacity: routineLoading ? 0.7 : 1,
+            }}
+          >
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#818cf8' }}>
+                {routineLoading ? 'Generating protocol…' : '✦ Build my sleep protocol'}
+              </div>
+              <div style={{ fontSize: '11px', color: '#52525b', marginTop: '2px' }}>
+                Personalised routine based on your issues, stress{whoopData?.avgSleepHours ? ' + WHOOP sleep data' : ''} and goal
+              </div>
+            </div>
+            {!routineLoading && <ChevronRight size={16} color="#818cf8" />}
+          </button>
+        )}
+        {routineApplied && (
+          <div style={{
+            backgroundColor: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)',
+            borderRadius: '12px', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '8px',
+          }}>
+            <Check size={14} color="#818cf8" />
+            <span style={{ fontSize: '13px', color: '#818cf8', fontWeight: 600 }}>Sleep protocol applied</span>
+          </div>
+        )}
+        {routineCard && (
+          <div style={{
+            backgroundColor: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)',
+            borderRadius: '14px', padding: '16px',
+          }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#818cf8', marginBottom: '12px' }}>Your sleep protocol</div>
+            <div style={{ marginBottom: '12px' }}>
+              <div style={{ fontSize: '11px', color: '#52525b', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Target</div>
+              <div style={{ fontSize: '14px', color: '#fff' }}>
+                {routineCard.target_sleep_hours}h sleep · Bedtime {routineCard.target_bedtime}
+              </div>
+            </div>
+            {routineCard.presleep_routine.length > 0 && (
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '11px', color: '#52525b', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pre-sleep routine</div>
+                {routineCard.presleep_routine.map((step, i) => (
+                  <div key={i} style={{ fontSize: '13px', color: '#a1a1aa', padding: '4px 0', borderBottom: '1px solid #1a1a1a' }}>
+                    {i + 1}. {step}
+                  </div>
+                ))}
+              </div>
+            )}
+            {routineCard.environment_tips.length > 0 && (
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '11px', color: '#52525b', marginBottom: '6px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Environment</div>
+                {routineCard.environment_tips.map((tip, i) => (
+                  <div key={i} style={{ fontSize: '13px', color: '#a1a1aa', padding: '3px 0' }}>· {tip}</div>
+                ))}
+              </div>
+            )}
+            <p style={{ fontSize: '12px', color: '#71717a', lineHeight: 1.6, marginBottom: '12px' }}>{routineCard.explanation}</p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={applyRoutine} style={{
+                flex: 2, padding: '10px', borderRadius: '10px', border: 'none',
+                backgroundColor: '#6366f1', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+              }}>Apply protocol</button>
+              <button onClick={() => setRoutineCard(null)} style={{
+                flex: 1, padding: '10px', borderRadius: '10px',
+                backgroundColor: 'transparent', border: '1px solid #27272a',
+                color: '#52525b', fontSize: '13px', cursor: 'pointer',
+              }}>Skip</button>
+            </div>
+          </div>
+        )}
+      </div>
 
       <Field label="What does your pre-sleep routine look like?">
         <Chips
@@ -1679,7 +2118,12 @@ function HairStep({ data, set }: { data: StepData; set: StepSetter }) {
   )
 }
 
-function MentalStep({ data, set }: { data: StepData; set: StepSetter }) {
+function MentalStep({ data, set, physicalData }: { data: StepData; set: StepSetter; physicalData?: StepData }) {
+  const goal = physicalData?.primary_goal as string | undefined
+  const stress = data.work_stress as number | undefined
+  const showCortisolWarning = !!stress && stress >= 7 && (goal === 'Fat Loss' || goal === 'Recomposition')
+  const showRecoveryWarning = !!stress && stress >= 7 && (goal === 'Performance' || goal === 'Muscle Gain')
+
   return (
     <>
       <Field label="Current work stress level" hint="1 = very relaxed, 10 = extremely stressed">
@@ -1713,6 +2157,26 @@ function MentalStep({ data, set }: { data: StepData; set: StepSetter }) {
             onChange={v => set('meditation_frequency', v)}
           />
         </Field>
+      )}
+      {showCortisolWarning && (
+        <div style={{
+          backgroundColor: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.2)',
+          borderRadius: '12px', padding: '12px 14px', marginBottom: '8px',
+          fontSize: '13px', color: '#fda4af', lineHeight: 1.6,
+        }}>
+          <strong style={{ color: '#fb7185' }}>High stress can stall {goal === 'Fat Loss' ? 'fat loss' : 'body recomposition'}.</strong>
+          {' '}Elevated cortisol promotes fat storage and muscle breakdown. Your sleep and recovery sections will include personalised strategies to manage this.
+        </div>
+      )}
+      {showRecoveryWarning && (
+        <div style={{
+          backgroundColor: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.2)',
+          borderRadius: '12px', padding: '12px 14px', marginBottom: '8px',
+          fontSize: '13px', color: '#fda4af', lineHeight: 1.6,
+        }}>
+          <strong style={{ color: '#fb7185' }}>High stress limits training adaptations.</strong>
+          {' '}Chronic stress suppresses recovery hormones and increases injury risk. Prioritising sleep and stress management will compound your {goal?.toLowerCase()} results.
+        </div>
       )}
       <Field label="Overall life satisfaction" hint="1 = struggling, 10 = thriving">
         <RangeSlider value={data.life_satisfaction ?? 6} onChange={v => set('life_satisfaction', v)} min={1} max={10} />
@@ -1954,8 +2418,25 @@ const OPTIONAL_INTEREST_OPTIONS = [
   { id: 'tech',        label: 'Tech & Wearables',     icon: Cpu,      color: '#84cc16' },
 ]
 
-function InterestsStep({ data, set }: { data: StepData; set: StepSetter }) {
+const GOAL_RECOMMENDATIONS: Record<string, string[]> = {
+  'Fat Loss':       ['lifestyle', 'mental', 'sleep'],
+  'Muscle Gain':    ['supplements', 'sleep', 'tech'],
+  'Recomposition':  ['lifestyle', 'supplements', 'sleep', 'mental'],
+  'Performance':    ['sleep', 'mental', 'tech', 'lifestyle'],
+  'General Health': ['lifestyle', 'mental', 'sleep'],
+}
+
+function InterestsStep({ data, set, physicalData }: { data: StepData; set: StepSetter; physicalData?: StepData }) {
   const selected: string[] = (data.focused_sections as string[]) ?? []
+  const goal = physicalData?.primary_goal as string | undefined
+  const recommended = goal ? (GOAL_RECOMMENDATIONS[goal] ?? []) : []
+
+  // Auto-select recommended sections that haven't been touched yet
+  useEffect(() => {
+    if (!goal || selected.length > 0) return
+    set('focused_sections', recommended)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goal])
 
   function toggle(id: string) {
     set('focused_sections', selected.includes(id)
@@ -1965,6 +2446,17 @@ function InterestsStep({ data, set }: { data: StepData; set: StepSetter }) {
 
   return (
     <>
+      {goal && recommended.length > 0 && (
+        <div style={{
+          backgroundColor: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)',
+          borderRadius: '12px', padding: '12px 14px', marginBottom: '20px',
+          fontSize: '13px', color: '#a1a1aa', lineHeight: 1.5,
+        }}>
+          <span style={{ color: '#f97316', fontWeight: 600 }}>Based on your {goal} goal</span>
+          {' '}— we&apos;ve pre-selected the most relevant sections. You can adjust below.
+        </div>
+      )}
+
       {/* Compulsory — locked */}
       <p style={{ fontSize: '11px', color: '#52525b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px' }}>
         Always included
@@ -1994,6 +2486,7 @@ function InterestsStep({ data, set }: { data: StepData; set: StepSetter }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
         {OPTIONAL_INTEREST_OPTIONS.map(({ id, label, icon: Icon, color }) => {
           const active = selected.includes(id)
+          const isRecommended = recommended.includes(id)
           return (
             <button key={id} onClick={() => toggle(id)} style={{
               display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
@@ -2011,6 +2504,16 @@ function InterestsStep({ data, set }: { data: StepData; set: StepSetter }) {
               <span style={{ fontSize: '12px', fontWeight: active ? 600 : 400, color: active ? '#fff' : '#a1a1aa', lineHeight: 1.3 }}>
                 {label}
               </span>
+              {isRecommended && !active && (
+                <div style={{
+                  position: 'absolute', top: '8px', right: '8px',
+                  backgroundColor: 'rgba(249,115,22,0.15)', border: '1px solid rgba(249,115,22,0.3)',
+                  borderRadius: '6px', padding: '2px 6px',
+                  fontSize: '9px', fontWeight: 700, color: '#f97316', letterSpacing: '0.3px',
+                }}>
+                  REC
+                </div>
+              )}
               {active && (
                 <div style={{
                   position: 'absolute', top: '10px', right: '10px',
@@ -2034,23 +2537,31 @@ function InterestsStep({ data, set }: { data: StepData; set: StepSetter }) {
 
 // ─── Step renderer ─────────────────────────────────────────────────────────────
 
-function StepContent({ stepId, data, set, sectionData }: {
+interface WhoopContext {
+  avgKilojoules: number | null
+  avgSleepHours: number | null
+  avgSleepPerformance: number | null
+  avgRecoveryScore: number | null
+}
+
+function StepContent({ stepId, data, set, sectionData, whoopData }: {
   stepId: StepId
   data: StepData
   set: StepSetter
   sectionData: Record<string, StepData>
+  whoopData: WhoopContext | null
 }) {
   switch (stepId) {
-    case 'interests':   return <InterestsStep data={data} set={set} />
+    case 'interests':   return <InterestsStep data={data} set={set} physicalData={sectionData.physical} />
     case 'physical':    return <PhysicalStep data={data} set={set} trainingData={sectionData.training_ext} />
     case 'lifestyle':   return <LifestyleStep data={data} set={set} />
-    case 'training':    return <TrainingStep data={data} set={set} />
-    case 'nutrition':   return <NutritionStep data={data} set={set} lifestyleData={sectionData.lifestyle_ext} />
-    case 'supplements': return <SupplementsStep data={data} set={set} />
-    case 'sleep':       return <SleepStep data={data} set={set} lifestyleData={sectionData.lifestyle_ext} />
+    case 'training':    return <TrainingStep data={data} set={set} physicalData={sectionData.physical} lifestyleData={sectionData.lifestyle_ext} />
+    case 'nutrition':   return <NutritionStep data={data} set={set} lifestyleData={sectionData.lifestyle_ext} physicalData={sectionData.physical} trainingData={sectionData.training_ext} whoopData={whoopData} />
+    case 'mental':      return <MentalStep data={data} set={set} physicalData={sectionData.physical} />
+    case 'sleep':       return <SleepStep data={data} set={set} lifestyleData={sectionData.lifestyle_ext} physicalData={sectionData.physical} mentalData={sectionData.mental} trainingData={sectionData.training_ext} whoopData={whoopData} />
+    case 'supplements': return <SupplementsStep data={data} set={set} physicalData={sectionData.physical} nutritionData={sectionData.nutrition_ext} sleepData={sectionData.sleep_ext} mentalData={sectionData.mental} trainingData={sectionData.training_ext} />
     case 'skincare':    return <SkincareStep data={data} set={set} />
     case 'hair':        return <HairStep data={data} set={set} />
-    case 'mental':      return <MentalStep data={data} set={set} />
     case 'travel':      return <TravelStep data={data} set={set} />
     case 'tech':        return <TechStep data={data} set={set} mentalData={sectionData.mental} />
     case 'coaching':    return <CoachingStep data={data} set={set} />
@@ -2060,7 +2571,16 @@ function StepContent({ stepId, data, set, sectionData }: {
 
 // ─── Done screen ───────────────────────────────────────────────────────────────
 
-function DoneScreen({ sectionData }: { sectionData: Record<string, StepData | undefined> }) {
+interface DoneScreenProps {
+  sectionData: Record<string, StepData | undefined>
+  aiMacros: MacroResult | null
+  aiMacrosLoading: boolean
+  macrosAccepted: boolean
+  onAccept: () => void
+  onDecline: () => void
+}
+
+function DoneScreen({ sectionData, aiMacros, aiMacrosLoading, macrosAccepted, onAccept, onDecline }: DoneScreenProps) {
   function handleDownload() {
     const summary = generateSummary(sectionData)
     const blob = new Blob([summary], { type: 'text/plain' })
@@ -2077,24 +2597,108 @@ function DoneScreen({ sectionData }: { sectionData: Record<string, StepData | un
   return (
     <div style={{
       minHeight: '100dvh', display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center', padding: '40px 28px', textAlign: 'center',
+      alignItems: 'center', justifyContent: 'flex-start', padding: '48px 24px 140px', textAlign: 'center',
     }}>
       <div style={{
         width: '80px', height: '80px', borderRadius: '24px',
         backgroundColor: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '28px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px',
       }}>
         <Check size={36} color="#22c55e" />
       </div>
-      <h1 style={{ fontSize: '32px', fontWeight: 800, color: '#fff', marginBottom: '12px' }}>
+      <h1 style={{ fontSize: '32px', fontWeight: 800, color: '#fff', marginBottom: '10px' }}>
         You&apos;re all set
       </h1>
-      <p style={{ fontSize: '15px', color: '#71717a', lineHeight: 1.7, marginBottom: '16px', maxWidth: '300px' }}>
-        Your profile is saved. Your AI coach now has full context to personalise everything — training, nutrition, recovery, and more.
+      <p style={{ fontSize: '15px', color: '#71717a', lineHeight: 1.7, marginBottom: '8px', maxWidth: '300px' }}>
+        Your profile is saved. Your AI coach now has full context to personalise everything.
       </p>
       <p style={{ fontSize: '13px', color: '#3f3f46', marginBottom: '32px' }}>
         You can update any section anytime from Settings.
       </p>
+
+      {/* AI macro calculation */}
+      <div style={{ width: '100%', maxWidth: '380px', textAlign: 'left', marginBottom: '24px' }}>
+        <div style={{
+          backgroundColor: '#0d0d0d', border: '1px solid #1e1e1e',
+          borderRadius: '16px', padding: '20px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+            <div style={{
+              width: '28px', height: '28px', borderRadius: '8px',
+              backgroundColor: 'rgba(249,115,22,0.15)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <Flame size={14} color="#f97316" />
+            </div>
+            <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>Daily macro targets</span>
+          </div>
+
+          {aiMacrosLoading && (
+            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <div style={{ fontSize: '13px', color: '#52525b' }}>Calculating based on your goals…</div>
+            </div>
+          )}
+
+          {!aiMacrosLoading && !aiMacros && (
+            <div style={{ fontSize: '13px', color: '#52525b', lineHeight: 1.5 }}>
+              Couldn&apos;t calculate — make sure your age, height, weight and target weight are filled in. You can set these manually in Settings.
+            </div>
+          )}
+
+          {!aiMacrosLoading && aiMacros && !macrosAccepted && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                {[
+                  { label: 'Calories', value: String(aiMacros.calories) },
+                  { label: 'Protein', value: `${aiMacros.protein_g}g` },
+                  { label: 'Carbs', value: `${aiMacros.carbs_g}g` },
+                  { label: 'Fats', value: `${aiMacros.fats_g}g` },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ backgroundColor: '#181818', borderRadius: '10px', padding: '10px 12px' }}>
+                    <div style={{ fontSize: '11px', color: '#52525b', marginBottom: '2px' }}>{label}</div>
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#fff' }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: '12px', color: '#71717a', lineHeight: 1.6, marginBottom: '14px' }}>
+                {aiMacros.explanation}
+              </p>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={onAccept}
+                  style={{
+                    flex: 2, padding: '11px', borderRadius: '10px',
+                    backgroundColor: '#f97316', border: 'none',
+                    color: '#000', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+                  }}
+                >
+                  Apply these targets
+                </button>
+                <button
+                  onClick={onDecline}
+                  style={{
+                    flex: 1, padding: '11px', borderRadius: '10px',
+                    backgroundColor: 'transparent', border: '1px solid #27272a',
+                    color: '#52525b', fontSize: '13px', fontWeight: 500, cursor: 'pointer',
+                  }}
+                >
+                  Skip
+                </button>
+              </div>
+            </>
+          )}
+
+          {!aiMacrosLoading && aiMacros && macrosAccepted && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Check size={16} color="#22c55e" />
+              <span style={{ fontSize: '13px', color: '#22c55e', fontWeight: 600 }}>
+                Targets will be saved when you go to dashboard
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
       <button
         onClick={handleDownload}
         style={{
@@ -2112,6 +2716,14 @@ function DoneScreen({ sectionData }: { sectionData: Record<string, StepData | un
 
 // ─── Main wizard ──────────────────────────────────────────────────────────────
 
+interface MacroResult {
+  calories: number
+  protein_g: number
+  carbs_g: number
+  fats_g: number
+  explanation: string
+}
+
 export default function OnboardingPage() {
   const router = useRouter()
   const [stepIndex, setStepIndex] = useState(0)
@@ -2120,6 +2732,10 @@ export default function OnboardingPage() {
   const [saving, setSaving] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
+  const [aiMacros, setAiMacros] = useState<MacroResult | null>(null)
+  const [aiMacrosLoading, setAiMacrosLoading] = useState(false)
+  const [macrosAccepted, setMacrosAccepted] = useState(false)
+  const [whoopData, setWhoopData] = useState<WhoopContext | null>(null)
   const [sectionData, setSectionData] = useState<Record<string, StepData>>({
     interests: {}, physical: {}, lifestyle_ext: {}, training_ext: {}, nutrition_ext: {},
     supplements_ext: {}, sleep_ext: {}, skincare: {}, hair: {},
@@ -2136,6 +2752,7 @@ export default function OnboardingPage() {
 
   // Load existing data
   useEffect(() => {
+    const isEditMode = new URLSearchParams(window.location.search).get('edit') === 'true'
     fetch('/api/onboarding')
       .then(r => r.json())
       .then(d => {
@@ -2155,7 +2772,7 @@ export default function OnboardingPage() {
             tech_prefs: d.tech_prefs ?? prev.tech_prefs,
             coaching: d.coaching ?? prev.coaching,
           }))
-          if (d.completed) {
+          if (d.completed && !isEditMode) {
             router.replace('/')
             return
           }
@@ -2166,6 +2783,40 @@ export default function OnboardingPage() {
       })
       .catch(() => {})
   }, [router])
+
+  // Fetch WHOOP context once on mount — used to enrich AI suggestions throughout
+  useEffect(() => {
+    fetch('/api/whoop/data')
+      .then(r => r.json())
+      .then((d: { cycles?: { kilojoule: number | null }[]; sleep?: { duration_hrs: number | null; sleep_performance_pct: number | null }[]; recovery?: { recovery_score: number | null }[] }) => {
+        const cycles = d.cycles ?? []
+        const sleep = d.sleep ?? []
+        const recovery = d.recovery ?? []
+        const kJCycles = cycles.filter(c => c.kilojoule !== null)
+        const avgKilojoules = kJCycles.length > 0 ? kJCycles.reduce((s, c) => s + (c.kilojoule ?? 0), 0) / kJCycles.length : null
+        const sleepWithHours = sleep.filter(s => s.duration_hrs !== null)
+        const avgSleepHours = sleepWithHours.length > 0 ? sleepWithHours.reduce((s, sl) => s + (sl.duration_hrs ?? 0), 0) / sleepWithHours.length : null
+        const sleepWithPerf = sleep.filter(s => s.sleep_performance_pct !== null)
+        const avgSleepPerformance = sleepWithPerf.length > 0 ? sleepWithPerf.reduce((s, sl) => s + (sl.sleep_performance_pct ?? 0), 0) / sleepWithPerf.length : null
+        const recoveryWithScore = recovery.filter(r => r.recovery_score !== null)
+        const avgRecoveryScore = recoveryWithScore.length > 0 ? recoveryWithScore.reduce((s, r) => s + (r.recovery_score ?? 0), 0) / recoveryWithScore.length : null
+        if (avgKilojoules !== null || avgSleepHours !== null) {
+          setWhoopData({ avgKilojoules, avgSleepHours, avgSleepPerformance, avgRecoveryScore })
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  // Trigger AI macro calculation when user reaches done screen
+  useEffect(() => {
+    if (!isDone || aiMacros || aiMacrosLoading) return
+    setAiMacrosLoading(true)
+    fetch('/api/ai/calculate-macros', { method: 'POST' })
+      .then(r => r.json())
+      .then((d: MacroResult & { error?: string }) => { if (!d.error) setAiMacros(d) })
+      .catch(() => {})
+      .finally(() => setAiMacrosLoading(false))
+  }, [isDone, aiMacros, aiMacrosLoading])
 
   const currentSection = step.section
   const currentData = currentSection ? (sectionData[currentSection] ?? {}) : {}
@@ -2206,11 +2857,23 @@ export default function OnboardingPage() {
   async function handleNext() {
     if (!isWelcome && !isDone && currentSection) await saveCurrentStep()
     if (isDone) {
+      setSaving(true)
+      if (macrosAccepted && aiMacros) {
+        await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            table: 'user_goals',
+            data: { daily_calorie_target: aiMacros.calories, daily_protein_target_g: aiMacros.protein_g },
+          }),
+        })
+      }
       await fetch('/api/onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ completed: true }),
       })
+      setSaving(false)
       router.push('/')
       return
     }
@@ -2474,7 +3137,16 @@ export default function OnboardingPage() {
         )}
 
         {/* Done screen */}
-        {isDone && <DoneScreen sectionData={sectionData} />}
+        {isDone && (
+          <DoneScreen
+            sectionData={sectionData}
+            aiMacros={aiMacros}
+            aiMacrosLoading={aiMacrosLoading}
+            macrosAccepted={macrosAccepted}
+            onAccept={() => setMacrosAccepted(true)}
+            onDecline={() => setMacrosAccepted(false)}
+          />
+        )}
 
         {/* Category steps */}
         {!isWelcome && !isDone && (
@@ -2500,7 +3172,7 @@ export default function OnboardingPage() {
               </h2>
             </div>
 
-            <StepContent stepId={step.id} data={currentData} set={setField} sectionData={sectionData} />
+            <StepContent stepId={step.id} data={currentData} set={setField} sectionData={sectionData} whoopData={whoopData} />
           </div>
         )}
       </div>
