@@ -18,7 +18,13 @@ export async function createClient() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             )
-          } catch {}
+          } catch (e) {
+            // Cookie writes fail in read-only Server Component context (expected).
+            // Log anything unexpected so auth issues surface.
+            if (process.env.NODE_ENV !== 'production') {
+              console.warn('[supabase/server] setAll failed:', e)
+            }
+          }
         },
       },
     }
