@@ -68,8 +68,8 @@ BIOMETRICS:
 - Body fat: ${bodyFatPct ? `${bodyFatPct}%` : 'unknown'}
 - Calculated BMR (Mifflin-St Jeor): ${bmr ? `${bmr} kcal` : 'insufficient data'}
 
-ACTIVITY (real WHOOP data, last 14 days):
-- Average daily energy burn: ${avgCaloriesBurned ? `${avgCaloriesBurned} kcal/day (from ${whoopCycles?.length} days of data)` : 'no WHOOP data available'}
+ACTIVITY (WHOOP data, last 14 days):
+- Average daily energy burn: ${avgCaloriesBurned ? `${avgCaloriesBurned} kcal/day (from ${whoopCycles?.length} days of data)` : 'not available — use BMR × activity multiplier'}
 
 GOAL:
 - Direction: ${goalDirection} (${goalDirection === 'cut' ? `lose ${Math.round((weightKg ?? 0) - (targetWeightKg ?? 0))} kg` : goalDirection === 'bulk' ? `gain ${Math.round((targetWeightKg ?? 0) - (weightKg ?? 0))} kg` : 'maintain current weight'})
@@ -91,7 +91,7 @@ Return ONLY valid JSON, no markdown:
   "protein_g": <number>,
   "carbs_g": <number>,
   "fats_g": <number>,
-  "explanation": "<2–3 sentences: what you used to calculate this and why, mention WHOOP data or BMR as appropriate>"
+  "explanation": "<2–3 sentences: describe the calculation method and results professionally. If WHOOP data was available use it as the basis; if not, describe the BMR × activity multiplier method used. Never write 'no WHOOP data available' — just describe what was used.>"
 }`
 
   try {

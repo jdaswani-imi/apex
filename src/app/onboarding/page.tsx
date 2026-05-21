@@ -984,6 +984,7 @@ function TrainingStep({ data, set, physicalData, lifestyleData }: {
   data: StepData; set: StepSetter; physicalData?: StepData; lifestyleData?: StepData
 }) {
   const [showScheduleSuggestion, setShowScheduleSuggestion] = useState(false)
+  const [scheduleApplied, setScheduleApplied] = useState(false)
 
   // Auto-sync sessions_per_week when training days are selected
   useEffect(() => {
@@ -1030,6 +1031,7 @@ function TrainingStep({ data, set, physicalData, lifestyleData }: {
     set('sessions_per_week', suggestedCount)
     set('training_days', scheduledDays)
     setShowScheduleSuggestion(false)
+    setScheduleApplied(true)
   }
 
   const sportsOptions = [
@@ -1050,57 +1052,6 @@ function TrainingStep({ data, set, physicalData, lifestyleData }: {
 
   return (
     <>
-      {hasScheduleContext && (
-        <div style={{ marginBottom: '24px' }}>
-          {!showScheduleSuggestion ? (
-            <button
-              onClick={() => setShowScheduleSuggestion(true)}
-              style={{
-                width: '100%', backgroundColor: 'rgba(59,130,246,0.08)',
-                border: '1px solid rgba(59,130,246,0.25)', borderRadius: '12px',
-                padding: '12px 16px', cursor: 'pointer', textAlign: 'left',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              }}
-            >
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#60a5fa' }}>✦ Suggest my training schedule</div>
-                <div style={{ fontSize: '11px', color: '#52525b', marginTop: '2px' }}>Based on your {goal} goal{busyDays.size > 0 ? ' and your weekly commitments' : ''}</div>
-              </div>
-              <ChevronRight size={16} color="#60a5fa" />
-            </button>
-          ) : (
-            <div style={{
-              backgroundColor: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)',
-              borderRadius: '14px', padding: '16px',
-            }}>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#60a5fa', marginBottom: '12px' }}>Suggested schedule</div>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                {scheduledDays.map(d => (
-                  <span key={d} style={{
-                    padding: '4px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
-                    backgroundColor: 'rgba(59,130,246,0.15)', color: '#93c5fd',
-                  }}>{d}</span>
-                ))}
-              </div>
-              <p style={{ fontSize: '12px', color: '#71717a', lineHeight: 1.5, marginBottom: '12px' }}>
-                {suggestedCount} sessions/week for {goal?.toLowerCase() ?? 'your goal'}{busyDays.size > 0 ? `, avoiding your ${[...busyDays].join(', ')} commitments` : ''}.
-              </p>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={applyScheduleSuggestion} style={{
-                  flex: 2, padding: '10px', borderRadius: '10px', border: 'none',
-                  backgroundColor: '#3b82f6', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
-                }}>Apply this schedule</button>
-                <button onClick={() => setShowScheduleSuggestion(false)} style={{
-                  flex: 1, padding: '10px', borderRadius: '10px',
-                  backgroundColor: 'transparent', border: '1px solid #27272a',
-                  color: '#52525b', fontSize: '13px', cursor: 'pointer',
-                }}>Dismiss</button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
       <Field label="How long have you been training?">
         <Chips
           options={['< 1 year', '1–2 years', '2–5 years', '5–10 years', '10+ years']}
@@ -1221,6 +1172,101 @@ function TrainingStep({ data, set, physicalData, lifestyleData }: {
             style={inputStyle}
           />
         </Field>
+      )}
+
+      {/* Schedule suggestion — shown at the bottom after all preferences are set */}
+      {hasScheduleContext && (
+        <div style={{ marginTop: '8px' }}>
+          {/* Applied compact state */}
+          {scheduleApplied && !showScheduleSuggestion && (
+            <div style={{
+              backgroundColor: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)',
+              borderRadius: '14px', padding: '14px 16px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <Check size={14} color="#60a5fa" style={{ flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#60a5fa', marginBottom: '4px' }}>Schedule applied</div>
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                    {scheduledDays.map(d => (
+                      <span key={d} style={{
+                        padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 600,
+                        backgroundColor: 'rgba(59,130,246,0.15)', color: '#93c5fd',
+                      }}>{d}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowScheduleSuggestion(true)}
+                style={{
+                  flexShrink: 0, padding: '6px 12px', borderRadius: '8px',
+                  backgroundColor: 'transparent', border: '1px solid rgba(59,130,246,0.3)',
+                  color: '#60a5fa', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                Change
+              </button>
+            </div>
+          )}
+
+          {/* Suggestion prompt button (initial state) */}
+          {!scheduleApplied && !showScheduleSuggestion && (
+            <button
+              onClick={() => setShowScheduleSuggestion(true)}
+              style={{
+                width: '100%', backgroundColor: 'rgba(59,130,246,0.08)',
+                border: '1px solid rgba(59,130,246,0.25)', borderRadius: '12px',
+                padding: '12px 16px', cursor: 'pointer', textAlign: 'left',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#60a5fa' }}>✦ Suggest my training schedule</div>
+                <div style={{ fontSize: '11px', color: '#52525b', marginTop: '2px' }}>
+                  Based on your {goal} goal{busyDays.size > 0 ? ' and your weekly commitments' : ''}
+                </div>
+              </div>
+              <ChevronRight size={16} color="#60a5fa" />
+            </button>
+          )}
+
+          {/* Expanded suggestion card */}
+          {showScheduleSuggestion && (
+            <div style={{
+              backgroundColor: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)',
+              borderRadius: '14px', padding: '16px',
+            }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#60a5fa', marginBottom: '12px' }}>Suggested schedule</div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                {scheduledDays.map(d => (
+                  <span key={d} style={{
+                    padding: '4px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+                    backgroundColor: 'rgba(59,130,246,0.15)', color: '#93c5fd',
+                  }}>{d}</span>
+                ))}
+              </div>
+              <p style={{ fontSize: '12px', color: '#71717a', lineHeight: 1.5, marginBottom: '12px' }}>
+                {suggestedCount} sessions/week for {goal?.toLowerCase() ?? 'your goal'}{busyDays.size > 0 ? `, avoiding your ${[...busyDays].join(', ')} commitments` : ''}.
+              </p>
+              <p style={{ fontSize: '11px', color: '#3f3f46', lineHeight: 1.5, marginBottom: '12px' }}>
+                You can still edit your days and session count above after applying.
+              </p>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={applyScheduleSuggestion} style={{
+                  flex: 2, padding: '10px', borderRadius: '10px', border: 'none',
+                  backgroundColor: '#3b82f6', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+                }}>Apply this schedule</button>
+                <button onClick={() => setShowScheduleSuggestion(false)} style={{
+                  flex: 1, padding: '10px', borderRadius: '10px',
+                  backgroundColor: 'transparent', border: '1px solid #27272a',
+                  color: '#52525b', fontSize: '13px', cursor: 'pointer',
+                }}>Dismiss</button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </>
   )
@@ -2732,6 +2778,7 @@ export default function OnboardingPage() {
   const [saving, setSaving] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
+  const [showSectionNav, setShowSectionNav] = useState(false)
   const [aiMacros, setAiMacros] = useState<MacroResult | null>(null)
   const [aiMacrosLoading, setAiMacrosLoading] = useState(false)
   const [macrosAccepted, setMacrosAccepted] = useState(false)
@@ -2895,6 +2942,15 @@ export default function OnboardingPage() {
     navigate('back')
   }
 
+  function navigateTo(targetIndex: number) {
+    setShowSectionNav(false)
+    setShowMenu(false)
+    setDirection(targetIndex > stepIndex ? 'forward' : 'back')
+    setAnimKey(k => k + 1)
+    setStepIndex(targetIndex)
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }
+
   async function handleSaveAndExit() {
     setShowMenu(false)
     if (currentSection) await saveCurrentStep()
@@ -2905,7 +2961,15 @@ export default function OnboardingPage() {
     setShowDiscardConfirm(false)
     setShowMenu(false)
     await fetch('/api/onboarding', { method: 'DELETE' })
-    router.push('/')
+    setSectionData({
+      interests: {}, physical: {}, lifestyle_ext: {}, training_ext: {}, nutrition_ext: {},
+      supplements_ext: {}, sleep_ext: {}, skincare: {}, hair: {},
+      mental: {}, travel: {}, tech_prefs: {}, coaching: {},
+    })
+    setDirection('back')
+    setAnimKey(k => k + 1)
+    setStepIndex(0)
+    window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
   const animStyle: React.CSSProperties = {
@@ -3015,6 +3079,23 @@ export default function OnboardingPage() {
               </div>
             </button>
             <button
+              onClick={() => { setShowMenu(false); setShowSectionNav(true) }}
+              style={{
+                width: '100%', padding: '14px', borderRadius: '14px', marginBottom: '10px',
+                backgroundColor: 'rgba(99,102,241,0.08)', border: '1.5px solid rgba(99,102,241,0.25)',
+                color: '#818cf8', fontSize: '15px', fontWeight: 600, cursor: 'pointer', textAlign: 'left',
+                display: 'flex', alignItems: 'center', gap: '12px',
+              }}
+            >
+              <span style={{ fontSize: '20px' }}>📋</span>
+              <div>
+                <div>Jump to section</div>
+                <div style={{ fontSize: '12px', fontWeight: 400, color: '#6366f1', marginTop: '2px' }}>
+                  Skip ahead or go back to any part.
+                </div>
+              </div>
+            </button>
+            <button
               onClick={() => { setShowMenu(false); setShowDiscardConfirm(true) }}
               style={{
                 width: '100%', padding: '14px', borderRadius: '14px', marginBottom: '10px',
@@ -3025,9 +3106,9 @@ export default function OnboardingPage() {
             >
               <span style={{ fontSize: '20px' }}>🗑️</span>
               <div>
-                <div>Exit &amp; discard</div>
+                <div>Restart &amp; discard</div>
                 <div style={{ fontSize: '12px', fontWeight: 400, color: '#fca5a5', marginTop: '2px' }}>
-                  Clears all answers. Cannot be undone.
+                  Clears all answers and starts over.
                 </div>
               </div>
             </button>
@@ -3061,10 +3142,10 @@ export default function OnboardingPage() {
           }}>
             <div style={{ fontSize: '40px', marginBottom: '16px' }}>⚠️</div>
             <div style={{ fontSize: '18px', fontWeight: 700, color: '#fff', marginBottom: '8px' }}>
-              Discard all answers?
+              Restart from the beginning?
             </div>
             <div style={{ fontSize: '14px', color: '#71717a', lineHeight: 1.6, marginBottom: '24px' }}>
-              This will permanently delete everything you&apos;ve entered. You&apos;ll need to start from scratch.
+              This will permanently delete everything you&apos;ve entered and take you back to the start.
             </div>
             <button
               onClick={handleDiscard}
@@ -3086,6 +3167,78 @@ export default function OnboardingPage() {
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Section navigation sheet */}
+      {showSectionNav && (
+        <div
+          onClick={() => setShowSectionNav(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 100,
+            backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'flex-end',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: '480px', margin: '0 auto',
+              backgroundColor: '#111', borderRadius: '24px 24px 0 0',
+              border: '1px solid #27272a', borderBottom: 'none',
+              padding: '12px 20px calc(28px + env(safe-area-inset-bottom))',
+              maxHeight: '80dvh', overflowY: 'auto',
+            }}
+          >
+            <div style={{ width: '36px', height: '4px', borderRadius: '2px', backgroundColor: '#3f3f46', margin: '0 auto 16px' }} />
+            <div style={{ fontSize: '16px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>Jump to section</div>
+            <div style={{ fontSize: '13px', color: '#52525b', marginBottom: '16px' }}>Tap any section to go there directly.</div>
+            <button
+              onClick={() => navigateTo(0)}
+              style={{
+                width: '100%', padding: '12px 14px', borderRadius: '12px', marginBottom: '6px',
+                backgroundColor: stepIndex === 0 ? 'rgba(249,115,22,0.1)' : 'transparent',
+                border: stepIndex === 0 ? '1.5px solid rgba(249,115,22,0.35)' : '1.5px solid #1c1c1c',
+                color: stepIndex === 0 ? '#f97316' : '#a1a1aa',
+                fontSize: '14px', fontWeight: stepIndex === 0 ? 600 : 400, cursor: 'pointer',
+                textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px',
+              }}
+            >
+              <span style={{ fontSize: '16px' }}>👋</span>
+              <span>Welcome</span>
+              {stepIndex === 0 && <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#f97316' }}>current</span>}
+            </button>
+            {CONTENT_STEPS.map((s) => {
+              const Icon = s.icon!
+              const sIdx = STEPS.findIndex(st => st.id === s.id)
+              const isCurrent = stepIndex === sIdx
+              const isIncluded = !OPTIONAL_STEP_IDS.has(s.id) || focusedSections.includes(s.id)
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => navigateTo(sIdx)}
+                  style={{
+                    width: '100%', padding: '12px 14px', borderRadius: '12px', marginBottom: '6px',
+                    backgroundColor: isCurrent ? `${s.color}18` : 'transparent',
+                    border: isCurrent ? `1.5px solid ${s.color}55` : '1.5px solid #1c1c1c',
+                    color: isCurrent ? s.color : isIncluded ? '#e4e4e7' : '#52525b',
+                    fontSize: '14px', fontWeight: isCurrent ? 600 : 400, cursor: 'pointer',
+                    textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px',
+                  }}
+                >
+                  <div style={{
+                    width: '26px', height: '26px', borderRadius: '8px', flexShrink: 0,
+                    backgroundColor: `${s.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Icon size={13} color={s.color} />
+                  </div>
+                  <span>{s.label}</span>
+                  {isCurrent && <span style={{ marginLeft: 'auto', fontSize: '11px', color: s.color }}>current</span>}
+                  {!isCurrent && !isIncluded && <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#3f3f46' }}>optional</span>}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
