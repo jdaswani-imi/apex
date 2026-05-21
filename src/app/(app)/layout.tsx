@@ -57,7 +57,7 @@ function MobileBottomNav() {
       aria-label="Main navigation"
       className="md:hidden fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-2xl border-t border-white/[0.07] z-50"
     >
-      <div className="flex items-center justify-around px-2 py-2">
+      <div className="flex items-center justify-around px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
         {nav.map(({ href, icon: Icon, label }) => {
           const active = pathname === href
           return (

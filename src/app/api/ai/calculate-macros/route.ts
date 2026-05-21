@@ -99,7 +99,7 @@ Return ONLY valid JSON, no markdown:
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 500,
       messages: [{ role: 'user', content: prompt }],
-    })
+    }, { signal: AbortSignal.timeout(30_000) })
 
     const raw = response.content
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')

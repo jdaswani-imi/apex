@@ -253,7 +253,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
       } finally {
         setSearching(false)
       }
-    }, 400)
+    }, 300)
     return () => {
       if (searchTimer.current) clearTimeout(searchTimer.current)
     }

@@ -31,13 +31,13 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  themeColor: '#000000',
+  themeColor: '#302b25',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={cn('dark', barlow.variable, barlowCondensed.variable)}>
-      <body className="bg-black text-white antialiased font-sans">
+      <body className="bg-background text-foreground antialiased font-sans">
         <TooltipProvider delay={200}>{children}</TooltipProvider>
       </body>
     </html>

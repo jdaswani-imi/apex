@@ -22,7 +22,17 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Delete exercises first (no CASCADE on FK)
+  // Verify ownership before touching any rows
+  const { data: session } = await supabase
+    .from('training_sessions')
+    .select('id')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!session) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // Safe to cascade-delete now that ownership is confirmed
   await supabase.from('exercises').delete().eq('session_id', id)
   await supabase.from('training_sessions').delete().eq('id', id).eq('user_id', user.id)
 

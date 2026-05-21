@@ -18,6 +18,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'session_id and name are required' }, { status: 400 })
   }
 
+  // Verify the session belongs to the authenticated user before inserting
+  const { data: session } = await supabase
+    .from('training_sessions')
+    .select('id')
+    .eq('id', body.session_id)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!session) {
+    return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+  }
+
   // Strip unknown fields to prevent unintended column writes
   const safe: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(body)) {

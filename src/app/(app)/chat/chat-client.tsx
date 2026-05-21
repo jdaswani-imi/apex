@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { Send, Zap, ChevronRight, CheckCircle, Database, Pencil, Beef, Dumbbell, TrendingUp, Moon, Activity } from 'lucide-react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { Send, Zap, ChevronRight, CheckCircle, Database, Pencil, Beef, Dumbbell, TrendingUp, Moon, Activity, UtensilsCrossed, Loader2, Check, Clock, Plus, Trash2, MessageSquare, FlaskConical } from 'lucide-react'
 import Link from 'next/link'
 
 interface ToolCall {
@@ -9,11 +9,34 @@ interface ToolCall {
   label: string
 }
 
+interface ChatAction {
+  type: 'log_meal' | 'log_workout' | 'log_rest_day' | 'log_weight' | 'log_steps' | 'mark_supplements_taken'
+  label: string
+  payload: Record<string, unknown>
+}
+
 interface Message {
   role: 'user' | 'assistant'
   content: string
   toolCalls?: ToolCall[]
+  actions?: ChatAction[]
   typing?: boolean
+}
+
+interface ConversationItem {
+  id: string
+  title: string
+  message_count: number
+  updated_at: string
+}
+
+function relativeDate(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const days = Math.floor(diff / 86_400_000)
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 7) return `${days}d ago`
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
 const SUGGESTIONS: { text: string; icon: React.ElementType }[] = [
@@ -176,12 +199,98 @@ const TOOL_ICONS: Record<string, React.ReactNode> = {
   log_food: <CheckCircle size={10} color="#4ade80" />,
   update: <Pencil size={10} color="#60a5fa" />,
   read: <Database size={10} color="#a78bfa" />,
+  supplement: <FlaskConical size={10} color="#fb923c" />,
+}
+
+const ACTION_ICONS: Record<string, React.ElementType> = {
+  log_meal: UtensilsCrossed,
+  log_workout: Dumbbell,
+  log_rest_day: Moon,
+  log_weight: TrendingUp,
+  log_steps: Activity,
+  mark_supplements_taken: CheckCircle,
+}
+
+function ActionButtons({ actions }: { actions: ChatAction[] }) {
+  const [states, setStates] = useState<('idle' | 'loading' | 'done' | 'error')[]>(
+    () => actions.map(() => 'idle' as const),
+  )
+
+  async function execute(index: number) {
+    if (states[index] === 'loading' || states[index] === 'done') return
+    setStates(prev => { const next = [...prev]; next[index] = 'loading'; return next })
+    try {
+      const res = await fetch('/api/chat/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: actions[index].type, payload: actions[index].payload }),
+      })
+      const data = await res.json() as { ok?: boolean; error?: string }
+      if (!res.ok || data.error) throw new Error(data.error ?? 'Failed')
+      setStates(prev => { const next = [...prev]; next[index] = 'done'; return next })
+    } catch {
+      setStates(prev => { const next = [...prev]; next[index] = 'error'; return next })
+      setTimeout(() => {
+        setStates(prev => { const next = [...prev]; if (next[index] === 'error') next[index] = 'idle'; return next })
+      }, 2000)
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px', maxWidth: '85%' }}>
+      {actions.map((action, i) => {
+        const state = states[i]
+        const Icon = ACTION_ICONS[action.type] ?? CheckCircle
+        const isDone = state === 'done'
+        const isLoading = state === 'loading'
+        const isError = state === 'error'
+        return (
+          <button
+            key={i}
+            onClick={() => execute(i)}
+            disabled={isLoading || isDone}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '5px',
+              padding: '6px 11px', borderRadius: '20px',
+              fontSize: '12px', fontWeight: 600, cursor: isDone ? 'default' : isLoading ? 'wait' : 'pointer',
+              border: isDone
+                ? '1px solid rgba(34,197,94,0.35)'
+                : isError
+                ? '1px solid rgba(239,68,68,0.35)'
+                : '1px solid rgba(249,115,22,0.3)',
+              backgroundColor: isDone
+                ? 'rgba(34,197,94,0.08)'
+                : isError
+                ? 'rgba(239,68,68,0.08)'
+                : 'rgba(249,115,22,0.07)',
+              color: isDone ? '#4ade80' : isError ? '#f87171' : '#f97316',
+              opacity: isLoading ? 0.6 : 1,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {isLoading
+              ? <Loader2 size={11} style={{ animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
+              : isDone
+              ? <Check size={11} style={{ flexShrink: 0 }} />
+              : <Icon size={11} style={{ flexShrink: 0 }} />
+            }
+            {isDone ? 'Done' : isError ? 'Failed — retry' : action.label}
+          </button>
+        )
+      })}
+    </div>
+  )
 }
 
 export function ChatClient({ onboardingCompleted }: { onboardingCompleted: boolean }) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [conversationId, setConversationId] = useState<string | null>(null)
+  const [showHistory, setShowHistory] = useState(false)
+  const [conversations, setConversations] = useState<ConversationItem[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -189,21 +298,73 @@ export function ChatClient({ onboardingCompleted }: { onboardingCompleted: boole
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  function typewriterEffect(fullText: string, messageIndex: number) {
-    let i = 0
-    const speed = Math.max(4, Math.min(12, Math.round(fullText.length / 120)))
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true)
+    try {
+      const res = await fetch('/api/chat/history')
+      const data = await res.json() as ConversationItem[]
+      setConversations(data)
+    } catch {}
+    setHistoryLoading(false)
+  }, [])
 
-    function tick() {
-      i = Math.min(i + speed, fullText.length)
-      setMessages(prev => {
-        const updated = [...prev]
-        updated[messageIndex] = { ...updated[messageIndex], content: fullText.slice(0, i), typing: i < fullText.length }
-        return updated
+  async function saveHistory(msgs: Message[], convId: string | null): Promise<string | null> {
+    try {
+      const res = await fetch('/api/chat/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: convId,
+          messages: msgs.map(m => ({
+            role: m.role,
+            content: m.content,
+            toolCalls: m.toolCalls,
+            actions: m.actions,
+          })),
+        }),
       })
-      if (i < fullText.length) requestAnimationFrame(tick)
+      const data = await res.json() as { conversationId: string }
+      return data.conversationId ?? convId
+    } catch {
+      return convId
     }
-    requestAnimationFrame(tick)
   }
+
+  async function loadConversation(id: string) {
+    setShowHistory(false)
+    try {
+      const res = await fetch(`/api/chat/history/${id}`)
+      const data = await res.json() as { role: string; content: string; tool_calls?: ToolCall[]; actions?: ChatAction[] }[]
+      const loaded: Message[] = data.map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        toolCalls: m.tool_calls ?? undefined,
+        actions: m.actions ?? undefined,
+      }))
+      setMessages(loaded)
+      setConversationId(id)
+    } catch {}
+  }
+
+  async function deleteConversation(id: string) {
+    setDeletingId(id)
+    try {
+      await fetch(`/api/chat/history/${id}`, { method: 'DELETE' })
+      setConversations(prev => prev.filter(c => c.id !== id))
+      if (conversationId === id) {
+        setMessages([])
+        setConversationId(null)
+      }
+    } catch {}
+    setDeletingId(null)
+  }
+
+  function startNewChat() {
+    setMessages([])
+    setConversationId(null)
+    setShowHistory(false)
+  }
+
 
   async function send(text?: string) {
     const content = (text ?? input).trim()
@@ -226,22 +387,59 @@ export function ChatClient({ onboardingCompleted }: { onboardingCompleted: boole
 
       if (!res.ok) throw new Error('Failed')
 
-      const data = await res.json() as { text: string; toolCalls: ToolCall[] }
       const assistantIndex = next.length
+      const reader = res.body!.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
+      let fullText = ''
+      let toolCalls: ToolCall[] = []
+      let actions: ChatAction[] = []
+
+      outer: while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        const parts = buf.split('\n\n')
+        buf = parts.pop() ?? ''
+        for (const part of parts) {
+          if (!part.startsWith('data: ')) continue
+          const payload = JSON.parse(part.slice(6)) as { t?: string; done?: boolean; toolCalls?: ToolCall[]; actions?: ChatAction[] }
+          if (payload.done) {
+            toolCalls = payload.toolCalls ?? []
+            actions = payload.actions ?? []
+            break outer
+          }
+          if (payload.t) {
+            fullText += payload.t
+            setMessages(prev => {
+              const updated = [...prev]
+              updated[assistantIndex] = { role: 'assistant', content: fullText, typing: true }
+              return updated
+            })
+          }
+        }
+      }
 
       setMessages(prev => {
         const updated = [...prev]
         updated[assistantIndex] = {
           role: 'assistant',
-          content: '',
-          toolCalls: data.toolCalls,
-          typing: true,
+          content: fullText,
+          toolCalls: toolCalls.length ? toolCalls : undefined,
+          actions: actions.length ? actions : undefined,
+          typing: false,
         }
         return updated
       })
 
-      // Start typewriter animation
-      typewriterEffect(data.text, assistantIndex)
+      // Save to history in background
+      const finalMessages: Message[] = [
+        ...next,
+        { role: 'assistant', content: fullText, toolCalls: toolCalls.length ? toolCalls : undefined, actions: actions.length ? actions : undefined },
+      ]
+      saveHistory(finalMessages, conversationId).then(newId => {
+        if (newId && newId !== conversationId) setConversationId(newId)
+      })
     } catch {
       setMessages(prev => {
         const updated = [...prev]
@@ -269,7 +467,7 @@ export function ChatClient({ onboardingCompleted }: { onboardingCompleted: boole
     <div className="flex flex-col h-dvh bg-background">
 
       {/* Header */}
-      <div className="flex items-center gap-2.5 shrink-0 px-5 pt-4 pb-3 border-b border-border">
+      <div className="flex items-center gap-2.5 shrink-0 px-4 pt-4 pb-3 border-b border-border">
         <div style={{
           width: '32px', height: '32px', borderRadius: '10px',
           backgroundColor: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)',
@@ -277,11 +475,140 @@ export function ChatClient({ onboardingCompleted }: { onboardingCompleted: boole
         }}>
           <Zap size={16} color="#f97316" fill="#f97316" />
         </div>
-        <div>
+        <div style={{ flex: 1 }}>
           <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>Apex</div>
           <div style={{ fontSize: '11px', color: '#52525b' }}>Personal optimisation coach</div>
         </div>
+        {messages.length > 0 && (
+          <button
+            onClick={startNewChat}
+            title="New chat"
+            style={{
+              width: '32px', height: '32px', borderRadius: '10px', flexShrink: 0,
+              backgroundColor: 'transparent', border: '1px solid #27272a',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+            }}
+          >
+            <Plus size={15} color="#71717a" />
+          </button>
+        )}
+        <button
+          onClick={() => { setShowHistory(true); loadHistory() }}
+          title="Chat history"
+          style={{
+            width: '32px', height: '32px', borderRadius: '10px', flexShrink: 0,
+            backgroundColor: 'transparent', border: '1px solid #27272a',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+          }}
+        >
+          <Clock size={15} color="#71717a" />
+        </button>
       </div>
+
+      {/* History bottom sheet */}
+      {showHistory && (
+        <div
+          onClick={() => setShowHistory(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 100,
+            backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'flex-end',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: '480px', margin: '0 auto',
+              backgroundColor: '#111', borderRadius: '20px 20px 0 0',
+              border: '1px solid #1c1c1c', borderBottom: 'none',
+              padding: '12px 0 calc(24px + env(safe-area-inset-bottom))',
+              maxHeight: '75dvh', display: 'flex', flexDirection: 'column',
+            }}
+          >
+            {/* Handle + header */}
+            <div style={{ padding: '0 16px 12px', borderBottom: '1px solid #1c1c1c', flexShrink: 0 }}>
+              <div style={{ width: '36px', height: '4px', borderRadius: '2px', backgroundColor: '#3f3f46', margin: '0 auto 14px' }} />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>Chat history</span>
+                <button
+                  onClick={startNewChat}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '5px',
+                    padding: '6px 12px', borderRadius: '10px',
+                    backgroundColor: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.25)',
+                    color: '#f97316', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                  }}
+                >
+                  <Plus size={12} />
+                  New chat
+                </button>
+              </div>
+            </div>
+
+            {/* List */}
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {historyLoading ? (
+                <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+                  <Loader2 size={18} color="#52525b" style={{ animation: 'spin 0.7s linear infinite', margin: '0 auto' }} />
+                </div>
+              ) : conversations.length === 0 ? (
+                <div style={{ padding: '40px 16px', textAlign: 'center' }}>
+                  <MessageSquare size={28} color="#3f3f46" style={{ margin: '0 auto 10px' }} />
+                  <div style={{ fontSize: '13px', color: '#52525b' }}>No conversations yet</div>
+                </div>
+              ) : (
+                conversations.map(conv => (
+                  <div
+                    key={conv.id}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '10px',
+                      padding: '12px 16px',
+                      borderBottom: '1px solid #1a1a1a',
+                      backgroundColor: conv.id === conversationId ? 'rgba(249,115,22,0.05)' : 'transparent',
+                    }}
+                  >
+                    <button
+                      onClick={() => loadConversation(conv.id)}
+                      style={{
+                        flex: 1, textAlign: 'left', background: 'none', border: 'none',
+                        cursor: 'pointer', minWidth: 0,
+                      }}
+                    >
+                      <div style={{
+                        fontSize: '13px', fontWeight: 500,
+                        color: conv.id === conversationId ? '#f97316' : '#e4e4e7',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        marginBottom: '3px',
+                      }}>
+                        {conv.title}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '11px', color: '#52525b' }}>{relativeDate(conv.updated_at)}</span>
+                        <span style={{ fontSize: '11px', color: '#3f3f46' }}>{conv.message_count} messages</span>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => deleteConversation(conv.id)}
+                      disabled={deletingId === conv.id}
+                      style={{
+                        flexShrink: 0, width: '28px', height: '28px', borderRadius: '8px',
+                        backgroundColor: 'transparent', border: 'none',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', opacity: deletingId === conv.id ? 0.4 : 1,
+                      }}
+                    >
+                      {deletingId === conv.id
+                        ? <Loader2 size={13} color="#52525b" style={{ animation: 'spin 0.7s linear infinite' }} />
+                        : <Trash2 size={13} color="#52525b" />
+                      }
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-2">
@@ -401,6 +728,11 @@ export function ChatClient({ onboardingCompleted }: { onboardingCompleted: boole
                 </div>
               )}
             </div>
+
+            {/* Action buttons — appear after typing finishes */}
+            {m.role === 'assistant' && !m.typing && m.actions && m.actions.length > 0 && (
+              <ActionButtons actions={m.actions} />
+            )}
           </div>
         ))}
         <div ref={bottomRef} />
@@ -447,6 +779,10 @@ export function ChatClient({ onboardingCompleted }: { onboardingCompleted: boole
         @keyframes cursor-blink {
           0%, 100% { opacity: 1; }
           50% { opacity: 0; }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </div>
