@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabase
     .from('custom_foods')
-    .insert({
+    .upsert({
       user_id: user.id,
       name: name.trim(),
       brand: brand?.trim() || null,
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       carbs_per_100g: carbs_per_100g ?? null,
       fats_per_100g: fats_per_100g ?? null,
       serving_g: serving_g ?? 100,
-    })
+    }, { onConflict: 'user_id,name' })
     .select()
     .single()
 

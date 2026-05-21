@@ -443,6 +443,29 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
         return updated
       })
       setRecentLoaded(false)
+
+      // Silently persist USDA/OFF items to the user's custom food library
+      // so they surface first in future searches without re-hitting external APIs.
+      if (selectedResult && selectedResult.source !== 'custom') {
+        const g = servingUnit === 'oz'
+          ? parseFloat(servingG) / OZ_PER_G
+          : parseFloat(servingG)
+        const defaultServing = isNaN(g) || g <= 0 ? (selectedResult.serving_g ?? 100) : g
+        window.fetch('/api/food/custom', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: selectedResult.name,
+            brand: selectedResult.brand ?? null,
+            calories_per_100g: selectedResult.per100.calories,
+            protein_per_100g: selectedResult.per100.protein_g,
+            carbs_per_100g: selectedResult.per100.carbs_g,
+            fats_per_100g: selectedResult.per100.fats_g,
+            serving_g: defaultServing,
+          }),
+        }).catch(() => {/* non-critical */})
+      }
+
       // Stay open for the same meal — just clear the food selection
       const keepMeal = form.meal_type
       clearSelection()

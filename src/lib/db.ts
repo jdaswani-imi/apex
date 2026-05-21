@@ -564,8 +564,20 @@ export async function getLatestLabData() {
   return data
 }
 
+export async function getOnboardingData() {
+  const supabase = await createClient()
+  const user = await getAuthUser()
+  if (!user) return null
+  const { data } = await supabase
+    .from('user_onboarding')
+    .select('*')
+    .eq('user_id', user.id)
+    .maybeSingle()
+  return data
+}
+
 export async function getFullUserContext() {
-  const [profile, goals, training, supplements, lifestyle, baselines, latestCycle, latestLab] = await Promise.all([
+  const [profile, goals, training, supplements, lifestyle, baselines, latestCycle, latestLab, onboarding] = await Promise.all([
     getUserProfile(),
     getUserGoals(),
     getUserTraining(),
@@ -574,8 +586,9 @@ export async function getFullUserContext() {
     getExerciseBaselines(),
     getLatestCycle(),
     getLatestLabData(),
+    getOnboardingData(),
   ])
-  return { profile, goals, training, supplements, lifestyle, baselines, latestCycle, latestLab }
+  return { profile, goals, training, supplements, lifestyle, baselines, latestCycle, latestLab, onboarding }
 }
 
 // ─── Menstrual Cycle ──────────────────────────────────────────────────────────

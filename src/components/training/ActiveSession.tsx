@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, Fragment } from 'react'
 import { Plus, Check, Trophy, ChevronDown, ChevronUp, Timer, GripVertical, Trash2 } from 'lucide-react'
 import ExercisePicker from './ExercisePicker'
 
@@ -53,24 +53,46 @@ function formatTime(secs: number) {
   return `${m}:${s}`
 }
 
-function playRestCompleteBeep() {
+// ─── Audio ────────────────────────────────────────────────────────────────────
+
+function playCountdownBeep() {
   try {
     const ctx = new AudioContext()
-    function tone(start: number, freq: number, dur: number) {
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.type = 'sine'
+    osc.frequency.value = 880
+    gain.gain.setValueAtTime(0.4, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.13)
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + 0.13)
+    setTimeout(() => ctx.close(), 600)
+  } catch { /* AudioContext unavailable */ }
+}
+
+function playBoxingBell() {
+  try {
+    const ctx = new AudioContext()
+    function tone(freq: number, start: number, dur: number, amp: number) {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
       osc.connect(gain)
       gain.connect(ctx.destination)
       osc.type = 'sine'
       osc.frequency.value = freq
-      gain.gain.setValueAtTime(0.35, start)
+      gain.gain.setValueAtTime(amp, start)
       gain.gain.exponentialRampToValueAtTime(0.001, start + dur)
       osc.start(start)
       osc.stop(start + dur)
     }
-    tone(ctx.currentTime, 880, 0.18)
-    tone(ctx.currentTime + 0.22, 1100, 0.28)
-    setTimeout(() => ctx.close(), 1200)
+    const t = ctx.currentTime
+    tone(1047, t, 2.0, 0.5)
+    tone(1319, t, 1.6, 0.35)
+    tone(1568, t, 1.2, 0.22)
+    tone(2093, t + 0.04, 0.9, 0.13)
+    setTimeout(() => ctx.close(), 2800)
   } catch { /* AudioContext unavailable */ }
 }
 
@@ -81,7 +103,7 @@ function haptic(pattern: number | number[]) {
 // ─── Rest Timer Overlay ───────────────────────────────────────────────────────
 
 function RestTimerOverlay({
-  restTimer, restTotal, exerciseName, setInfo, templateColor, onSkip, onAdjust,
+  restTimer, restTotal, exerciseName, setInfo, templateColor, onSkip, onAdjust, onDismiss,
 }: {
   restTimer: number
   restTotal: number
@@ -90,12 +112,13 @@ function RestTimerOverlay({
   templateColor: string
   onSkip: () => void
   onAdjust: (delta: number) => void
+  onDismiss: () => void
 }) {
   const radius = 64
   const circumference = 2 * Math.PI * radius
   const progress = restTotal > 0 ? Math.min(1, restTimer / restTotal) : 0
   const offset = circumference * (1 - progress)
-  const isUrgent = restTimer > 0 && restTimer <= 5
+  const isUrgent = restTimer > 0 && restTimer <= 3
   const isDone = restTimer <= 0
   const ringColor = isDone ? '#22c55e' : isUrgent ? '#ef4444' : templateColor
 
@@ -124,7 +147,6 @@ function RestTimerOverlay({
         </div>
       )}
 
-      {/* Circular countdown */}
       <div style={{ position: 'relative', width: '168px', height: '168px', marginBottom: '40px' }}>
         <svg width="168" height="168" style={{ transform: 'rotate(-90deg)', display: 'block' }}>
           <circle cx="84" cy="84" r={radius} fill="none" stroke="#1c1c1c" strokeWidth="7" />
@@ -133,7 +155,7 @@ function RestTimerOverlay({
             stroke={ringColor} strokeWidth="7" strokeLinecap="round"
             strokeDasharray={`${circumference}`}
             strokeDashoffset={`${offset}`}
-            style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }}
+            style={{ transition: 'stroke-dashoffset 0.5s linear, stroke 0.3s' }}
           />
         </svg>
         <div style={{
@@ -164,7 +186,6 @@ function RestTimerOverlay({
         </div>
       </div>
 
-      {/* Controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         <button
           onClick={() => onAdjust(-15)}
@@ -205,18 +226,68 @@ function RestTimerOverlay({
           <span style={{ fontSize: '10px', fontWeight: 600 }}>15s</span>
         </button>
       </div>
+
+      <button
+        onClick={onDismiss}
+        style={{
+          marginTop: '28px', background: 'none', border: 'none', cursor: 'pointer',
+          color: '#52525b', fontSize: '13px', fontWeight: 600, padding: '8px',
+        }}
+      >
+        Back to workout ↓
+      </button>
+    </div>
+  )
+}
+
+// ─── Inline Rest Timer ────────────────────────────────────────────────────────
+
+function InlineRestTimer({ remaining, total, templateColor }: {
+  remaining: number
+  total: number
+  templateColor: string
+}) {
+  const progress = total > 0 ? remaining / total : 0
+  const isUrgent = remaining > 0 && remaining <= 3
+  const isDone = remaining <= 0
+  const color = isDone ? '#22c55e' : isUrgent ? '#ef4444' : templateColor
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      gap: '10px', padding: '8px 12px', margin: '2px 0 4px',
+      backgroundColor: '#0a0a0a', borderRadius: '10px',
+      border: `1px solid ${color}22`,
+    }}>
+      <Timer size={11} color={color} style={{ flexShrink: 0 }} />
+      <div style={{
+        flex: 1, height: '3px', backgroundColor: '#1c1c1c',
+        borderRadius: '2px', overflow: 'hidden',
+      }}>
+        <div style={{
+          height: '100%', backgroundColor: color,
+          width: `${progress * 100}%`,
+          transition: 'width 0.5s linear, background-color 0.3s',
+        }} />
+      </div>
+      <div style={{
+        fontSize: '15px', fontWeight: 800, color,
+        fontVariantNumeric: 'tabular-nums', minWidth: '38px', textAlign: 'right',
+        transition: 'color 0.3s',
+      }}>
+        {isDone ? 'Go!' : formatTime(remaining)}
+      </div>
     </div>
   )
 }
 
 // ─── Stepper Input ────────────────────────────────────────────────────────────
 
-function StepperInput({ value, onChange, step, min = 0, disabled = false }: {
+function StepperInput({ value, onChange, step, min = 0 }: {
   value: number
   onChange: (v: number) => void
   step: number
   min?: number
-  disabled?: boolean
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -224,15 +295,13 @@ function StepperInput({ value, onChange, step, min = 0, disabled = false }: {
         onPointerDown={e => e.stopPropagation()}
         onClick={e => {
           e.stopPropagation()
-          if (!disabled) onChange(Math.max(min, parseFloat((value - step).toFixed(2))))
+          onChange(Math.max(min, parseFloat((value - step).toFixed(2))))
         }}
-        disabled={disabled}
         style={{
-          width: '32px', height: '44px', borderRadius: '8px 0 0 8px',
+          width: '30px', height: '44px', borderRadius: '8px 0 0 8px',
           backgroundColor: '#1a1a1a', border: '1px solid #27272a', borderRight: 'none',
-          color: disabled ? '#2a2a2a' : '#71717a',
-          cursor: disabled ? 'default' : 'pointer',
-          fontSize: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#71717a', cursor: 'pointer',
+          fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0, lineHeight: 1,
         }}
       >
@@ -241,15 +310,14 @@ function StepperInput({ value, onChange, step, min = 0, disabled = false }: {
       <input
         type="number"
         value={value || ''}
-        onChange={e => { if (!disabled) onChange(parseFloat(e.target.value) || 0) }}
+        onChange={e => { onChange(parseFloat(e.target.value) || 0) }}
         onPointerDown={e => e.stopPropagation()}
         onClick={e => e.stopPropagation()}
-        disabled={disabled}
         style={{
-          width: '50px', height: '44px',
+          width: '46px', height: '44px',
           backgroundColor: '#1c1c1c', border: '1px solid #27272a',
           borderLeft: 'none', borderRight: 'none',
-          fontSize: '15px', color: disabled ? '#3f3f46' : '#fff',
+          fontSize: '15px', color: '#fff',
           outline: 'none', textAlign: 'center',
           fontFamily: 'inherit', fontVariantNumeric: 'tabular-nums',
         }}
@@ -258,15 +326,13 @@ function StepperInput({ value, onChange, step, min = 0, disabled = false }: {
         onPointerDown={e => e.stopPropagation()}
         onClick={e => {
           e.stopPropagation()
-          if (!disabled) onChange(parseFloat((value + step).toFixed(2)))
+          onChange(parseFloat((value + step).toFixed(2)))
         }}
-        disabled={disabled}
         style={{
-          width: '32px', height: '44px', borderRadius: '0 8px 8px 0',
+          width: '30px', height: '44px', borderRadius: '0 8px 8px 0',
           backgroundColor: '#1a1a1a', border: '1px solid #27272a', borderLeft: 'none',
-          color: disabled ? '#2a2a2a' : '#71717a',
-          cursor: disabled ? 'default' : 'pointer',
-          fontSize: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#71717a', cursor: 'pointer',
+          fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0, lineHeight: 1,
         }}
       >
@@ -289,6 +355,7 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
   const [showRestOverlay, setShowRestOverlay] = useState(false)
   const [restExerciseName, setRestExerciseName] = useState<string | null>(null)
   const [restSetInfo, setRestSetInfo] = useState<string | null>(null)
+  const [restAfterSetLocalId, setRestAfterSetLocalId] = useState<string | null>(null)
   const [finishing, setFinishing] = useState(false)
   const [discarding, setDiscarding] = useState(false)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
@@ -306,6 +373,10 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
   const [loaded, setLoaded] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
   const restRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
+  // End time (ms) when rest should finish — Date-based so tab-switching stays accurate
+  const restEndRef = useRef<number | null>(null)
+  // Track which countdown seconds have already fired audio to avoid double-beeping
+  const countdownFiredRef = useRef<Set<number>>(new Set())
   const sectionsRef = useRef<Section[]>([])
 
   useEffect(() => {
@@ -313,6 +384,26 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
     timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000)
     return () => { clearInterval(timerRef.current); clearInterval(restRef.current) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Recover accurate timer when user returns from another tab or app
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible' && restEndRef.current !== null) {
+        const remaining = Math.max(0, Math.ceil((restEndRef.current - Date.now()) / 1000))
+        setRestTimer(remaining)
+        if (remaining <= 0) {
+          clearInterval(restRef.current)
+          setRestActive(false)
+          restEndRef.current = null
+          playBoxingBell()
+          haptic([300, 100, 300, 100, 400])
+          setTimeout(() => setRestAfterSetLocalId(null), 2000)
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [])
 
   useEffect(() => {
@@ -383,28 +474,43 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
     setLoaded(true)
   }
 
-  function startRestTimer(duration: number, exName?: string, setInfo?: string) {
+  function startRestTimer(duration: number, exName?: string, setInfo?: string, afterSetLocalId?: string) {
     const clamped = Math.max(5, duration)
+    const endTime = Date.now() + clamped * 1000
+    restEndRef.current = endTime
+    countdownFiredRef.current = new Set()
+
     setRestTotal(clamped)
     setRestTimer(clamped)
     setRestActive(true)
-    setShowRestOverlay(true)
+    // Show inline timer only — overlay requires user to tap the mini pill
     if (exName !== undefined) setRestExerciseName(exName)
     if (setInfo !== undefined) setRestSetInfo(setInfo)
+    if (afterSetLocalId !== undefined) setRestAfterSetLocalId(afterSetLocalId)
+
     clearInterval(restRef.current)
     restRef.current = setInterval(() => {
-      setRestTimer(t => {
-        if (t === null || t <= 1) {
-          clearInterval(restRef.current)
-          setRestActive(false)
-          playRestCompleteBeep()
-          haptic([100, 50, 100])
-          setTimeout(() => setShowRestOverlay(false), 2200)
-          return 0
-        }
-        return t - 1
-      })
-    }, 1000)
+      if (restEndRef.current === null) return
+      const remaining = Math.max(0, Math.ceil((restEndRef.current - Date.now()) / 1000))
+      setRestTimer(remaining)
+
+      // Countdown beep + vibrate for last 3 seconds (each second fires once)
+      if (remaining <= 3 && remaining > 0 && !countdownFiredRef.current.has(remaining)) {
+        countdownFiredRef.current.add(remaining)
+        playCountdownBeep()
+        haptic(180)
+      }
+
+      if (remaining <= 0) {
+        clearInterval(restRef.current)
+        setRestActive(false)
+        restEndRef.current = null
+        countdownFiredRef.current = new Set()
+        playBoxingBell()
+        haptic([250, 80, 250, 80, 400])
+        setTimeout(() => setRestAfterSetLocalId(null), 2200)
+      }
+    }, 500)
   }
 
   function stopRestTimer() {
@@ -412,10 +518,17 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
     setRestActive(false)
     setRestTimer(null)
     setShowRestOverlay(false)
+    setRestAfterSetLocalId(null)
+    restEndRef.current = null
+    countdownFiredRef.current = new Set()
   }
 
   function adjustRestTimer(delta: number) {
+    if (restEndRef.current !== null) {
+      restEndRef.current += delta * 1000
+    }
     setRestTimer(t => t === null ? t : Math.max(5, t + delta))
+    setRestTotal(t => Math.max(5, t + delta))
   }
 
   function updateSections(updater: (draft: Section[]) => Section[]) {
@@ -468,10 +581,9 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
       if (set.set_type === 'working' && ex.restSeconds > 0) {
         const workingDone = ex.sets.filter(s => s.set_type === 'working' && s.done).length + 1
         const workingTotal = ex.sets.filter(s => s.set_type === 'working').length
-        startRestTimer(ex.restSeconds, ex.name, `Set ${workingDone} of ${workingTotal} complete`)
+        startRestTimer(ex.restSeconds, ex.name, `Set ${workingDone} of ${workingTotal} complete`, set.localId)
       }
 
-      // Scroll to next incomplete exercise when this one finishes
       const allDoneAfter = ex.sets.every((s, i) => i === setIdx ? true : s.done)
       if (allDoneAfter) {
         setTimeout(() => {
@@ -498,7 +610,14 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
 
   function updateSetField(secIdx: number, exIdx: number, setIdx: number, field: 'weight_kg' | 'reps', value: number) {
     updateSections(draft => {
-      draft[secIdx].exercises[exIdx].sets[setIdx] = { ...draft[secIdx].exercises[exIdx].sets[setIdx], [field]: value }
+      const sets = draft[secIdx].exercises[exIdx].sets
+      sets[setIdx] = { ...sets[setIdx], [field]: value }
+      // Cascade weight changes downward to all sets below
+      if (field === 'weight_kg') {
+        for (let i = setIdx + 1; i < sets.length; i++) {
+          sets[i] = { ...sets[i], weight_kg: value }
+        }
+      }
       return draft
     })
   }
@@ -629,12 +748,22 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
   const doneSets = allExercises.flatMap(e => e.sets).filter(s => s.done && s.set_type === 'working').length
   const restProgress = restTimer !== null && restTotal > 0 ? Math.min(1, restTimer / restTotal) : 0
 
-  return (
-    <div style={{ backgroundColor: '#000', minHeight: '100vh' }}>
+  function getInlineRest(exName: string): { remaining: number; total: number; afterSetLocalId: string } | null {
+    if (!restActive || restTimer === null || restAfterSetLocalId === null || restExerciseName !== exName) return null
+    return { remaining: restTimer, total: restTotal, afterSetLocalId: restAfterSetLocalId }
+  }
 
-      {/* Sticky header */}
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 10,
+      backgroundColor: '#000',
+      display: 'flex', flexDirection: 'column',
+      overflow: 'hidden',
+    }}>
+
+      {/* Header */}
       <div style={{
-        position: 'sticky', top: 0, zIndex: 20,
+        flexShrink: 0,
         backgroundColor: 'rgba(0,0,0,0.96)', backdropFilter: 'blur(20px)',
         borderBottom: '1px solid #111', padding: '48px 20px 12px',
       }}>
@@ -662,8 +791,8 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
           </div>
         </div>
 
-        {/* Mini rest pill — shown when overlay is dismissed but rest still counting */}
-        {restActive && restTimer !== null && !showRestOverlay && (
+        {/* Mini rest pill — tap to open overlay */}
+        {restActive && restTimer !== null && (
           <button
             onClick={() => setShowRestOverlay(true)}
             style={{
@@ -676,14 +805,20 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
               Rest {formatTime(restTimer)}
             </span>
             <div style={{ width: '60px', height: '2px', backgroundColor: '#1c1c1c', borderRadius: '1px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', backgroundColor: templateColor, width: `${restProgress * 100}%`, transition: 'width 1s linear' }} />
+              <div style={{ height: '100%', backgroundColor: templateColor, width: `${restProgress * 100}%`, transition: 'width 0.5s linear' }} />
             </div>
+            <span style={{ fontSize: '10px', color: '#3f3f46' }}>tap</span>
           </button>
         )}
       </div>
 
-      {/* Exercise list */}
-      <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {/* Scrollable exercise list */}
+      <div style={{
+        flex: 1, overflowY: 'auto',
+        padding: '16px 20px',
+        display: 'flex', flexDirection: 'column', gap: '8px',
+        WebkitOverflowScrolling: 'touch',
+      } as React.CSSProperties}>
         {!loaded && (
           <div style={{ color: '#52525b', textAlign: 'center', padding: '40px 0', fontSize: '14px' }}>Loading template...</div>
         )}
@@ -719,6 +854,7 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
                       onRemoveExercise={() => removeExercise(secIdx, exIdx)}
                       onDragHandlePointerDown={e => onDragHandlePointerDown(secIdx, exIdx, e)}
                       onRestSecondsChange={s => updateRestSeconds(secIdx, exIdx, s)}
+                      inlineRest={getInlineRest(ex.name)}
                     />
                   </div>
                 )
@@ -737,7 +873,7 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
         )}
 
         {loaded && (
-          <div style={{ display: 'flex', gap: '10px', marginTop: '8px', paddingBottom: '48px' }}>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '8px', paddingBottom: '32px' }}>
             <button
               onClick={() => setShowDiscardConfirm(true)}
               disabled={finishing || discarding}
@@ -756,7 +892,7 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
         )}
       </div>
 
-      {/* Rest timer overlay */}
+      {/* Rest timer overlay — only shown when user taps mini pill */}
       {showRestOverlay && restTimer !== null && (
         <RestTimerOverlay
           restTimer={restTimer}
@@ -766,6 +902,7 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
           templateColor={templateColor}
           onSkip={stopRestTimer}
           onAdjust={adjustRestTimer}
+          onDismiss={() => setShowRestOverlay(false)}
         />
       )}
 
@@ -926,7 +1063,7 @@ function SwipeRow({ children, onDelete, disabled }: { children: React.ReactNode;
   function onTouchEnd() { setSwiping(false); if (offset <= -60) { onDelete(); setOffset(0) } else setOffset(0) }
 
   return (
-    <div style={{ position: 'relative', overflow: 'hidden', marginBottom: '6px' }}>
+    <div style={{ position: 'relative', overflow: 'hidden', marginBottom: '4px' }}>
       <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '80px', backgroundColor: '#ff6b6b', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: Math.min(1, Math.abs(offset) / 60) }}>
         <Trash2 size={16} color="#0d0c0b" />
       </div>
@@ -963,9 +1100,10 @@ interface ExerciseCardProps {
   onRemoveExercise: () => void
   onDragHandlePointerDown: (e: React.PointerEvent<Element>) => void
   onRestSecondsChange: (s: number) => void
+  inlineRest?: { remaining: number; total: number; afterSetLocalId: string } | null
 }
 
-function ExerciseCard({ ex, templateColor, onToggle, onTickSet, onUpdateSet, onAddSet, onAddWarmup, onRemoveSet, onUpdateNotes, onNameChange, onRemoveExercise, onDragHandlePointerDown, gifUrl, onRestSecondsChange }: ExerciseCardProps) {
+function ExerciseCard({ ex, templateColor, onToggle, onTickSet, onUpdateSet, onAddSet, onAddWarmup, onRemoveSet, onUpdateNotes, onNameChange, onRemoveExercise, onDragHandlePointerDown, gifUrl, onRestSecondsChange, inlineRest }: ExerciseCardProps) {
   const workingSets = ex.sets.filter(s => s.set_type === 'working')
   const doneSets = workingSets.filter(s => s.done).length
   const allDone = workingSets.length > 0 && doneSets === workingSets.length
@@ -1028,42 +1166,75 @@ function ExerciseCard({ ex, templateColor, onToggle, onTickSet, onUpdateSet, onA
           ) : (
             <>
               {/* Column headers */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', paddingLeft: '2px' }}>
-                <span style={{ fontSize: '10px', color: '#3f3f46', width: '22px' }}>SET</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', paddingLeft: '2px' }}>
+                <span style={{ fontSize: '10px', color: '#3f3f46', width: '28px' }}>SET</span>
                 <span style={{ fontSize: '10px', color: '#3f3f46', flex: 1, textAlign: 'center' }}>KG</span>
                 <span style={{ fontSize: '10px', color: '#3f3f46', flex: 1, textAlign: 'center' }}>REPS</span>
-                <span style={{ width: '52px' }} />
+                <span style={{ width: '44px' }} />
               </div>
 
               {ex.sets.map((set, setIdx) => {
                 const isWarmup = set.set_type === 'warmup'
                 const canDelete = !set.done && ex.sets.length > 1
                 const weightStep = (set.weight_kg ?? 0) < 20 ? 1 : 2.5
+                const lastPerfForSet = ex.lastPerf?.find(
+                  lp => lp.set_type === set.set_type && lp.set_number === set.set_number
+                )
+                const showInlineTimer = inlineRest?.afterSetLocalId === set.localId
+
                 return (
-                  <SwipeRow key={set.localId} onDelete={() => onRemoveSet(setIdx)} disabled={!canDelete}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: set.done ? 0.45 : 1, transition: 'opacity 0.25s' }}>
-                      <span style={{ fontSize: '12px', color: isWarmup ? '#52525b' : '#71717a', width: '22px', flexShrink: 0, fontWeight: isWarmup ? 500 : 400 }}>
-                        {isWarmup ? 'W' : set.set_number}
-                      </span>
-                      <div style={{ flex: 1 }}>
-                        <StepperInput value={set.weight_kg} onChange={v => onUpdateSet(setIdx, 'weight_kg', v)} step={weightStep} disabled={set.done} />
+                  <Fragment key={set.localId}>
+                    <SwipeRow onDelete={() => onRemoveSet(setIdx)} disabled={!canDelete}>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        backgroundColor: set.done ? 'rgba(34, 197, 94, 0.07)' : 'transparent',
+                        borderRadius: '10px',
+                        padding: '4px 4px',
+                        border: set.done ? '1px solid rgba(34, 197, 94, 0.18)' : '1px solid transparent',
+                        transition: 'background-color 0.35s, border-color 0.35s',
+                      }}>
+                        {/* Set number + last perf hint */}
+                        <div style={{ width: '28px', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}>
+                          <span style={{ fontSize: '12px', color: isWarmup ? '#52525b' : set.done ? '#22c55e' : '#71717a', fontWeight: isWarmup ? 500 : 400, transition: 'color 0.3s' }}>
+                            {isWarmup ? 'W' : set.set_number}
+                          </span>
+                          {lastPerfForSet && (
+                            <span style={{ fontSize: '8px', color: '#2a2a2a', lineHeight: 1.2, textAlign: 'center' }}>
+                              {lastPerfForSet.weight_kg}×{lastPerfForSet.reps}
+                            </span>
+                          )}
+                        </div>
+
+                        <div style={{ flex: 1 }}>
+                          <StepperInput value={set.weight_kg} onChange={v => onUpdateSet(setIdx, 'weight_kg', v)} step={weightStep} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <StepperInput value={set.reps} onChange={v => onUpdateSet(setIdx, 'reps', v)} step={1} />
+                        </div>
+
+                        <button
+                          onClick={() => onTickSet(setIdx)}
+                          style={{
+                            width: '44px', height: '44px', borderRadius: '50%', border: 'none', flexShrink: 0,
+                            backgroundColor: set.done ? (set.is_pr ? '#f59e0b' : isWarmup ? '#27272a' : '#22c55e') : '#1c1c1c',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            transition: 'background-color 0.2s',
+                          }}
+                        >
+                          {set.is_pr ? <Trophy size={16} color="#000" /> : <Check size={16} color={set.done ? (isWarmup ? '#71717a' : '#000') : '#3f3f46'} />}
+                        </button>
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <StepperInput value={set.reps} onChange={v => onUpdateSet(setIdx, 'reps', v)} step={1} disabled={set.done} />
-                      </div>
-                      <button
-                        onClick={() => onTickSet(setIdx)}
-                        style={{
-                          width: '52px', height: '52px', borderRadius: '50%', border: 'none', flexShrink: 0,
-                          backgroundColor: set.done ? (set.is_pr ? '#f59e0b' : isWarmup ? '#27272a' : '#22c55e') : '#1c1c1c',
-                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          transition: 'background-color 0.2s',
-                        }}
-                      >
-                        {set.is_pr ? <Trophy size={18} color="#000" /> : <Check size={18} color={set.done ? (isWarmup ? '#71717a' : '#000') : '#3f3f46'} />}
-                      </button>
-                    </div>
-                  </SwipeRow>
+                    </SwipeRow>
+
+                    {/* Inline rest timer appears after the set that triggered rest */}
+                    {showInlineTimer && (
+                      <InlineRestTimer
+                        remaining={inlineRest!.remaining}
+                        total={inlineRest!.total}
+                        templateColor={templateColor}
+                      />
+                    )}
+                  </Fragment>
                 )
               })}
 

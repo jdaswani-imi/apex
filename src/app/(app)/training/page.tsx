@@ -10,6 +10,7 @@ import SessionHistory from '@/components/training/SessionHistory'
 import ProgressDashboard from '@/components/training/ProgressDashboard'
 import AIPexPanel from '@/components/training/AIPexPanel'
 import QuickLogModal from '@/components/training/QuickLogModal'
+import BaselineSetup from '@/components/training/BaselineSetup'
 
 type SubTab = 'ai' | 'templates' | 'history' | 'progress'
 
@@ -25,6 +26,7 @@ export default function TrainingPage() {
   const [active, setActive] = useState<ActiveSessionMeta | null>(null)
   const [gender, setGender] = useState<string>('male')
   const [showQuickLog, setShowQuickLog] = useState(false)
+  const [showBaselines, setShowBaselines] = useState(false)
 
   useEffect(() => {
     fetch('/api/settings')
@@ -94,6 +96,12 @@ export default function TrainingPage() {
         onLogged={() => setShowQuickLog(false)}
       />
     )}
+    {showBaselines && (
+      <BaselineSetup
+        onClose={() => setShowBaselines(false)}
+        onSaved={() => setShowBaselines(false)}
+      />
+    )}
     <div className="min-h-screen bg-background">
       <div className="px-4 md:px-6 pt-4 md:pt-6 pb-5">
         <div className="flex items-center justify-between mb-4">
@@ -135,7 +143,19 @@ export default function TrainingPage() {
         {subTab === 'ai' && <AIPexPanel onSelectTemplate={handleSelectTemplate} gender={gender} />}
         {subTab === 'templates' && <TemplatePicker onSelectTemplate={handleSelectTemplate} gender={gender} />}
         {subTab === 'history' && <SessionHistory />}
-        {subTab === 'progress' && <ProgressDashboard />}
+        {subTab === 'progress' && (
+          <>
+            <div className="flex justify-end mb-3">
+              <button
+                onClick={() => setShowBaselines(true)}
+                className="text-xs font-semibold text-[#c8a97e] border border-[#2c2c2e] rounded-full px-3 py-1.5 hover:border-[#c8a97e] transition-colors"
+              >
+                Set starting numbers
+              </button>
+            </div>
+            <ProgressDashboard />
+          </>
+        )}
       </div>
     </div>
     </>
