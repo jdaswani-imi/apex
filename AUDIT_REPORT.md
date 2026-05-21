@@ -118,6 +118,44 @@
 
 ---
 
+---
+
+## Phase 5 — Additional Security Fixes (Second Pass)
+
+### [FIXED] `chat/history/[id]` GET — messages readable cross-user (HIGH)
+- **File:** `src/app/api/chat/history/[id]/route.ts`
+- **Problem:** Chat messages were fetched by `conversation_id` only. Any authenticated user who knew another user's conversation UUID could read the full message history.
+- **Fix:** Added an ownership check (`SELECT id FROM chat_conversations WHERE id=? AND user_id=?`) before reading messages. Returns 404 if the conversation doesn't belong to the caller.
+
+### [FIXED] `chat/history` POST — messages deleted without ownership check (HIGH)
+- **File:** `src/app/api/chat/history/route.ts`
+- **Problem:** When updating an existing conversation, the route deleted all messages with `.eq('conversation_id', convId)` (no user filter) before checking whether the conversation belonged to the user. An attacker could supply a foreign `convId` to wipe another user's conversation.
+- **Fix:** Added an ownership verification query before any delete or update. Returns 404 if the conversation isn't owned by the caller.
+
+### [FIXED] `settings/baseline` POST — arbitrary field writes (MEDIUM)
+- **File:** `src/app/api/settings/baseline/route.ts`
+- **Problem:** The `...rest` spread from the request body was passed directly into the Supabase `update()` call, allowing any column name to be written.
+- **Fix:** Added `ALLOWED_BASELINE_FIELDS` allowlist; only whitelisted fields are passed to the update.
+
+---
+
+## Phase 6 — Mobile, DX & Ops
+
+### [FIXED] Bottom nav missing safe area inset (MEDIUM)
+- **File:** `src/app/(app)/layout.tsx`
+- **Problem:** Bottom nav used `py-2` flat — no clearance for iPhone home indicator or Android gesture bar.
+- **Fix:** `pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]` — uses the larger of 0.5rem or the device's safe area.
+
+### [ADDED] `/api/health` endpoint
+- **File:** `src/app/api/health/route.ts` (new)
+- Returns `{ status, version, timestamp }`. Excluded from auth middleware so uptime monitors (Vercel, UptimeRobot, etc.) can reach it without a session.
+
+### [FIXED] README.md — replaced boilerplate with actual documentation
+- **File:** `README.md`
+- Now covers: stack, prerequisites, local setup (clone → env → DB → dev server), key routes, WHOOP setup, Vercel deploy, Android TWA path.
+
+---
+
 ## Breaking Changes
 
 None. All fixes are additive guards (adding auth checks, user_id scoping) or config changes. No API shapes, response formats, route paths, or env var names were changed.
