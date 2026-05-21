@@ -11,7 +11,6 @@ export default defineConfig({
     environment: 'node',
     pool: 'forks',
     maxWorkers: 10,
-    minWorkers: 4,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
