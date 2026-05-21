@@ -26,10 +26,22 @@ export default function SettingsPage() {
   const [cycles, setCycles] = useState<Record<string, unknown>[]>([])
   const [newCycle, setNewCycle] = useState({ period_start_date: '', period_end_date: '', cycle_length_days: 28, notes: '' })
 
-  useEffect(() => { loadAll(); loadCycles() }, [])
-
   useEffect(() => {
-    fetch('/api/whoop/status').then(r => r.json()).then(d => setWhoopConnected(d.connected))
+    const controller = new AbortController()
+    const { signal } = controller
+    Promise.all([
+      fetch('/api/settings', { signal }).then(r => r.json()).then(data => {
+        setProfile(data.profile ?? {})
+        setGoals(data.goals ?? {})
+        setTraining(data.training ?? {})
+        setSupplements(data.supplements ?? [])
+        setLifestyle(data.lifestyle ?? {})
+        setBaselines(data.baselines ?? [])
+      }),
+      fetch('/api/whoop/status', { signal }).then(r => r.json()).then(d => setWhoopConnected(d.connected)),
+      fetch('/api/cycle', { signal }).then(r => r.json()).then(data => setCycles(data ?? [])),
+    ]).catch(() => {})
+    return () => controller.abort()
   }, [])
 
   async function loadAll() {

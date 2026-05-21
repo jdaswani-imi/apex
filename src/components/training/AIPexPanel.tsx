@@ -85,14 +85,18 @@ export default function AIPexPanel({ onSelectTemplate }: Props) {
   const [generatingMode, setGeneratingMode] = useState<'assessment' | 'full' | null>(null)
   const [showHowBuilt, setShowHowBuilt] = useState(false)
 
-  const fetchStatus = useCallback(async () => {
-    const res = await fetch('/api/training/ai-pex/status')
+  const fetchStatus = useCallback(async (signal?: AbortSignal) => {
+    const res = await fetch('/api/training/ai-pex/status', { signal })
     const data = await res.json()
     setStatus(data)
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchStatus() }, [fetchStatus])
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchStatus(controller.signal).catch(() => {})
+    return () => controller.abort()
+  }, [fetchStatus])
 
   async function generate(mode: 'assessment' | 'full') {
     setGenerating(true)

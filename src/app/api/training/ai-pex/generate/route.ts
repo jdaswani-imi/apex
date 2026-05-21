@@ -217,15 +217,20 @@ Return JSON exactly:
   // ── Call Claude ──────────────────────────────────────────────────────────────
   let plan: GeneratedPlan
   try {
-    const response = await anthropic.messages.create({
+    const stream = anthropic.messages.stream({
       model: 'claude-sonnet-4-6',
       max_tokens: 8192,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
-    })
+    }, { signal: AbortSignal.timeout(120_000) })
 
-    const text = response.content[0].type === 'text' ? response.content[0].text : ''
-    // Strip markdown fences if present
+    let text = ''
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        text += event.delta.text
+      }
+    }
+
     const cleaned = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim()
     plan = JSON.parse(cleaned) as GeneratedPlan
   } catch (err) {

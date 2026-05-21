@@ -29,10 +29,12 @@ export default function TrainingPage() {
   const [showBaselines, setShowBaselines] = useState(false)
 
   useEffect(() => {
-    fetch('/api/settings')
+    const controller = new AbortController()
+    fetch('/api/settings', { signal: controller.signal })
       .then(r => r.json())
       .then(d => { if (d.profile?.gender) setGender(d.profile.gender) })
       .catch(() => {})
+    return () => controller.abort()
   }, [])
 
   useEffect(() => {

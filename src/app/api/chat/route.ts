@@ -5,11 +5,17 @@ import { buildSystemPrompt } from '@/lib/ai/system-prompt'
 
 const anthropic = new Anthropic()
 
+export interface ChatAction {
+  type: 'log_meal' | 'log_workout' | 'log_rest_day' | 'log_weight' | 'log_steps' | 'mark_supplements_taken'
+  label: string
+  payload: Record<string, unknown>
+}
+
 const TOOLS: Anthropic.Tool[] = [
   {
     name: 'log_food',
     description:
-      "Log a food or meal to the user's food log for today. Use this when the user tells you they ate something or asks you to log food.",
+      "Log a food or meal to the user's food log for today. Use ONLY for actual food and drinks consumed as part of a meal. Do NOT use this for supplements, vitamins, minerals, creatine, protein powder, or any item from the user's supplement stack — use mark_supplements_taken for those instead.",
     input_schema: {
       type: 'object',
       properties: {
@@ -65,6 +71,52 @@ const TOOLS: Anthropic.Tool[] = [
           description: 'How many days back to look (default 7, max 30)',
         },
       },
+    },
+  },
+  {
+    name: 'mark_supplements_taken',
+    description:
+      "Mark one or more supplements as taken today. Use this whenever the user mentions taking, having, or logging a supplement, vitamin, mineral, creatine, protein powder, or any item from their supplement stack. This is the ONLY correct tool for supplements — never use log_food for them.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        names: {
+          type: 'array',
+          items: { type: 'string' },
+          description: "Names of the supplements to mark as taken. Match against the user's known supplement stack.",
+        },
+      },
+      required: ['names'],
+    },
+  },
+  {
+    name: 'suggest_actions',
+    description:
+      'Attach 1–3 one-tap action buttons to your response when the conversation surfaces a specific, ready-to-log item — e.g. after discussing a meal with known macros, confirming a workout, mentioning a rest day, reading out a weight, or checking in on supplements. Do NOT suggest if no concrete loggable data was discussed. Labels must be short and specific (e.g. "Log chicken & rice as lunch", "Log push day", "Mark rest day").',
+    input_schema: {
+      type: 'object',
+      properties: {
+        actions: {
+          type: 'array',
+          maxItems: 3,
+          items: {
+            type: 'object',
+            properties: {
+              type: {
+                type: 'string',
+                enum: ['log_meal', 'log_workout', 'log_rest_day', 'log_weight', 'log_steps', 'mark_supplements_taken'],
+              },
+              label: { type: 'string', description: 'Short button label visible to the user' },
+              payload: {
+                type: 'object',
+                description: 'Pre-filled data. log_meal: {name, meal_type, calories?, protein_g?, carbs_g?, fats_g?}. log_workout: {session_type, duration_min?, notes?}. log_rest_day: {notes?}. log_weight: {weight_kg}. log_steps: {steps}. mark_supplements_taken: {names?}',
+              },
+            },
+            required: ['type', 'label', 'payload'],
+          },
+        },
+      },
+      required: ['actions'],
     },
   },
 ]
@@ -133,6 +185,22 @@ async function executeTool(
       return JSON.stringify(data ?? [])
     }
 
+    case 'mark_supplements_taken': {
+      const names = inp.names as string[]
+      if (!names?.length) return JSON.stringify({ success: false, error: 'No supplement names provided' })
+      const results = await Promise.all(
+        names.map(name =>
+          supabase.from('supplement_logs').upsert(
+            { user_id: userId, date: today, supplement_name: name, taken: true },
+            { onConflict: 'user_id,date,supplement_name' },
+          ),
+        ),
+      )
+      const errors = results.filter(r => r.error).map(r => r.error?.message)
+      if (errors.length) return JSON.stringify({ success: false, errors })
+      return JSON.stringify({ success: true, marked: names })
+    }
+
     default:
       return JSON.stringify({ error: 'Unknown tool' })
   }
@@ -155,65 +223,108 @@ export async function POST(request: Request) {
 
   const systemPrompt = buildSystemPrompt(ctx, userCtx)
 
-  let currentMessages: Anthropic.MessageParam[] = messages
+  const MAX_HISTORY = 20
+  const enc = new TextEncoder()
   const toolCallSummary: { tool: string; label: string }[] = []
+  const suggestedActions: ChatAction[] = []
 
-  // Tool-use loop — max 5 iterations to prevent runaway chains
-  for (let i = 0; i < 5; i++) {
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
-      tools: TOOLS,
-      messages: currentMessages,
-    })
+  // ReadableStream controller set synchronously in start(), safe to use in the IIFE below
+  let sseController!: ReadableStreamDefaultController<Uint8Array>
+  const readable = new ReadableStream<Uint8Array>({
+    start(controller) { sseController = controller },
+  })
 
-    if (response.stop_reason !== 'tool_use') {
-      const text = response.content
-        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-        .map(b => b.text)
-        .join('')
-      return Response.json({ text, toolCalls: toolCallSummary })
+  // Run the tool-use loop in a background async IIFE so we can return the SSE
+  // response immediately and pipe tokens to the client as they arrive.
+  ;(async () => {
+    let currentMessages: Anthropic.MessageParam[] = messages.slice(-MAX_HISTORY)
+
+    const send = (payload: object) =>
+      sseController.enqueue(enc.encode(`data: ${JSON.stringify(payload)}\n\n`))
+
+    const finish = () => {
+      send({ done: true, toolCalls: toolCallSummary, actions: suggestedActions })
+      try { sseController.close() } catch {}
     }
 
-    // Execute all tool calls in parallel
-    const toolUseBlocks = response.content.filter(
-      (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
-    )
+    try {
+      // Tool-use loop — max 5 iterations to prevent runaway chains
+      for (let i = 0; i < 5; i++) {
+        const apiStream = anthropic.messages.stream({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1024,
+          system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+          tools: TOOLS,
+          messages: currentMessages,
+        }, { signal: AbortSignal.timeout(30_000) })
 
-    const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
-      toolUseBlocks.map(async (block) => {
-        const result = await executeTool(block.name, block.input, user.id)
+        // Pipe text tokens to the client in real time — fires on each delta
+        apiStream.on('text', (text) => { if (text) send({ t: text }) })
 
-        // Build human-readable label for UI feedback
-        const inp = block.input as Record<string, unknown>
-        if (block.name === 'log_food') {
-          toolCallSummary.push({ tool: 'log_food', label: `Logged ${inp.name} → ${inp.meal_type}` })
-        } else if (block.name === 'update_daily_metric') {
-          toolCallSummary.push({ tool: 'update', label: `Updated ${inp.metric}: ${inp.value}` })
-        } else if (block.name === 'get_today_nutrition') {
-          toolCallSummary.push({ tool: 'read', label: 'Checked today\'s nutrition' })
-        } else if (block.name === 'get_training_history') {
-          toolCallSummary.push({ tool: 'read', label: 'Checked training history' })
+        // finalMessage() awaits the completed stream and gives us the full response
+        // for tool detection. The .on('text') handler above runs concurrently.
+        const response = await apiStream.finalMessage()
+
+        if (response.stop_reason !== 'tool_use') {
+          finish()
+          return
         }
 
-        return {
-          type: 'tool_result' as const,
-          tool_use_id: block.id,
-          content: result,
-        }
-      }),
-    )
+        // Execute all tool calls in parallel
+        const toolUseBlocks = response.content.filter(
+          (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
+        )
 
-    currentMessages = [
-      ...currentMessages,
-      { role: 'assistant' as const, content: response.content },
-      { role: 'user' as const, content: toolResults },
-    ]
-  }
+        const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
+          toolUseBlocks.map(async (block) => {
+            if (block.name === 'suggest_actions') {
+              const inp = block.input as { actions: ChatAction[] }
+              suggestedActions.push(...(inp.actions ?? []))
+              return { type: 'tool_result' as const, tool_use_id: block.id, content: '{"ok":true}' }
+            }
 
-  return Response.json({
-    text: 'I hit a processing limit. Please try again.',
-    toolCalls: toolCallSummary,
+            const result = await executeTool(block.name, block.input, user.id)
+
+            const inp = block.input as Record<string, unknown>
+            if (block.name === 'log_food') {
+              toolCallSummary.push({ tool: 'log_food', label: `Logged ${inp.name} → ${inp.meal_type}` })
+            } else if (block.name === 'update_daily_metric') {
+              toolCallSummary.push({ tool: 'update', label: `Updated ${inp.metric}: ${inp.value}` })
+            } else if (block.name === 'get_today_nutrition') {
+              toolCallSummary.push({ tool: 'read', label: 'Checked today\'s nutrition' })
+            } else if (block.name === 'get_training_history') {
+              toolCallSummary.push({ tool: 'read', label: 'Checked training history' })
+            } else if (block.name === 'mark_supplements_taken') {
+              const names = inp.names as string[]
+              toolCallSummary.push({ tool: 'supplement', label: `Marked ${names.join(' + ')} → taken` })
+            }
+
+            return { type: 'tool_result' as const, tool_use_id: block.id, content: result }
+          }),
+        )
+
+        currentMessages = [
+          ...currentMessages,
+          { role: 'assistant' as const, content: response.content },
+          { role: 'user' as const, content: toolResults },
+        ]
+      }
+
+      send({ t: 'I hit a processing limit. Please try again.' })
+      finish()
+    } catch {
+      try {
+        send({ t: 'Something went wrong. Please try again.' })
+        finish()
+      } catch {}
+    }
+  })()
+
+  return new Response(readable, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'X-Accel-Buffering': 'no',
+    },
   })
 }
