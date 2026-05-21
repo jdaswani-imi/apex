@@ -534,15 +534,20 @@ export async function upsertUserSupplement(supp: Record<string, unknown>) {
 
 export async function deleteUserSupplement(id: string) {
   const supabase = await createClient()
-  await supabase.from('user_supplements').delete().eq('id', id)
+  const user = await getAuthUser()
+  if (!user) return
+  await supabase.from('user_supplements').delete().eq('id', id).eq('user_id', user.id)
 }
 
 export async function updateExerciseBaseline(id: string, updates: Record<string, unknown>) {
   const supabase = await createClient()
+  const user = await getAuthUser()
+  if (!user) return null
   const { data } = await supabase
     .from('exercise_baselines')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', id)
+    .eq('user_id', user.id)
     .select().single()
   return data
 }
@@ -642,7 +647,9 @@ export async function upsertMenstrualCycle(
 
 export async function deleteMenstrualCycle(id: string): Promise<void> {
   const supabase = await createClient()
-  await supabase.from('menstrual_cycles').delete().eq('id', id)
+  const user = await getAuthUser()
+  if (!user) return
+  await supabase.from('menstrual_cycles').delete().eq('id', id).eq('user_id', user.id)
 }
 
 // ─── Full today context (used by AI and dashboard) ────────────────────────────
