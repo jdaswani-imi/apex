@@ -2,6 +2,8 @@ import Anthropic from '@anthropic-ai/sdk'
 import { getTodayContext, getFullUserContext, getUserGoals, getUserTraining } from '@/lib/db'
 import { createClient } from '@/lib/supabase/server'
 import { buildWeekIntelligence, FLAG_LABELS, type DayData } from '@/lib/intelligence'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
+import { getCachedAI, setCachedAI } from '@/lib/ai-cache'
 
 const anthropic = new Anthropic()
 
@@ -17,6 +19,12 @@ export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
+  if (!await checkRateLimit(`${user.id}:ai-brief`, 10, 60 * 60 * 1000)) return rateLimitResponse()
+
+  const todayDate = new Date().toISOString().split('T')[0]
+  const cacheKey = `ai:brief:${user.id}:${todayDate}`
+  const cached = await getCachedAI<DailyBrief>(cacheKey)
+  if (cached) return Response.json(cached, { headers: { 'Cache-Control': 'private, max-age=7200' } })
 
   const [ctx, userCtx, goals, trainingConfig, suppResult] = await Promise.all([
     getTodayContext(),
@@ -145,6 +153,7 @@ Return this exact JSON shape:
       .trim()
 
     const brief = JSON.parse(raw) as DailyBrief
+    await setCachedAI(cacheKey, brief, 7200)
     return Response.json(brief, {
       headers: { 'Cache-Control': 'private, max-age=7200' },
     })

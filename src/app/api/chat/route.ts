@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { getTodayContext, getFullUserContext } from '@/lib/db'
 import { buildSystemPrompt } from '@/lib/ai/system-prompt'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 const anthropic = new Anthropic()
 
@@ -210,6 +211,7 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
+  if (!await checkRateLimit(`${user.id}:chat`, 30, 60 * 60 * 1000)) return rateLimitResponse()
 
   const { messages } = await request.json() as {
     messages: Anthropic.MessageParam[]

@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    name: Lint · Typecheck · Test · Build
+    runs-on: ubuntu-latest
+
+    env:
+      # Real values not needed for lint/typecheck/test — stubs satisfy Next.js env validation
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+      ANTHROPIC_API_KEY: sk-ant-placeholder
+      WHOOP_CLIENT_ID: placeholder
+      WHOOP_CLIENT_SECRET: placeholder
+      WHOOP_REDIRECT_URI: http://localhost:3000/api/whoop/callback
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      USDA_API_KEY: DEMO_KEY
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build

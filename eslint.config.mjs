@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated output — not source
+    "coverage/**",
+    // Test files use any types intentionally in mock stubs
+    "src/__tests__/**",
   ]),
   {
     rules: {
@@ -22,6 +26,7 @@ const eslintConfig = defineConfig([
       "react-hooks/set-state-in-effect": "off",
       "react-hooks/immutability": "off",
       "react-hooks/refs": "off",
+      "react-hooks/purity": "off",
     },
   },
 ]);

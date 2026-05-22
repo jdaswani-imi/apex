@@ -14,6 +14,8 @@ import {
   type DayFlag,
   type DayData,
 } from '@/lib/intelligence'
+import { getCachedAI, setCachedAI } from '@/lib/ai-cache'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 export interface MorningIntelligence {
   yesterday_score: number | null
@@ -37,6 +39,13 @@ export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
+
+  if (!await checkRateLimit(`rl:morning:${user.id}`, 10, 3600_000)) return rateLimitResponse()
+
+  const today = new Date().toISOString().split('T')[0]
+  const cacheKey = `ai:morning:${user.id}:${today}`
+  const cached = await getCachedAI<MorningIntelligence>(cacheKey)
+  if (cached) return Response.json(cached, { headers: { 'Cache-Control': 'private, max-age=7200' } })
 
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - 8)
@@ -315,6 +324,7 @@ Return this exact JSON:
     page_insights,
   }
 
+  await setCachedAI(cacheKey, result, 7200)
   return Response.json(result, {
     headers: { 'Cache-Control': 'private, max-age=7200' },
   })

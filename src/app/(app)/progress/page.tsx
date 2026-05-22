@@ -58,7 +58,7 @@ function MiniBar({ value, max, color }: { value: number; max: number; color: str
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
       <div style={{
         width: '100%', height: '48px',
-        backgroundColor: 'rgba(255,255,255,0.04)',
+        backgroundColor: 'var(--muted)',
         borderRadius: '4px',
         display: 'flex', alignItems: 'flex-end', overflow: 'hidden',
       }}>
@@ -204,7 +204,7 @@ function RecoveryTab({ data }: { data: WhoopData }) {
       {records.length > 1 && (
         <div style={{
           backgroundColor: 'var(--card)',
-          border: '1px solid rgba(255,255,255,0.05)',
+          border: '1px solid var(--border)',
           borderRadius: '18px',
           padding: '16px',
         }}>
@@ -233,7 +233,7 @@ function RecoveryTab({ data }: { data: WhoopData }) {
       {records.filter(r => r.hrv_rmssd_milli !== null).length > 1 && (
         <div style={{
           backgroundColor: 'var(--card)',
-          border: '1px solid rgba(255,255,255,0.05)',
+          border: '1px solid var(--border)',
           borderRadius: '18px',
           padding: '16px',
         }}>
@@ -261,7 +261,7 @@ function RecoveryTab({ data }: { data: WhoopData }) {
       {/* Recent records */}
       <div style={{
         backgroundColor: 'var(--card)',
-        border: '1px solid rgba(255,255,255,0.05)',
+        border: '1px solid var(--border)',
         borderRadius: '18px',
         overflow: 'hidden',
       }}>
@@ -273,7 +273,7 @@ function RecoveryTab({ data }: { data: WhoopData }) {
         {data.recovery.slice(0, 7).map((r, i) => (
           <div key={r.id} style={{
             padding: '10px 16px',
-            borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.04)',
+            borderTop: i === 0 ? 'none' : '1px solid var(--border)',
             display: 'flex', alignItems: 'center', gap: '12px',
           }}>
             <div style={{
@@ -352,7 +352,7 @@ function SleepTab({ data }: { data: WhoopData }) {
       {latest && (
         <div style={{
           backgroundColor: 'var(--card)',
-          border: '1px solid rgba(255,255,255,0.05)',
+          border: '1px solid var(--border)',
           borderRadius: '18px',
           padding: '16px',
         }}>
@@ -377,7 +377,7 @@ function SleepTab({ data }: { data: WhoopData }) {
       {records.length > 1 && (
         <div style={{
           backgroundColor: 'var(--card)',
-          border: '1px solid rgba(255,255,255,0.05)',
+          border: '1px solid var(--border)',
           borderRadius: '18px',
           padding: '16px',
         }}>
@@ -405,7 +405,7 @@ function SleepTab({ data }: { data: WhoopData }) {
       {/* Recent records */}
       <div style={{
         backgroundColor: 'var(--card)',
-        border: '1px solid rgba(255,255,255,0.05)',
+        border: '1px solid var(--border)',
         borderRadius: '18px',
         overflow: 'hidden',
       }}>
@@ -417,7 +417,7 @@ function SleepTab({ data }: { data: WhoopData }) {
         {data.sleep.slice(0, 7).map((s, i) => (
           <div key={s.id} style={{
             padding: '10px 16px',
-            borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.04)',
+            borderTop: i === 0 ? 'none' : '1px solid var(--border)',
             display: 'flex', alignItems: 'center', gap: '12px',
           }}>
             <div style={{
@@ -496,7 +496,7 @@ function StrainTab({ data }: { data: WhoopData }) {
       {records.length > 1 && (
         <div style={{
           backgroundColor: 'var(--card)',
-          border: '1px solid rgba(255,255,255,0.05)',
+          border: '1px solid var(--border)',
           borderRadius: '18px',
           padding: '16px',
         }}>
@@ -521,7 +521,7 @@ function StrainTab({ data }: { data: WhoopData }) {
       {data.workouts.length > 0 && (
         <div style={{
           backgroundColor: 'var(--card)',
-          border: '1px solid rgba(255,255,255,0.05)',
+          border: '1px solid var(--border)',
           borderRadius: '18px',
           overflow: 'hidden',
         }}>
@@ -537,7 +537,7 @@ function StrainTab({ data }: { data: WhoopData }) {
             return (
               <div key={w.id} style={{
                 padding: '12px 16px',
-                borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.04)',
+                borderTop: i === 0 ? 'none' : '1px solid var(--border)',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{
@@ -612,7 +612,7 @@ function StrainTab({ data }: { data: WhoopData }) {
       {/* Daily cycles list */}
       <div style={{
         backgroundColor: 'var(--card)',
-        border: '1px solid rgba(255,255,255,0.05)',
+        border: '1px solid var(--border)',
         borderRadius: '18px',
         overflow: 'hidden',
       }}>
@@ -624,7 +624,7 @@ function StrainTab({ data }: { data: WhoopData }) {
         {data.cycles.slice(0, 7).map((c, i) => (
           <div key={c.id} style={{
             padding: '10px 16px',
-            borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.04)',
+            borderTop: i === 0 ? 'none' : '1px solid var(--border)',
             display: 'flex', alignItems: 'center', gap: '12px',
           }}>
             <div style={{

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getFullUserContext } from '@/lib/db'
 import { NextResponse } from 'next/server'
+import { invalidateUserSettingsCache, invalidateUserAICaches } from '@/lib/ai-cache'
 
 export async function GET() {
   const supabase = await createClient()
@@ -28,5 +29,11 @@ export async function POST(request: Request) {
     .upsert({ user_id: user.id, ...data, updated_at: new Date().toISOString() })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await Promise.all([
+    invalidateUserSettingsCache(user.id),
+    invalidateUserAICaches(user.id),
+  ])
+
   return NextResponse.json({ success: true })
 }

@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
+import { getCachedAI, setCachedAI } from '@/lib/ai-cache'
 
 const anthropic = new Anthropic()
 
@@ -16,6 +18,7 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
+  if (!await checkRateLimit(`${user.id}:sleep-routine`, 5, 60 * 60 * 1000)) return rateLimitResponse()
 
   const body = await request.json() as {
     sleep_issues?: string[]
@@ -33,6 +36,15 @@ export async function POST(request: Request) {
     whoop_avg_sleep_performance?: number | null
     whoop_avg_recovery_score?: number | null
   }
+
+  // Cache key covers inputs that drive the recommendation (stable settings, not dynamic metrics)
+  const cacheKey = `ai:sleep-routine:${user.id}:${JSON.stringify([
+    body.primary_goal, body.wake_time, body.sleep_target_weeknight,
+    body.training_days?.slice().sort().join(','), body.sleep_issues?.slice().sort().join(','),
+    body.env_dark, body.env_cool,
+  ])}`
+  const cached = await getCachedAI<SleepRoutineResult>(cacheKey)
+  if (cached) return Response.json(cached)
 
   const {
     sleep_issues = [],
@@ -102,6 +114,7 @@ Return ONLY valid JSON, no markdown:
       .replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
 
     const result = JSON.parse(raw) as SleepRoutineResult
+    await setCachedAI(cacheKey, result, 86400)
     return Response.json(result)
   } catch (err) {
     console.error('[sleep-routine] failed:', err)

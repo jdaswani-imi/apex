@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 const anthropic = new Anthropic()
 
@@ -44,13 +45,14 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!await checkRateLimit(`${user.id}:ai-pex`, 10, 60 * 60 * 1000)) return rateLimitResponse()
 
   const body = await request.json()
   const { mode = 'full' } = body // 'full' | 'assessment'
 
   // ── Gather user context ──────────────────────────────────────────────────────
   const [onboardingRes, profileRes, goalsRes, trainingRes, historyRes] = await Promise.all([
-    supabase.from('user_onboarding').select('training_ext, physical, interests').eq('user_id', user.id).single(),
+    supabase.from('user_onboarding').select('training_ext, physical, interests, coaching').eq('user_id', user.id).single(),
     supabase.from('user_profile').select('name, age, gender, height_cm').eq('user_id', user.id).single(),
     supabase.from('user_goals').select('target_weight_kg, current_weight_kg, body_fat_pct, daily_protein_target_g').eq('user_id', user.id).single(),
     supabase.from('user_training').select('training_split, gym_name, smith_machine_bar_kg').eq('user_id', user.id).single(),
@@ -60,6 +62,7 @@ export async function POST(request: Request) {
   const trainingExt = (onboardingRes.data?.training_ext ?? {}) as Record<string, unknown>
   const physical = (onboardingRes.data?.physical ?? {}) as Record<string, unknown>
   const interests = (onboardingRes.data?.interests ?? {}) as Record<string, unknown>
+  const coaching = (onboardingRes.data?.coaching ?? {}) as Record<string, unknown>
   const profile = profileRes.data
   const goals = goalsRes.data
   const userTraining = trainingRes.data
@@ -69,6 +72,21 @@ export async function POST(request: Request) {
   const trainingDays = (trainingExt.training_days as string[]) ?? []
   const fitnessLevel = (trainingExt.fitness_level as string) ?? (physical.fitness_level as string) ?? 'Intermediate'
   const primaryGoal = (interests.primary_goal as string) ?? 'Build muscle'
+
+  // Richer user context from onboarding
+  const injuries = (physical.injuries_list as string[]) ?? []
+  const injuryDetail = (physical.injuries_detail as string) ?? ''
+  const preferredTime = (trainingExt.preferred_time as string) ?? null
+  const cardioTypes = (trainingExt.cardio_types as string[]) ?? []
+  const sportsList = (trainingExt.sports_list as string[]) ?? []
+  const sportsFixed = (trainingExt.sports_fixed as boolean) ?? false
+  const sportsFixedDays = (trainingExt.sports_fixed_days as string[]) ?? []
+  const muscleWeaknesses = (trainingExt.weaknesses as string[]) ?? []
+  const feedbackBluntness = (coaching.feedback_bluntness as number) ?? 3
+  const coachingStyle = (coaching.coaching_style as string) ?? null
+
+  // Derive coaching tone for rationale text
+  const coachingTone = feedbackBluntness >= 4 ? 'blunt and direct' : feedbackBluntness <= 2 ? 'supportive and encouraging' : 'balanced'
 
   const allowedEquipment = EQUIPMENT_BY_GYM[gymType] ?? EQUIPMENT_BY_GYM['Commercial gym']
 
@@ -109,6 +127,16 @@ export async function POST(request: Request) {
   // ── Build prompt ─────────────────────────────────────────────────────────────
   const COLORS = ['#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#ff6b6b', '#f59e0b', '#06b6d4', '#ec4899']
 
+  // Build reusable injury/constraint block
+  const injuryBlock = injuries.filter(i => i !== 'None').length > 0
+    ? `INJURIES / LIMITATIONS (critical — must modify or exclude affected exercises):
+${injuries.filter(i => i !== 'None').map(i => `- ${i}`).join('\n')}${injuryDetail ? `\n  Details: ${injuryDetail}` : ''}`
+    : ''
+
+  const sportsBlock = sportsList.filter(s => s !== 'None').length > 0
+    ? `Sports/activities: ${sportsList.filter(s => s !== 'None').join(', ')}${sportsFixed && sportsFixedDays.length > 0 ? ` (fixed days: ${sportsFixedDays.join(', ')} — do NOT schedule gym sessions on these days)` : ''}`
+    : ''
+
   const systemPrompt = `You are AI-PEX, an elite AI personal trainer. Your job is to design science-backed workout programs tailored to the individual. You output ONLY valid JSON — no markdown, no explanation.`
 
   const userPrompt = mode === 'assessment'
@@ -120,13 +148,14 @@ Rules:
 - Do NOT assign weights — the athlete self-selects based on feel
 - Include a warm-up section and main section
 - Notes should say "Find a challenging but manageable weight for 8-10 clean reps"
+${injuryBlock ? `\n${injuryBlock}\n- Substitute any exercises that stress the listed injury sites` : ''}
 
 User:
 - Name: ${profile?.name ?? 'Athlete'}
-- Gender: ${profile?.gender ?? 'male'}
+- Age: ${profile?.age ?? 'unknown'}, Gender: ${profile?.gender ?? 'male'}
 - Gym type: ${gymType}
 - Fitness level: ${fitnessLevel}
-- Primary goal: ${primaryGoal}
+- Primary goal: ${primaryGoal}${preferredTime ? `\n- Preferred workout time: ${preferredTime}` : ''}
 
 Approved exercises — format: Name|equipment|muscles (use ONLY these exact names):
 ${exerciseList}
@@ -165,15 +194,15 @@ User profile:
 - Body fat: ${goals?.body_fat_pct ?? '?'}%
 - Primary goal: ${primaryGoal}
 - Fitness level: ${fitnessLevel}
-- Gym type: ${gymType}
+- Gym type: ${gymType}${preferredTime ? `\n- Preferred workout time: ${preferredTime}` : ''}
 - Training days: ${trainingDaysStr}
-- Protein target: ${goals?.daily_protein_target_g ?? '?'}g/day
-
+- Protein target: ${goals?.daily_protein_target_g ?? '?'}g/day${muscleWeaknesses.length > 0 ? `\n- Self-identified weak points (prioritise these): ${muscleWeaknesses.join(', ')}` : ''}${cardioTypes.length > 0 ? `\n- Preferred cardio: ${cardioTypes.join(', ')} (include as finishers or conditioning where appropriate)` : ''}${sportsBlock ? `\n- ${sportsBlock}` : ''}${coachingStyle ? `\n- Coaching style preference: ${coachingStyle}` : ''}
+${injuryBlock ? `\n${injuryBlock}\n` : ''}
 Training history (last 10 sessions):
 ${historyStr}
 
 Rules:
-1. Create ONE template per training day (match exactly the training days listed)
+1. Create ONE template per training day (match exactly the training days listed — respect any fixed sports days above)
 2. Use ONLY exercise names from the approved list below — exact spelling required
 3. Each template has sections (Warm-Up, main muscle groups, optional finisher)
 4. Prescribe specific sets × reps. Use history to estimate starting weights where possible.
@@ -181,7 +210,8 @@ Rules:
 6. Progressive overload built in — increase weight or reps each week
 7. Colors for templates: ${COLORS.join(', ')}
 8. Descriptions should be short (max 6 words)
-9. Add a "rationale" field per template (2-3 sentences) explaining WHY this workout was chosen for this specific athlete on this day — reference their history, goals, or schedule
+9. Add a "rationale" field per template (2-3 sentences, tone: ${coachingTone}) explaining WHY this workout was chosen for this specific athlete on this day — reference their history, goals, weak points, or injury constraints
+10. If the user has injuries, substitute or remove exercises that stress those areas and note the modification
 
 Approved exercises — format: Name|equipment|muscles (use ONLY these exact names):
 ${exerciseList}

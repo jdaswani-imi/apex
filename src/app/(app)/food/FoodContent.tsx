@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, memo } from 'react'
 
 // Session-level cache keyed by date string. Evicted on any mutation so stale
 // data never lingers, but navigating back to an already-viewed date is instant.
@@ -140,7 +140,7 @@ interface FoodContentProps {
 type FormTab = 'search' | 'create' | 'photo'
 type ServingUnit = 'g' | 'oz'
 
-export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDay = false, viewDate: viewDateProp, todayStr: todayStrProp }: FoodContentProps) {
+const FoodContent = memo(function FoodContent({ proteinTarget, calorieTarget, isTrainingDay = false, viewDate: viewDateProp, todayStr: todayStrProp }: FoodContentProps) {
   const todayStr = todayStrProp ?? new Date().toISOString().split('T')[0]
   const viewDate = viewDateProp ?? todayStr
   const isToday = viewDate === todayStr
@@ -722,7 +722,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
               {totals.calories > 0 ? `${calPct}%` : '0%'}
             </span>
           </div>
-          <div className="w-full bg-white/5 rounded-full h-1.5">
+          <div className="w-full bg-muted/50 rounded-full h-1.5">
             <div
               className={cn(
                 'h-1.5 rounded-full transition-all duration-500',
@@ -749,7 +749,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                 </p>
                 <p className="text-muted-foreground/60 text-[10px] mt-1 font-medium">{label}</p>
                 {pct !== null && value > 0 && (
-                  <div className="w-full bg-white/5 rounded-full h-0.5 mt-1.5">
+                  <div className="w-full bg-muted/50 rounded-full h-0.5 mt-1.5">
                     <div className={cn('h-0.5 rounded-full', bar)} style={{ width: `${pct}%` }} />
                   </div>
                 )}
@@ -834,7 +834,7 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
                       <button
                         type="button"
                         onClick={() => removePhoto(i)}
-                        className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center text-foreground/80 hover:text-white transition-colors"
+                        className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-background/70 flex items-center justify-center text-foreground/80 hover:text-foreground transition-colors"
                       >
                         <X size={10} />
                       </button>
@@ -1458,4 +1458,6 @@ export default function FoodContent({ proteinTarget, calorieTarget, isTrainingDa
       )}
     </div>
   )
-}
+})
+
+export default FoodContent

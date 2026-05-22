@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getFullUserContext } from '@/lib/db'
 import Anthropic from '@anthropic-ai/sdk'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 const anthropic = new Anthropic()
 
@@ -22,6 +23,7 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
+  if (!await checkRateLimit(`${user.id}:lab`, 5, 60 * 60 * 1000)) return rateLimitResponse()
 
   const formData = await request.formData()
   const file = formData.get('file') as File | null

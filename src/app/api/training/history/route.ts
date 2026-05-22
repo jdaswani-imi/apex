@@ -14,5 +14,7 @@ export async function GET() {
     .order('date', { ascending: false })
     .limit(50)
 
-  return NextResponse.json(data ?? [])
+  return NextResponse.json(data ?? [], {
+    headers: { 'Cache-Control': 'private, max-age=300' },
+  })
 }

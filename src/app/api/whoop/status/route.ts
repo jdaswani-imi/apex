@@ -17,5 +17,7 @@ export async function GET() {
   const expired = new Date(data.expires_at) <= new Date()
   const canRefresh = !!data.refresh_token
 
-  return NextResponse.json({ connected: true, expired, canRefresh, lastSyncedAt: data.last_synced_at ?? null })
+  return NextResponse.json({ connected: true, expired, canRefresh, lastSyncedAt: data.last_synced_at ?? null }, {
+    headers: { 'Cache-Control': 'private, max-age=300' },
+  })
 }

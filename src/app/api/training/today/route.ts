@@ -45,12 +45,14 @@ export async function GET() {
       .order('training_sessions(date)', { ascending: false })
       .limit(200)
 
-    // Map each baseline to its most recent matching exercise (case-insensitive)
+    // Index recent exercises by lowercase name for O(1) lookup per baseline
+    const recentByName = new Map(
+      (recentExercises ?? []).map(e => [e.name.toLowerCase(), e])
+    )
+
     exercises = (baselines ?? []).map((b) => {
       const nameLower = (b.exercise_name as string).toLowerCase()
-      const lastEx = (recentExercises ?? []).find(
-        e => e.name.toLowerCase().includes(nameLower)
-      ) ?? null
+      const lastEx = recentByName.get(nameLower) ?? null
 
       let progressStatus = 'hold'
       if (lastEx) {
@@ -68,31 +70,31 @@ export async function GET() {
     })
   }
 
-  const { data: todaySession } = await supabase
-    .from('training_sessions')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('date', today)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single()
-
-  const { data: lastSession } = await supabase
-    .from('training_sessions')
-    .select('*')
-    .eq('user_id', user.id)
-    .ilike('session_type', `%${baselineType ?? ''}%`)
-    .lt('date', today)
-    .order('date', { ascending: false })
-    .limit(1)
-    .single()
-
-  const { data: recovery } = await supabase
-    .from('whoop_recovery')
-    .select('recovery_score')
-    .eq('user_id', user.id)
-    .eq('date', today)
-    .single()
+  const [{ data: todaySession }, { data: lastSession }, { data: recovery }] = await Promise.all([
+    supabase
+      .from('training_sessions')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('date', today)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single(),
+    supabase
+      .from('training_sessions')
+      .select('*')
+      .eq('user_id', user.id)
+      .ilike('session_type', `%${baselineType ?? ''}%`)
+      .lt('date', today)
+      .order('date', { ascending: false })
+      .limit(1)
+      .single(),
+    supabase
+      .from('whoop_recovery')
+      .select('recovery_score')
+      .eq('user_id', user.id)
+      .eq('date', today)
+      .single(),
+  ])
 
   return NextResponse.json({
     sessionType,
@@ -101,5 +103,5 @@ export async function GET() {
     todaySession,
     lastSession,
     recovery: recovery?.recovery_score ?? null,
-  })
+  }, { headers: { 'Cache-Control': 'private, max-age=60, must-revalidate' } })
 }

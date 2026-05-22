@@ -32,6 +32,7 @@ export async function GET() {
   }
 
   return NextResponse.json(
-    templates.map(t => ({ ...t, last_used: lastUsedMap[t.id] ?? null }))
+    templates.map(t => ({ ...t, last_used: lastUsedMap[t.id] ?? null })),
+    { headers: { 'Cache-Control': 'private, max-age=300' } },
   )
 }

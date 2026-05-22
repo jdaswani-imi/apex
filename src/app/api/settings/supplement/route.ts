@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { invalidateUserSettingsCache } from '@/lib/ai-cache'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
     await supabase.from('user_supplements').insert({ user_id: user.id, ...rest })
   }
 
+  await invalidateUserSettingsCache(user.id)
   return NextResponse.json({ success: true })
 }
 
@@ -28,5 +30,6 @@ export async function DELETE(request: Request) {
   if (!id) return NextResponse.json({ error: 'No id' }, { status: 400 })
 
   await supabase.from('user_supplements').delete().eq('id', id).eq('user_id', user.id)
+  await invalidateUserSettingsCache(user.id)
   return NextResponse.json({ success: true })
 }

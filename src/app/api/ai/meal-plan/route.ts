@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { getFullUserContext, getUserGoals } from '@/lib/db'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 const anthropic = new Anthropic()
 
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
+  if (!await checkRateLimit(`${user.id}:meal-plan`, 5, 60 * 60 * 1000)) return rateLimitResponse()
 
   const body = await request.json() as {
     is_training_day?: boolean
@@ -56,10 +58,36 @@ export async function POST(request: Request) {
 
   const calTarget = (goals?.daily_calorie_target as number) ?? 2100
   const proteinTarget = (goals?.daily_protein_target_g as number) ?? 140
-  const dietType = (userCtx.lifestyle?.diet_type as string) ?? 'vegetarian'
+  const dietType = (userCtx.lifestyle?.diet_type as string) ?? 'omnivore'
   const restrictions = (userCtx.lifestyle?.dietary_restrictions as string[]) ?? []
   const dislikes = (userCtx.lifestyle?.dislikes as string[]) ?? []
   const location = (userCtx.profile?.location as string) ?? 'Dubai, UAE'
+
+  // Pull richer nutrition preferences from onboarding
+  const nutritionExt = (userCtx.onboarding?.nutrition_ext ?? {}) as Record<string, unknown>
+  const enjoysCooking = (nutritionExt.enjoys_cooking as number) ?? 3
+  const proteinSources = (nutritionExt.protein_sources as string[]) ?? []
+  const cuisines = (nutritionExt.cuisine_list as string[]) ?? []
+  const nutritionWeaknesses = (nutritionExt.weaknesses as string[]) ?? []
+  const onboardingDislikes = (nutritionExt.dislikes_list as string[]) ?? []
+
+  // Merge dislikes from both sources
+  const allDislikes = [...new Set([...dislikes, ...onboardingDislikes])]
+
+  // User body context
+  const age = (userCtx.profile?.age as number) ?? null
+  const gender = (userCtx.profile?.gender as string) ?? null
+  const currentWeight = (goals?.current_weight_kg as number) ?? null
+  const targetWeight = (goals?.target_weight_kg as number) ?? null
+  const bodyFat = (goals?.body_fat_pct as number) ?? null
+
+  // Derive goal direction
+  const weightDelta = currentWeight && targetWeight ? targetWeight - currentWeight : null
+  const goalContext = weightDelta !== null
+    ? weightDelta < -1 ? 'cutting — slight caloric deficit, keep protein high'
+      : weightDelta > 1 ? 'bulking — slight caloric surplus, prioritise protein and carbs'
+      : 'maintaining — hit targets precisely'
+    : null
 
   const carbAdjust = isTrainingDay ? 'slightly higher carbs for fuel and recovery' : 'moderate carbs'
 
@@ -105,12 +133,21 @@ export async function POST(request: Request) {
     ? `\nALREADY EATEN TODAY:\n${alreadyLogged.map(m => `- ${m.meal_type}: ${m.name} (${m.calories} kcal, ${m.protein_g}g protein)`).join('\n')}\nConsumed so far: ${loggedCals} kcal, ${loggedProtein}g protein`
     : ''
 
+  const cookingNote = enjoysCooking <= 2
+    ? 'Hates cooking — all meals must be no-cook or max 5 min prep (delivery, ready-made, grab-and-go strongly preferred)'
+    : enjoysCooking <= 3
+    ? 'Low cooking motivation — keep prep under 10 min, simple recipes only'
+    : enjoysCooking <= 4
+    ? 'Willing to cook — moderate prep OK (up to 20 min)'
+    : 'Enjoys cooking — elaborate meals fine, can use multiple ingredients'
+
   const prompt = `Generate a meal plan for the REST OF TODAY for this person. Return ONLY valid JSON, no markdown, no extra text.
 
 PERSON:
-- Diet: ${dietType} (eggs and dairy OK)${restrictions.length ? `\n- Restrictions: ${restrictions.join(', ')}` : ''}${dislikes.length ? `\n- Dislikes: ${dislikes.join(', ')}` : ''}
-- Location: ${location} (easily available foods only)
-- Hates cooking — all meals must be minimal effort (max 10 min prep, or no-cook)
+- Age: ${age ?? 'unknown'}, Gender: ${gender ?? 'unknown'}${currentWeight ? `\n- Weight: ${currentWeight}kg` : ''}${bodyFat ? ` | Body fat: ${bodyFat}%` : ''}${goalContext ? `\n- Goal direction: ${goalContext}` : ''}
+- Diet type: ${dietType}${restrictions.length ? `\n- Hard restrictions (never include): ${restrictions.join(', ')}` : ''}${allDislikes.length ? `\n- Dislikes (avoid): ${allDislikes.join(', ')}` : ''}${proteinSources.length ? `\n- Preferred protein sources: ${proteinSources.join(', ')}` : ''}${cuisines.length ? `\n- Preferred cuisines: ${cuisines.join(', ')}` : ''}${nutritionWeaknesses.length ? `\n- Nutritional weaknesses to address: ${nutritionWeaknesses.join(', ')}` : ''}
+- Location: ${location} (easily available foods only — match local cuisine and store availability)
+- Cooking preference: ${cookingNote}
 - Today: ${isTrainingDay ? 'Training day' : 'Rest day'} — use ${carbAdjust}${labNutritionContext}
 - Current time: ${currentHour}:00${alreadyEatenSection}
 
@@ -122,6 +159,8 @@ REMAINING TARGETS (for the rest of today only):
 RULES:
 - Only generate meals for: ${remainingMealTypes.join(', ')}
 - Do NOT repeat meals that have already been eaten
+- Strongly favour preferred cuisines and protein sources
+- Never include hard-restricted or disliked foods
 - Macros must add up to roughly the remaining targets (within ±100 kcal, ±10g protein)
 - Each meal must be realistic and available in ${location.split(',')[0]}
 - prep_note must be specific (e.g. "5 min", "no cook", "delivery ok", "microwave 2 min")

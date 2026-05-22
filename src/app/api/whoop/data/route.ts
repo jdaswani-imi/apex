@@ -14,5 +14,7 @@ export async function GET() {
     getRecentWorkouts(30),
   ])
 
-  return NextResponse.json({ recovery, sleep, cycles, workouts })
+  return NextResponse.json({ recovery, sleep, cycles, workouts }, {
+    headers: { 'Cache-Control': 'private, max-age=300' },
+  })
 }

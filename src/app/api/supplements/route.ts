@@ -38,5 +38,7 @@ export async function GET(request: Request) {
     _dose: configMap[log.supplement_name]?.dose ?? null,
   }))
 
-  return NextResponse.json(enriched)
+  return NextResponse.json(enriched, {
+    headers: { 'Cache-Control': 'private, max-age=60, must-revalidate' },
+  })
 }

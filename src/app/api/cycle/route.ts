@@ -8,7 +8,9 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const cycles = await getRecentMenstrualCycles(12)
-  return NextResponse.json(cycles)
+  return NextResponse.json(cycles, {
+    headers: { 'Cache-Control': 'private, max-age=300' },
+  })
 }
 
 export async function POST(request: Request) {

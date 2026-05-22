@@ -1,4 +1,5 @@
 import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { getCachedAI, setCachedAI } from '@/lib/ai-cache'
 import type {
   DailyLog, TrainingSession, Exercise,
   SupplementLog, WhoopRecovery, WhoopSleep,
@@ -45,6 +46,10 @@ export async function getRecentDailyLogs(days = 14): Promise<DailyLog[]> {
   const user = await getAuthUser()
   if (!user) return []
 
+  const cacheKey = `db:recent-logs:${user.id}:${days}`
+  const cached = await getCachedAI<DailyLog[]>(cacheKey)
+  if (cached) return cached
+
   const { data } = await supabase
     .from('daily_logs')
     .select('*')
@@ -52,7 +57,9 @@ export async function getRecentDailyLogs(days = 14): Promise<DailyLog[]> {
     .order('date', { ascending: false })
     .limit(days)
 
-  return data ?? []
+  const result = data ?? []
+  if (result.length > 0) await setCachedAI(cacheKey, result, 300)
+  return result
 }
 
 // ─── Training ─────────────────────────────────────────────────────────────────
@@ -266,6 +273,10 @@ export async function getSupplementAdherence(days = 7): Promise<{
   const user = await getAuthUser()
   if (!user) return []
 
+  const cacheKey = `db:supp-adherence:${user.id}:${days}`
+  const cached = await getCachedAI<{ name: string; taken: number; total: number; pct: number }[]>(cacheKey)
+  if (cached) return cached
+
   const from = new Date()
   from.setDate(from.getDate() - days)
 
@@ -284,12 +295,15 @@ export async function getSupplementAdherence(days = 7): Promise<{
     if (row.taken) map[row.supplement_name].taken++
   }
 
-  return Object.entries(map).map(([name, { taken, total }]) => ({
+  const result = Object.entries(map).map(([name, { taken, total }]) => ({
     name,
     taken,
     total,
     pct: Math.round((taken / total) * 100),
   }))
+
+  if (result.length > 0) await setCachedAI(cacheKey, result, 300)
+  return result
 }
 
 // ─── Whoop ────────────────────────────────────────────────────────────────────
@@ -299,6 +313,10 @@ export async function getTodayRecovery(date: string): Promise<WhoopRecovery | nu
   const user = await getAuthUser()
   if (!user) return null
 
+  const cacheKey = `db:recovery:${user.id}:${date}`
+  const cached = await getCachedAI<WhoopRecovery>(cacheKey)
+  if (cached) return cached
+
   const { data } = await supabase
     .from('whoop_recovery')
     .select('*')
@@ -306,6 +324,7 @@ export async function getTodayRecovery(date: string): Promise<WhoopRecovery | nu
     .eq('date', date)
     .maybeSingle()
 
+  if (data) await setCachedAI(cacheKey, data, 300)
   return data
 }
 
@@ -313,6 +332,10 @@ export async function getTodaySleep(date: string): Promise<WhoopSleep | null> {
   const supabase = await createClient()
   const user = await getAuthUser()
   if (!user) return null
+
+  const cacheKey = `db:sleep:${user.id}:${date}`
+  const cached = await getCachedAI<WhoopSleep>(cacheKey)
+  if (cached) return cached
 
   // Sleep starts the night before, so check today and yesterday
   const yesterday = new Date(date)
@@ -329,6 +352,7 @@ export async function getTodaySleep(date: string): Promise<WhoopSleep | null> {
     .limit(1)
     .maybeSingle()
 
+  if (data) await setCachedAI(cacheKey, data, 300)
   return data
 }
 
@@ -352,6 +376,10 @@ export async function getRecentRecovery(days = 14): Promise<WhoopRecovery[]> {
   const user = await getAuthUser()
   if (!user) return []
 
+  const cacheKey = `db:recent-recovery:${user.id}:${days}`
+  const cached = await getCachedAI<WhoopRecovery[]>(cacheKey)
+  if (cached) return cached
+
   const { data } = await supabase
     .from('whoop_recovery')
     .select('*')
@@ -359,13 +387,19 @@ export async function getRecentRecovery(days = 14): Promise<WhoopRecovery[]> {
     .order('date', { ascending: false })
     .limit(days)
 
-  return data ?? []
+  const result = data ?? []
+  if (result.length > 0) await setCachedAI(cacheKey, result, 300)
+  return result
 }
 
 export async function getRecentSleep(days = 14): Promise<WhoopSleep[]> {
   const supabase = await createClient()
   const user = await getAuthUser()
   if (!user) return []
+
+  const cacheKey = `db:recent-sleep:${user.id}:${days}`
+  const cached = await getCachedAI<WhoopSleep[]>(cacheKey)
+  if (cached) return cached
 
   const { data } = await supabase
     .from('whoop_sleep')
@@ -375,7 +409,9 @@ export async function getRecentSleep(days = 14): Promise<WhoopSleep[]> {
     .order('date', { ascending: false })
     .limit(days)
 
-  return data ?? []
+  const result = data ?? []
+  if (result.length > 0) await setCachedAI(cacheKey, result, 300)
+  return result
 }
 
 export async function getRecentCycles(days = 30): Promise<WhoopCycle[]> {
@@ -398,6 +434,10 @@ export async function getRecentWorkouts(days = 30): Promise<WhoopWorkout[]> {
   const user = await getAuthUser()
   if (!user) return []
 
+  const cacheKey = `db:recent-workouts:${user.id}:${days}`
+  const cached = await getCachedAI<WhoopWorkout[]>(cacheKey)
+  if (cached) return cached
+
   const from = new Date()
   from.setDate(from.getDate() - days)
 
@@ -409,7 +449,9 @@ export async function getRecentWorkouts(days = 30): Promise<WhoopWorkout[]> {
     .order('start_time', { ascending: false })
     .limit(50)
 
-  return data ?? []
+  const result = data ?? []
+  if (result.length > 0) await setCachedAI(cacheKey, result, 300)
+  return result
 }
 
 // ─── Weight ───────────────────────────────────────────────────────────────────
@@ -431,7 +473,10 @@ export async function getUserProfile() {
   const supabase = await createClient()
   const user = await getAuthUser()
   if (!user) return null
+  const cached = await getCachedAI(`db:profile:${user.id}`)
+  if (cached) return cached
   const { data } = await supabase.from('user_profile').select('*').eq('user_id', user.id).single()
+  if (data) await setCachedAI(`db:profile:${user.id}`, data, 3600)
   return data
 }
 
@@ -439,7 +484,10 @@ export async function getUserGoals() {
   const supabase = await createClient()
   const user = await getAuthUser()
   if (!user) return null
+  const cached = await getCachedAI(`db:goals:${user.id}`)
+  if (cached) return cached
   const { data } = await supabase.from('user_goals').select('*').eq('user_id', user.id).single()
+  if (data) await setCachedAI(`db:goals:${user.id}`, data, 3600)
   return data
 }
 
@@ -447,7 +495,10 @@ export async function getUserTraining() {
   const supabase = await createClient()
   const user = await getAuthUser()
   if (!user) return null
+  const cached = await getCachedAI(`db:training:${user.id}`)
+  if (cached) return cached
   const { data } = await supabase.from('user_training').select('*').eq('user_id', user.id).single()
+  if (data) await setCachedAI(`db:training:${user.id}`, data, 3600)
   return data
 }
 
@@ -455,20 +506,27 @@ export async function getUserSupplements() {
   const supabase = await createClient()
   const user = await getAuthUser()
   if (!user) return []
+  const cached = await getCachedAI<unknown[]>(`db:supplements:${user.id}`)
+  if (cached) return cached as typeof data
   const { data } = await supabase
     .from('user_supplements')
     .select('*')
     .eq('user_id', user.id)
     .eq('active', true)
     .order('sort_order', { ascending: true })
-  return data ?? []
+  const result = data ?? []
+  if (result.length > 0) await setCachedAI(`db:supplements:${user.id}`, result, 300)
+  return result
 }
 
 export async function getUserLifestyle() {
   const supabase = await createClient()
   const user = await getAuthUser()
   if (!user) return null
+  const cached = await getCachedAI(`db:lifestyle:${user.id}`)
+  if (cached) return cached
   const { data } = await supabase.from('user_lifestyle').select('*').eq('user_id', user.id).single()
+  if (data) await setCachedAI(`db:lifestyle:${user.id}`, data, 3600)
   return data
 }
 
@@ -659,6 +717,12 @@ export async function getTodayFoodTotals(date: string): Promise<FoodTotals> {
   const user = await getAuthUser()
   if (!user) return { protein: null, carbs: null, fats: null, calories: null }
 
+  const today = new Date().toISOString().split('T')[0]
+  const ttl = date < today ? 3600 : 60
+  const cacheKey = `db:food-totals:${user.id}:${date}`
+  const cached = await getCachedAI<FoodTotals>(cacheKey)
+  if (cached) return cached
+
   const { data } = await supabase
     .from('food_logs')
     .select('calories, protein_g, carbs_g, fats_g')
@@ -677,12 +741,14 @@ export async function getTodayFoodTotals(date: string): Promise<FoodTotals> {
   }
 
   if (!hasAny) return { protein: null, carbs: null, fats: null, calories: null }
-  return {
+  const totals = {
     protein: Math.round(protein * 10) / 10,
     carbs: Math.round(carbs * 10) / 10,
     fats: Math.round(fats * 10) / 10,
     calories: Math.round(calories),
   }
+  await setCachedAI(cacheKey, totals, ttl)
+  return totals
 }
 
 export async function getTodayContext(dateOverride?: string): Promise<TodayContext | null> {

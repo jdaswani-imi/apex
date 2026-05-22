@@ -107,19 +107,19 @@ export default async function WeekPage({
         <div className="flex items-center gap-3">
           <Link
             href="/"
-            className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/10 transition-all"
+            className="w-8 h-8 rounded-xl bg-muted/50 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
           >
             <ChevronLeft size={16} />
           </Link>
           <div>
-            <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Week view</p>
-            <p className="text-white font-semibold text-sm">{formatWeekRange(weekDays)}</p>
+            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">Week view</p>
+            <p className="text-foreground font-semibold text-sm">{formatWeekRange(weekDays)}</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
           <Link
             href={`/week?date=${prevWeekAnchor}`}
-            className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/10 transition-all"
+            className="w-8 h-8 rounded-xl bg-muted/50 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
             aria-label="Previous week"
           >
             <ChevronLeft size={16} />
@@ -129,8 +129,8 @@ export default async function WeekPage({
             className={cn(
               'w-8 h-8 rounded-xl flex items-center justify-center transition-all',
               isCurrentWeek
-                ? 'text-zinc-800 cursor-not-allowed'
-                : 'text-zinc-500 bg-white/5 hover:text-white hover:bg-white/10'
+                ? 'text-muted-foreground/30 cursor-not-allowed'
+                : 'text-muted-foreground bg-muted/50 hover:text-foreground hover:bg-muted'
             )}
             aria-label="Next week"
           >
@@ -146,31 +146,31 @@ export default async function WeekPage({
             label: 'Avg Recovery',
             value: avgRecovery !== null ? `${avgRecovery}%` : '—',
             icon: Zap,
-            color: avgRecovery === null ? 'text-zinc-500' : avgRecovery >= 67 ? 'text-green-400' : avgRecovery >= 34 ? 'text-yellow-400' : 'text-red-400',
+            color: avgRecovery === null ? 'text-muted-foreground' : avgRecovery >= 67 ? 'text-green-400' : avgRecovery >= 34 ? 'text-yellow-400' : 'text-red-400',
           },
           {
             label: 'Sessions',
             value: String(totalSessions),
             icon: Dumbbell,
-            color: totalSessions > 0 ? 'text-orange-400' : 'text-zinc-500',
+            color: totalSessions > 0 ? 'text-orange-400' : 'text-muted-foreground',
           },
           {
             label: 'Avg kcal',
             value: avgCalories !== null ? `${avgCalories.toLocaleString()}` : '—',
             icon: UtensilsCrossed,
-            color: avgCalories !== null ? 'text-orange-300' : 'text-zinc-500',
+            color: avgCalories !== null ? 'text-orange-300' : 'text-muted-foreground',
           },
           {
             label: 'Avg Sleep',
             value: avgSleepHrs !== null ? `${avgSleepHrs}h` : '—',
             icon: Moon,
-            color: avgSleepHrs !== null ? 'text-indigo-400' : 'text-zinc-500',
+            color: avgSleepHrs !== null ? 'text-indigo-400' : 'text-muted-foreground',
           },
         ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="bg-zinc-900/60 border border-white/[0.06] rounded-2xl p-3 flex flex-col items-center gap-1.5">
+          <div key={label} className="bg-card border border-border rounded-2xl p-3 flex flex-col items-center gap-1.5">
             <Icon size={13} className={color} />
             <p className={cn('font-condensed text-xl font-bold leading-none', color)}>{value}</p>
-            <p className="text-zinc-600 text-[9px] font-medium text-center leading-tight">{label}</p>
+            <p className="text-muted-foreground/60 text-[9px] font-medium text-center leading-tight">{label}</p>
           </div>
         ))}
       </div>
@@ -196,7 +196,7 @@ export default async function WeekPage({
             : 'text-red-400'
 
           const recBg = rec === null || rec === undefined
-            ? 'bg-zinc-800/50'
+            ? 'bg-muted/50'
             : rec.recovery_score === null ? 'bg-zinc-800/50'
             : rec.recovery_score >= 67 ? 'bg-green-500/10'
             : rec.recovery_score >= 34 ? 'bg-yellow-500/10'
@@ -209,10 +209,10 @@ export default async function WeekPage({
               className={cn(
                 'block rounded-2xl border transition-all duration-150',
                 isFuture
-                  ? 'border-white/[0.03] bg-zinc-950/50 cursor-not-allowed opacity-40'
+                  ? 'border-border/30 bg-card/40 cursor-not-allowed opacity-40'
                   : isToday
                   ? 'border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10'
-                  : 'border-white/[0.06] bg-zinc-900/60 hover:border-white/10'
+                  : 'border-border bg-card hover:border-border/80'
               )}
             >
               <div className="p-5 flex items-center gap-4">
@@ -220,13 +220,13 @@ export default async function WeekPage({
                 <div className="flex flex-col items-center min-w-[36px]">
                   <span className={cn(
                     'text-[10px] font-bold uppercase tracking-wider',
-                    isToday ? 'text-orange-400' : 'text-zinc-500'
+                    isToday ? 'text-orange-400' : 'text-muted-foreground'
                   )}>
                     {dayLabel}
                   </span>
                   <span className={cn(
                     'font-condensed text-2xl font-bold leading-none',
-                    isToday ? 'text-orange-400' : isFuture ? 'text-zinc-700' : 'text-white'
+                    isToday ? 'text-orange-400' : isFuture ? 'text-muted-foreground/40' : 'text-foreground'
                   )}>
                     {dayNum}
                   </span>
@@ -240,14 +240,14 @@ export default async function WeekPage({
                   <span className={cn('font-bold text-lg leading-none', recColor)}>
                     {rec?.recovery_score !== null && rec?.recovery_score !== undefined ? `${rec.recovery_score}` : '—'}
                   </span>
-                  <span className="text-zinc-600 text-[9px] mt-0.5 font-medium">REC%</span>
+                  <span className="text-muted-foreground/60 text-[9px] mt-0.5 font-medium">REC%</span>
                 </div>
 
                 {/* Middle — training type + metrics */}
                 <div className="flex-1 min-w-0">
                   <p className={cn(
                     'text-xs font-medium truncate',
-                    isFuture ? 'text-zinc-700' : 'text-zinc-400'
+                    isFuture ? 'text-muted-foreground/40' : 'text-muted-foreground'
                   )}>
                     {trainingType}
                   </p>
@@ -259,12 +259,12 @@ export default async function WeekPage({
                       </span>
                     )}
                     {log?.calories && (
-                      <span className="text-[10px] text-zinc-500">
+                      <span className="text-[10px] text-muted-foreground/60">
                         {log.calories.toLocaleString()} kcal
                       </span>
                     )}
                     {log?.steps && (
-                      <span className="text-[10px] text-zinc-500">
+                      <span className="text-[10px] text-muted-foreground/60">
                         {log.steps.toLocaleString()} steps
                       </span>
                     )}
@@ -275,13 +275,13 @@ export default async function WeekPage({
                       </span>
                     )}
                     {!sessions && !log?.calories && !log?.steps && !sleep?.duration_hrs && !isFuture && (
-                      <span className="text-[10px] text-zinc-700">No data logged</span>
+                      <span className="text-[10px] text-muted-foreground/40">No data logged</span>
                     )}
                   </div>
                 </div>
 
                 {!isFuture && (
-                  <ChevronRight size={14} className="text-zinc-700 flex-shrink-0" />
+                  <ChevronRight size={14} className="text-muted-foreground/40 flex-shrink-0" />
                 )}
               </div>
             </Link>

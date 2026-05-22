@@ -1,9 +1,121 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { ChevronRight, Plus, Trash2, UserCircle } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ChevronRight, Minus, Plus, Trash2, UserCircle } from 'lucide-react'
 
 import { getCyclePhase } from '@/lib/types'
+
+function SliderField({
+  label,
+  value,
+  min,
+  max,
+  step = 0.5,
+  unit = '',
+  onChange,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step?: number
+  unit?: string
+  onChange: (v: number) => void
+}) {
+  const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100))
+  const trackRef = useRef<HTMLDivElement>(null)
+
+  function clamp(v: number) {
+    return Math.round(Math.max(min, Math.min(max, v)) / step) * step
+  }
+
+  function fromClientX(clientX: number) {
+    if (!trackRef.current) return value
+    const rect = trackRef.current.getBoundingClientRect()
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    return clamp(min + ratio * (max - min))
+  }
+
+  function handleTrackPointer(e: React.PointerEvent<HTMLDivElement>) {
+    e.currentTarget.setPointerCapture(e.pointerId)
+    onChange(fromClientX(e.clientX))
+  }
+
+  function handleTrackMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.buttons !== 1) return
+    onChange(fromClientX(e.clientX))
+  }
+
+  const displayValue = Number.isInteger(value) ? value : Number(value.toFixed(1))
+
+  return (
+    <div style={{ marginBottom: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '10px' }}>
+        <span style={{ fontSize: '12px', color: 'var(--muted-foreground)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          {label}
+        </span>
+        <span style={{ fontSize: '22px', fontWeight: 700, color: 'var(--foreground)', lineHeight: 1 }}>
+          {displayValue}
+          {unit && <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--muted-foreground)', marginLeft: '3px' }}>{unit}</span>}
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Decrement */}
+        <button
+          onClick={() => onChange(clamp(value - step))}
+          style={{
+            width: '34px', height: '34px', borderRadius: '50%', border: '1px solid var(--border)',
+            backgroundColor: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}
+        >
+          <Minus size={14} />
+        </button>
+
+        {/* Track */}
+        <div
+          ref={trackRef}
+          onPointerDown={handleTrackPointer}
+          onPointerMove={handleTrackMove}
+          style={{ flex: 1, height: '28px', display: 'flex', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+        >
+          <div style={{ position: 'relative', width: '100%', height: '6px', backgroundColor: 'var(--border)', borderRadius: '999px' }}>
+            <div style={{
+              position: 'absolute', left: 0, top: 0, height: '100%',
+              width: `${pct}%`, backgroundColor: 'var(--primary)', borderRadius: '999px',
+              transition: 'width 60ms linear',
+            }} />
+            <div style={{
+              position: 'absolute', top: '50%', left: `${pct}%`,
+              transform: 'translate(-50%, -50%)',
+              width: '20px', height: '20px', borderRadius: '50%',
+              backgroundColor: 'var(--primary)', boxShadow: '0 0 0 3px var(--background), 0 0 0 5px var(--primary)',
+              transition: 'left 60ms linear',
+            }} />
+          </div>
+        </div>
+
+        {/* Increment */}
+        <button
+          onClick={() => onChange(clamp(value + step))}
+          style={{
+            width: '34px', height: '34px', borderRadius: '50%', border: '1px solid var(--border)',
+            backgroundColor: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}
+        >
+          <Plus size={14} />
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', paddingLeft: '44px', paddingRight: '44px' }}>
+        <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{min}{unit}</span>
+        <span style={{ fontSize: '10px', color: 'var(--muted-foreground)' }}>{max}{unit}</span>
+      </div>
+    </div>
+  )
+}
 
 type Section = 'profile' | 'goals' | 'training' | 'supplements' | 'lifestyle' | 'baselines' | 'cycle' | null
 
@@ -159,30 +271,21 @@ export default function SettingsPage() {
   if (section === null) {
     return (
       <div className="px-4 md:px-6 pt-4 md:pt-6 pb-8">
-        <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '8px' }}>Settings</h1>
-        <p style={{ fontSize: '14px', color: 'var(--muted-foreground)', marginBottom: '24px' }}>Everything the AI uses to coach you</p>
+        <h1 className="text-[28px] font-bold text-foreground mb-2">Settings</h1>
+        <p className="text-sm text-muted-foreground mb-6">Everything the AI uses to coach you</p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="flex flex-col gap-2">
           {/* Complete Profile */}
           <a
             href="/onboarding?edit=true"
-            style={{
-              display: 'flex', alignItems: 'center', gap: '14px',
-              backgroundColor: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)',
-              borderRadius: '16px', padding: '16px 20px', marginBottom: '4px',
-              textDecoration: 'none',
-            }}
+            className="flex items-center gap-[14px] bg-[rgba(249,115,22,0.06)] border border-[rgba(249,115,22,0.2)] rounded-2xl px-5 py-4 mb-1 no-underline"
           >
-            <div style={{
-              width: '40px', height: '40px', borderRadius: '12px',
-              backgroundColor: 'rgba(249,115,22,0.15)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            }}>
+            <div className="w-10 h-10 rounded-xl bg-[rgba(249,115,22,0.15)] flex items-center justify-center shrink-0">
               <UserCircle size={20} color="#f97316" />
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '15px', fontWeight: 600, color: '#f97316' }}>Complete your profile</div>
-              <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginTop: '2px' }}>Full questionnaire — helps the AI coach know you</div>
+            <div className="flex-1">
+              <div className="text-[15px] font-semibold" style={{ color: '#f97316' }}>Complete your profile</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Full questionnaire — helps the AI coach know you</div>
             </div>
             <ChevronRight size={18} color="#f97316" />
           </a>
@@ -238,16 +341,11 @@ export default function SettingsPage() {
             <button
               key={item.key}
               onClick={() => setSection(item.key as Section)}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                backgroundColor: 'var(--card)', border: '1px solid var(--border)',
-                borderRadius: '16px', padding: '16px 20px',
-                cursor: 'pointer', textAlign: 'left', width: '100%',
-              }}
+              className="flex items-center justify-between bg-card border border-border rounded-2xl px-5 py-4 cursor-pointer text-left w-full"
             >
               <div>
-                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--foreground)' }}>{item.label}</div>
-                <div style={{ fontSize: '12px', color: 'var(--muted-foreground)', marginTop: '2px' }}>{item.desc}</div>
+                <div className="text-[15px] font-semibold text-foreground">{item.label}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{item.desc}</div>
               </div>
               <ChevronRight size={18} className="text-muted-foreground/40" />
             </button>
@@ -309,11 +407,9 @@ export default function SettingsPage() {
       {/* PROFILE */}
       {section === 'profile' && profile && (
         <div className="settings-form">
-          <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '20px' }}>Profile</h2>
+          <h2 className="text-[22px] font-bold text-foreground mb-5">Profile</h2>
           {[
             { key: 'name', label: 'Name', type: 'text' },
-            { key: 'age', label: 'Age', type: 'number' },
-            { key: 'height_cm', label: 'Height (cm)', type: 'number' },
             { key: 'location', label: 'Location', type: 'text' },
             { key: 'timezone', label: 'Timezone', type: 'text' },
           ].map(f => (
@@ -321,12 +417,24 @@ export default function SettingsPage() {
               <label style={labelStyle}>{f.label}</label>
               <input
                 type={f.type}
-                value={(profile[f.key] as string | number) ?? ''}
-                onChange={e => setProfile({ ...profile, [f.key]: f.type === 'number' ? Number(e.target.value) : e.target.value })}
+                value={(profile[f.key] as string) ?? ''}
+                onChange={e => setProfile({ ...profile, [f.key]: e.target.value })}
                 style={inputStyle}
               />
             </div>
           ))}
+          <SliderField
+            label="Age"
+            value={Number(profile.age ?? 25)}
+            min={13} max={80} step={1} unit=" yrs"
+            onChange={v => setProfile({ ...profile, age: v })}
+          />
+          <SliderField
+            label="Height"
+            value={Number(profile.height_cm ?? 170)}
+            min={120} max={220} step={1} unit=" cm"
+            onChange={v => setProfile({ ...profile, height_cm: v })}
+          />
           <div style={fieldStyle}>
             <label style={labelStyle}>Gender</label>
             <select
@@ -345,12 +453,32 @@ export default function SettingsPage() {
       {/* GOALS */}
       {section === 'goals' && goals && (
         <div className="settings-form">
-          <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '20px' }}>Goals & Targets</h2>
+          <h2 className="text-[22px] font-bold text-foreground mb-5">Goals & Targets</h2>
+          <SliderField
+            label="Start Weight"
+            value={Number(goals.start_weight_kg ?? 70)}
+            min={30} max={200} step={0.5} unit=" kg"
+            onChange={v => setGoals({ ...goals, start_weight_kg: v })}
+          />
+          <SliderField
+            label="Current Weight"
+            value={Number(goals.current_weight_kg ?? 70)}
+            min={30} max={200} step={0.5} unit=" kg"
+            onChange={v => setGoals({ ...goals, current_weight_kg: v })}
+          />
+          <SliderField
+            label="Target Weight"
+            value={Number(goals.target_weight_kg ?? 70)}
+            min={30} max={200} step={0.5} unit=" kg"
+            onChange={v => setGoals({ ...goals, target_weight_kg: v })}
+          />
+          <SliderField
+            label="Body Fat %"
+            value={Number(goals.body_fat_pct ?? 20)}
+            min={5} max={50} step={0.5} unit="%"
+            onChange={v => setGoals({ ...goals, body_fat_pct: v })}
+          />
           {[
-            { key: 'start_weight_kg', label: 'Start Weight (kg)', type: 'number' },
-            { key: 'current_weight_kg', label: 'Current Weight (kg)', type: 'number' },
-            { key: 'target_weight_kg', label: 'Target Weight (kg)', type: 'number' },
-            { key: 'body_fat_pct', label: 'Body Fat % (estimated)', type: 'number' },
             { key: 'daily_protein_target_g', label: 'Daily Protein Target (g)', type: 'number' },
             { key: 'daily_calorie_target', label: 'Daily Calorie Target', type: 'number' },
             { key: 'daily_steps_target', label: 'Daily Steps Target', type: 'number' },
@@ -438,7 +566,7 @@ export default function SettingsPage() {
       {/* TRAINING */}
       {section === 'training' && training && (
         <div className="settings-form">
-          <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '20px' }}>Training Split</h2>
+          <h2 className="text-[22px] font-bold text-foreground mb-5">Training Split</h2>
           {[
             { key: 'gym_name', label: 'Gym Name', type: 'text' },
             { key: 'smith_machine_bar_kg', label: 'Smith Machine Bar Weight (kg)', type: 'number' },
@@ -479,7 +607,7 @@ export default function SettingsPage() {
       {/* SUPPLEMENTS */}
       {section === 'supplements' && (
         <div className="settings-form">
-          <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '20px' }}>Supplement Stack</h2>
+          <h2 className="text-[22px] font-bold text-foreground mb-5">Supplement Stack</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
             {supplements.map((s, i) => (
               <div key={(s.id as string) ?? i} style={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '14px', padding: '14px' }}>
@@ -629,7 +757,7 @@ export default function SettingsPage() {
       {/* LIFESTYLE */}
       {section === 'lifestyle' && lifestyle && (
         <div className="settings-form">
-          <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '20px' }}>Lifestyle</h2>
+          <h2 className="text-[22px] font-bold text-foreground mb-5">Lifestyle</h2>
           {[
             { key: 'diet_type', label: 'Diet Type', type: 'text' },
             { key: 'wake_time_weekday', label: 'Wake Time (Weekday)', type: 'time' },
@@ -658,7 +786,7 @@ export default function SettingsPage() {
       {/* CYCLE TRACKING */}
       {section === 'cycle' && (
         <div className="settings-form">
-          <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '4px' }}>Cycle Tracking</h2>
+          <h2 className="text-[22px] font-bold text-foreground mb-1">Cycle Tracking</h2>
           <p style={{ fontSize: '13px', color: 'var(--muted-foreground)', marginBottom: '20px' }}>Log your period so Apex can factor your cycle phase into coaching.</p>
 
           {/* Current phase banner */}
@@ -766,7 +894,7 @@ export default function SettingsPage() {
       {/* BASELINES */}
       {section === 'baselines' && (
         <div className="settings-form">
-          <h2 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '20px' }}>Exercise Baselines</h2>
+          <h2 className="text-[22px] font-bold text-foreground mb-5">Exercise Baselines</h2>
           {['push', 'pull', 'legs'].map(type => {
             const group = baselines.filter(b => b.session_type === type)
             if (group.length === 0) return null

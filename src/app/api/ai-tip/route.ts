@@ -1,6 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { getTodayContext, getFullUserContext } from '@/lib/db'
 import { buildSystemPrompt } from '@/lib/ai/system-prompt'
+import { createClient } from '@/lib/supabase/server'
+import { getCachedAI, setCachedAI } from '@/lib/ai-cache'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 const anthropic = new Anthropic()
 
@@ -13,7 +16,18 @@ const PAGE_FOCUS: Record<string, string> = {
 }
 
 export async function POST(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return new Response('Unauthorized', { status: 401 })
+
+  if (!await checkRateLimit(`rl:ai-tip:${user.id}`, 30, 3600_000)) return rateLimitResponse()
+
   const { page } = await request.json()
+
+  const today = new Date().toISOString().split('T')[0]
+  const cacheKey = `ai:tip:${user.id}:${page ?? 'today'}:${today}`
+  const cached = await getCachedAI<{ tip: string }>(cacheKey)
+  if (cached) return Response.json(cached, { headers: { 'Cache-Control': 'private, max-age=1800' } })
 
   const [ctx, userCtx] = await Promise.all([
     getTodayContext(),
@@ -40,8 +54,10 @@ export async function POST(request: Request) {
   })
 
   const tip = response.content[0].type === 'text' ? response.content[0].text : ''
+  const result = { tip }
 
-  return Response.json({ tip }, {
+  await setCachedAI(cacheKey, result, 1800)
+  return Response.json(result, {
     headers: { 'Cache-Control': 'private, max-age=1800' },
   })
 }
