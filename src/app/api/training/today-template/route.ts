@@ -8,7 +8,6 @@ const DAY_FULL: Record<number, string> = {
   0: 'Sunday', 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday',
   4: 'Thursday', 5: 'Friday', 6: 'Saturday',
 }
-const ORDERED_DAYS_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 export async function GET(req: Request) {
   const supabase = await createClient()
@@ -50,28 +49,69 @@ export async function GET(req: Request) {
   const trainingDays: string[] = plan.training_days ?? []
   const isTrainingDay = trainingDays.includes(todayShort) || trainingDays.includes(todayFull)
 
-  if (!isTrainingDay) {
-    return NextResponse.json({ isRest: true, template: null, sessionType: 'Rest', sessionLogged: sessionCount > 0 })
-  }
-
-  // Try day_of_week column first (newly stored), then fall back to sort_order index
+  // Fetch templates regardless — needed for both training days and rest-day deviation handling
   const { data: allTemplates } = await supabase
     .from('workout_templates')
     .select('id, name, description, color, sort_order, day_of_week')
     .eq('user_id', user.id).eq('source', 'ai_pex').order('sort_order')
 
+  // If user trained on a rest day (finished session exists despite not being a training day),
+  // treat it as done rather than showing a rest card — the cycle advanced from this session.
+  if (!isTrainingDay) {
+    if (sessionCount > 0) {
+      const doneTemplateId = loggedTemplateIds[0] ?? null
+      const doneTemplate = doneTemplateId ? (allTemplates ?? []).find(t => t.id === doneTemplateId) ?? null : null
+      const { count: exerciseCount } = doneTemplate
+        ? await supabase.from('template_exercises').select('id', { count: 'exact', head: true }).eq('template_id', doneTemplate.id)
+        : { count: 0 }
+      return NextResponse.json({
+        isRest: false,
+        trainedOnRestDay: true,
+        template: doneTemplate ? { ...doneTemplate, exerciseCount: exerciseCount ?? 0 } : null,
+        sessionType: doneTemplate?.name ?? loggedSessions[0]?.session_type ?? 'Workout',
+        sessionLogged: true,
+        sessionDone: true,
+        alternativeSession: !doneTemplateId ? (loggedSessions[0]?.session_type ?? null) : null,
+      })
+    }
+    return NextResponse.json({ isRest: true, template: null, sessionType: 'Rest', sessionLogged: false })
+  }
+
   if (!allTemplates?.length) {
     return NextResponse.json({ isRest: false, template: null, sessionType: 'Training', sessionLogged: sessionCount > 0 })
   }
 
-  let template = allTemplates.find(
-    t => t.day_of_week === todayFull || t.day_of_week === todayShort
-  ) ?? null
+  // 1st: if today already has a finished session, reflect that template
+  const todayTemplateId = loggedTemplateIds[0] ?? null
+  let template = todayTemplateId
+    ? (allTemplates.find(t => t.id === todayTemplateId) ?? null)
+    : null
 
+  // 2nd: cycle continuation — what's next based on the last real completed session.
+  // This is the single source of truth regardless of what day it is. day_of_week is
+  // intentionally not used here: it breaks after any deviation (rest on training day,
+  // or training on rest day) because it always maps to the originally planned template.
   if (!template) {
-    const daysOrdered = ORDERED_DAYS_SHORT.filter(d => trainingDays.includes(d))
-    const idx = daysOrdered.indexOf(todayShort)
-    template = idx !== -1 ? (allTemplates[idx] ?? null) : null
+    const { data: lastSession } = await supabase
+      .from('training_sessions')
+      .select('template_id')
+      .eq('user_id', user.id)
+      .not('finished_at', 'is', null)
+      .not('template_id', 'is', null)
+      .in('template_id', allTemplates.map(t => t.id))
+      .lt('date', today)
+      .order('date', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (lastSession?.template_id) {
+      const lastIdx = allTemplates.findIndex(t => t.id === lastSession.template_id)
+      if (lastIdx !== -1) {
+        template = allTemplates[(lastIdx + 1) % allTemplates.length] ?? null
+      }
+    } else {
+      template = allTemplates[0] ?? null
+    }
   }
 
   if (!template) {

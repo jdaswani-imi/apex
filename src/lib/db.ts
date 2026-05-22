@@ -627,6 +627,65 @@ export async function getLatestLabData() {
   return data
 }
 
+export async function getAllLabReports(limit = 3) {
+  const supabase = await createClient()
+  const user = await getAuthUser()
+  if (!user) return []
+
+  const { data } = await supabase
+    .from('lab_reports')
+    .select('filename, report_date, report_type, summary, structured_data, created_at')
+    .eq('user_id', user.id)
+    .not('structured_data', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  return data ?? []
+}
+
+export async function getCoachingMemory() {
+  const supabase = await createClient()
+  const user = await getAuthUser()
+  if (!user) return []
+
+  const { data } = await supabase
+    .from('coaching_memory')
+    .select('key, content, category, updated_at')
+    .eq('user_id', user.id)
+    .order('updated_at', { ascending: false })
+
+  return data ?? []
+}
+
+export async function saveCoachingMemory(key: string, content: string, category = 'general') {
+  const supabase = await createClient()
+  const user = await getAuthUser()
+  if (!user) return null
+
+  const { data } = await supabase
+    .from('coaching_memory')
+    .upsert(
+      { user_id: user.id, key, content, category, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id,key' },
+    )
+    .select()
+    .single()
+
+  return data
+}
+
+export async function deleteCoachingMemory(key: string) {
+  const supabase = await createClient()
+  const user = await getAuthUser()
+  if (!user) return
+
+  await supabase
+    .from('coaching_memory')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('key', key)
+}
+
 export async function getOnboardingData() {
   const supabase = await createClient()
   const user = await getAuthUser()
@@ -640,7 +699,7 @@ export async function getOnboardingData() {
 }
 
 export async function getFullUserContext() {
-  const [profile, goals, training, supplements, lifestyle, baselines, latestCycle, latestLab, onboarding] = await Promise.all([
+  const [profile, goals, training, supplements, lifestyle, baselines, latestCycle, latestLab, onboarding, allLabReports, coachingMemory] = await Promise.all([
     getUserProfile(),
     getUserGoals(),
     getUserTraining(),
@@ -650,8 +709,10 @@ export async function getFullUserContext() {
     getLatestCycle(),
     getLatestLabData(),
     getOnboardingData(),
+    getAllLabReports(3),
+    getCoachingMemory(),
   ])
-  return { profile, goals, training, supplements, lifestyle, baselines, latestCycle, latestLab, onboarding }
+  return { profile, goals, training, supplements, lifestyle, baselines, latestCycle, latestLab, onboarding, allLabReports, coachingMemory }
 }
 
 // ─── Menstrual Cycle ──────────────────────────────────────────────────────────
@@ -765,6 +826,7 @@ export async function getTodayContext(dateOverride?: string): Promise<TodayConte
     cycle,
     supplements,
     trainingSessions,
+    recentTrainingSessions,
     recentLogs,
     recentRecovery,
     recentSleep,
@@ -776,6 +838,7 @@ export async function getTodayContext(dateOverride?: string): Promise<TodayConte
     getTodayCycle(today),
     getTodaySupplements(today),
     getTodayTraining(today),
+    getRecentTraining(21),
     getRecentDailyLogs(14),
     getRecentRecovery(14),
     getRecentSleep(14),
@@ -790,6 +853,7 @@ export async function getTodayContext(dateOverride?: string): Promise<TodayConte
     cycle,
     supplements,
     trainingSessions,
+    recentTrainingSessions,
     recentLogs,
     recentRecovery,
     recentSleep,

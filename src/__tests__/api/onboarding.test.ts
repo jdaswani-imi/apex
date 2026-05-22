@@ -9,11 +9,19 @@ import { createClient } from '@/lib/supabase/server'
 import { GET, POST, DELETE } from '@/app/api/onboarding/route'
 
 function makeRequest(body: unknown) {
-  return { json: () => Promise.resolve(body) } as Request
+  return { json: () => Promise.resolve(body), headers: { get: () => null } } as unknown as Request
 }
 
 async function json(res: Response) {
   return res.json()
+}
+
+// Helper: pull the upsert arg that contains a given key from all upsert calls
+function findUpsertWith(queryBuilder: ReturnType<typeof makeQueryBuilder>, key: string): Record<string, unknown> | undefined {
+  const allArgs = (queryBuilder.upsert as ReturnType<typeof vi.fn>).mock.calls.map(
+    (c: unknown[]) => c[0] as Record<string, unknown>,
+  )
+  return allArgs.find(a => key in (a ?? {}))
 }
 
 describe('GET /api/onboarding', () => {
@@ -65,6 +73,16 @@ describe('POST /api/onboarding', () => {
     expect(await json(res)).toEqual({ error: 'Invalid section' })
   })
 
+  it('returns 400 when physical section is missing primary_goal or sex', async () => {
+    const { client } = makeSupabaseMock()
+    vi.mocked(createClient).mockResolvedValue(client as any)
+
+    const res = await POST(makeRequest({ section: 'physical', data: { age: 28 } }))
+    expect(res.status).toBe(400)
+    const body = await json(res)
+    expect(body.error).toMatch(/primary_goal|sex/)
+  })
+
   it('returns 500 when upsert fails', async () => {
     const { client } = makeSupabaseMock({ queryResult: { data: null, error: { message: 'DB error' } } })
     vi.mocked(createClient).mockResolvedValue(client as any)
@@ -97,13 +115,11 @@ describe('POST /api/onboarding', () => {
   })
 
   describe('section=physical side effects', () => {
+    // Minimal valid physical payload — avoids 400 from required-field validation
+    const basePhysical = { primary_goal: 'Fat Loss', sex: 'Female' }
+
     it('calls menstrual_cycles upsert with default cycle_length_days=28 when sex=Female and last_period_date, avg_cycle_length_days absent', async () => {
-      const upsertFn = vi.fn().mockResolvedValue({ data: null, error: null })
-      const eqFn = vi.fn().mockResolvedValue({ data: null, error: null })
-
       const queryBuilder = makeQueryBuilder({ data: null, error: null })
-      ;(queryBuilder.upsert as ReturnType<typeof vi.fn>).mockImplementation(() => queryBuilder)
-
       const client = {
         auth: {
           getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-123' } }, error: null }),
@@ -114,27 +130,14 @@ describe('POST /api/onboarding', () => {
 
       const res = await POST(makeRequest({
         section: 'physical',
-        data: { sex: 'Female', last_period_date: '2026-05-01' },
+        data: { ...basePhysical, last_period_date: '2026-05-01' },
       }))
       expect(res.status).toBe(200)
 
-      const menstrualCall = (client.from as ReturnType<typeof vi.fn>).mock.calls.find(
-        (c: unknown[]) => c[0] === 'menstrual_cycles',
-      )
-      expect(menstrualCall).toBeTruthy()
+      const fromCalls = (client.from as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0])
+      expect(fromCalls).toContain('menstrual_cycles')
 
-      const upsertArg = (queryBuilder.upsert as ReturnType<typeof vi.fn>).mock.calls.find(
-        (_: unknown, i: number) => {
-          const calls = (queryBuilder.upsert as ReturnType<typeof vi.fn>).mock.calls
-          return calls[i]?.[0]?.cycle_length_days !== undefined
-        },
-      )
-      const allUpsertArgs = (queryBuilder.upsert as ReturnType<typeof vi.fn>).mock.calls.map(
-        (c: unknown[]) => c[0],
-      )
-      const menstrualUpsert = allUpsertArgs.find(
-        (a: Record<string, unknown>) => a?.cycle_length_days !== undefined,
-      )
+      const menstrualUpsert = findUpsertWith(queryBuilder, 'cycle_length_days')
       expect(menstrualUpsert?.cycle_length_days).toBe(28)
       expect(menstrualUpsert?.period_start_date).toBe('2026-05-01')
     })
@@ -151,16 +154,11 @@ describe('POST /api/onboarding', () => {
 
       const res = await POST(makeRequest({
         section: 'physical',
-        data: { sex: 'Female', last_period_date: '2026-05-01', avg_cycle_length_days: 30 },
+        data: { ...basePhysical, last_period_date: '2026-05-01', avg_cycle_length_days: 30 },
       }))
       expect(res.status).toBe(200)
 
-      const allUpsertArgs = (queryBuilder.upsert as ReturnType<typeof vi.fn>).mock.calls.map(
-        (c: unknown[]) => c[0],
-      )
-      const menstrualUpsert = allUpsertArgs.find(
-        (a: Record<string, unknown>) => a?.cycle_length_days !== undefined,
-      )
+      const menstrualUpsert = findUpsertWith(queryBuilder, 'cycle_length_days')
       expect(menstrualUpsert?.cycle_length_days).toBe(30)
     })
 
@@ -176,7 +174,7 @@ describe('POST /api/onboarding', () => {
 
       const res = await POST(makeRequest({
         section: 'physical',
-        data: { sex: 'Male', last_period_date: '2026-05-01' },
+        data: { primary_goal: 'Fat Loss', sex: 'Male', last_period_date: '2026-05-01' },
       }))
       expect(res.status).toBe(200)
 
@@ -196,7 +194,7 @@ describe('POST /api/onboarding', () => {
 
       const res = await POST(makeRequest({
         section: 'physical',
-        data: { sex: 'Female' },
+        data: { ...basePhysical },
       }))
       expect(res.status).toBe(200)
 
@@ -204,7 +202,7 @@ describe('POST /api/onboarding', () => {
       expect(fromCalls).not.toContain('menstrual_cycles')
     })
 
-    it('includes location in user_profile upsert when provided', async () => {
+    it('mirrors age, height_cm, gender (lowercased) and location to user_profile', async () => {
       const queryBuilder = makeQueryBuilder({ data: null, error: null })
       const client = {
         auth: {
@@ -214,23 +212,20 @@ describe('POST /api/onboarding', () => {
       }
       vi.mocked(createClient).mockResolvedValue(client as any)
 
-      await POST(makeRequest({
+      const res = await POST(makeRequest({
         section: 'physical',
-        data: { location: 'New York' },
+        data: { primary_goal: 'Fat Loss', sex: 'Female', age: 28, height_cm: 165, location: 'Dubai' },
       }))
+      expect(res.status).toBe(200)
 
-      const profileCallIndex = (client.from as ReturnType<typeof vi.fn>).mock.calls.findIndex(
-        (c: unknown[]) => c[0] === 'user_profile',
-      )
-      expect(profileCallIndex).toBeGreaterThanOrEqual(0)
+      const fromCalls = (client.from as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0])
+      expect(fromCalls).toContain('user_profile')
 
-      const allUpsertArgs = (queryBuilder.upsert as ReturnType<typeof vi.fn>).mock.calls.map(
-        (c: unknown[]) => c[0],
-      )
-      const profileUpsert = allUpsertArgs.find(
-        (a: Record<string, unknown>) => a?.location !== undefined,
-      )
-      expect(profileUpsert?.location).toBe('New York')
+      const profileUpsert = findUpsertWith(queryBuilder, 'age')
+      expect(profileUpsert?.age).toBe(28)
+      expect(profileUpsert?.height_cm).toBe(165)
+      expect(profileUpsert?.gender).toBe('female') // lowercase
+      expect(profileUpsert?.location).toBe('Dubai')
     })
 
     it('omits location from user_profile upsert when not provided', async () => {
@@ -245,22 +240,14 @@ describe('POST /api/onboarding', () => {
 
       await POST(makeRequest({
         section: 'physical',
-        data: { current_weight_kg: 70 },
+        data: { primary_goal: 'Fat Loss', sex: 'Male', current_weight_kg: 70 },
       }))
 
-      const fromCalls = (client.from as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0])
-      expect(fromCalls).toContain('user_profile')
-
-      const allUpsertArgs = (queryBuilder.upsert as ReturnType<typeof vi.fn>).mock.calls.map(
-        (c: unknown[]) => c[0],
-      )
-      const profileUpsert = allUpsertArgs.find(
-        (a: Record<string, unknown>) => 'user_id' in (a ?? {}) && !('location' in (a ?? {})) && !('current_weight_kg' in (a ?? {})),
-      )
+      const profileUpsert = findUpsertWith(queryBuilder, 'gender')
       expect(profileUpsert?.location).toBeUndefined()
     })
 
-    it('includes current_weight_kg, target_weight_kg, body_fat_pct in user_goals upsert', async () => {
+    it('includes current_weight_kg, target_weight_kg, body_fat_pct, target_event in user_goals upsert', async () => {
       const queryBuilder = makeQueryBuilder({ data: null, error: null })
       const client = {
         auth: {
@@ -272,26 +259,27 @@ describe('POST /api/onboarding', () => {
 
       await POST(makeRequest({
         section: 'physical',
-        data: { current_weight_kg: 80, target_weight_kg: 75, body_fat_pct: 18 },
+        data: {
+          primary_goal: 'Fat Loss', sex: 'Male',
+          current_weight_kg: 80, target_weight_kg: 75, body_fat_pct: 18,
+          target_event_name: 'Marathon', target_event_date: '2026-11-01',
+        },
       }))
 
       const fromCalls = (client.from as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0])
       expect(fromCalls).toContain('user_goals')
 
-      const allUpsertArgs = (queryBuilder.upsert as ReturnType<typeof vi.fn>).mock.calls.map(
-        (c: unknown[]) => c[0],
-      )
-      const goalsUpsert = allUpsertArgs.find(
-        (a: Record<string, unknown>) => a?.current_weight_kg !== undefined,
-      )
+      const goalsUpsert = findUpsertWith(queryBuilder, 'current_weight_kg')
       expect(goalsUpsert?.current_weight_kg).toBe(80)
       expect(goalsUpsert?.target_weight_kg).toBe(75)
       expect(goalsUpsert?.body_fat_pct).toBe(18)
+      expect(goalsUpsert?.target_event_name).toBe('Marathon')
+      expect(goalsUpsert?.target_event_date).toBe('2026-11-01')
     })
   })
 
   describe('section=lifestyle_ext side effects', () => {
-    it('upserts user_lifestyle with all lifestyle fields', async () => {
+    it('upserts user_lifestyle with computed wake times and normalised social_night', async () => {
       const queryBuilder = makeQueryBuilder({ data: null, error: null })
       const client = {
         auth: {
@@ -301,34 +289,30 @@ describe('POST /api/onboarding', () => {
       }
       vi.mocked(createClient).mockResolvedValue(client as any)
 
-      const lifestyleData = {
-        wake_time_weekday: '06:00',
-        wake_time_weekend: '08:00',
-        sleep_target_weeknight: 8,
-        social_night: 'Friday',
-      }
-
-      const res = await POST(makeRequest({ section: 'lifestyle_ext', data: lifestyleData }))
+      const res = await POST(makeRequest({
+        section: 'lifestyle_ext',
+        data: {
+          wake_times: { Mon: '06:00', Tue: '06:00', Wed: '06:00', Thu: '06:00', Fri: '06:00', Sat: '08:00', Sun: '08:00' },
+          weekday_days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+          sleep_target_weeknight: '23:30',
+          social_night: 'Friday',
+        },
+      }))
       expect(res.status).toBe(200)
 
       const fromCalls = (client.from as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0])
       expect(fromCalls).toContain('user_lifestyle')
 
-      const allUpsertArgs = (queryBuilder.upsert as ReturnType<typeof vi.fn>).mock.calls.map(
-        (c: unknown[]) => c[0],
-      )
-      const lifestyleUpsert = allUpsertArgs.find(
-        (a: Record<string, unknown>) => a?.wake_time_weekday !== undefined,
-      )
+      const lifestyleUpsert = findUpsertWith(queryBuilder, 'wake_time_weekday')
       expect(lifestyleUpsert?.wake_time_weekday).toBe('06:00')
       expect(lifestyleUpsert?.wake_time_weekend).toBe('08:00')
-      expect(lifestyleUpsert?.sleep_target_weeknight).toBe(8)
-      expect(lifestyleUpsert?.social_night).toBe('Friday')
+      expect(lifestyleUpsert?.sleep_target_weeknight).toBe('23:30')
+      expect(lifestyleUpsert?.social_night).toBe('friday') // lowercased
     })
   })
 
   describe('section=nutrition_ext side effects', () => {
-    it('upserts user_lifestyle with diet_type, dislikes, coffee_cutoff', async () => {
+    it('upserts user_lifestyle with diet_type, dislikes (from dislikes_list), coffee_cutoff', async () => {
       const queryBuilder = makeQueryBuilder({ data: null, error: null })
       const client = {
         auth: {
@@ -340,19 +324,15 @@ describe('POST /api/onboarding', () => {
 
       const res = await POST(makeRequest({
         section: 'nutrition_ext',
-        data: { diet_type: 'vegan', dislikes: ['mushrooms'], coffee_cutoff: '14:00' },
+        // Form stores as dislikes_list; route maps it to dislikes column
+        data: { diet_type: 'vegan', dislikes_list: ['mushrooms'], coffee_cutoff: '14:00' },
       }))
       expect(res.status).toBe(200)
 
       const fromCalls = (client.from as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0])
       expect(fromCalls).toContain('user_lifestyle')
 
-      const allUpsertArgs = (queryBuilder.upsert as ReturnType<typeof vi.fn>).mock.calls.map(
-        (c: unknown[]) => c[0],
-      )
-      const nutritionUpsert = allUpsertArgs.find(
-        (a: Record<string, unknown>) => a?.diet_type !== undefined,
-      )
+      const nutritionUpsert = findUpsertWith(queryBuilder, 'diet_type')
       expect(nutritionUpsert?.diet_type).toBe('vegan')
       expect(nutritionUpsert?.dislikes).toEqual(['mushrooms'])
       expect(nutritionUpsert?.coffee_cutoff).toBe('14:00')
@@ -379,24 +359,19 @@ describe('POST /api/onboarding', () => {
       const fromCalls = (client.from as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0])
       expect(fromCalls).toContain('user_training')
 
-      const allUpsertArgs = (queryBuilder.upsert as ReturnType<typeof vi.fn>).mock.calls.map(
-        (c: unknown[]) => c[0],
-      )
-      const trainingUpsert = allUpsertArgs.find(
-        (a: Record<string, unknown>) => a?.gym_name !== undefined,
-      )
+      const trainingUpsert = findUpsertWith(queryBuilder, 'gym_name')
       expect(trainingUpsert?.gym_name).toBe('Equinox')
     })
   })
 
   describe('valid ONBOARDING_SECTIONS accepted', () => {
-    const validSections = [
-      'interests', 'physical', 'lifestyle_ext', 'training_ext', 'nutrition_ext',
+    const nonPhysicalSections = [
+      'interests', 'lifestyle_ext', 'training_ext', 'nutrition_ext',
       'supplements_ext', 'sleep_ext', 'skincare', 'hair',
       'mental', 'travel', 'tech_prefs', 'coaching',
     ]
 
-    for (const section of validSections) {
+    for (const section of nonPhysicalSections) {
       it(`accepts section="${section}" without 400`, async () => {
         const queryBuilder = makeQueryBuilder({ data: null, error: null })
         const client = {
@@ -412,6 +387,21 @@ describe('POST /api/onboarding', () => {
         expect(await json(res)).toEqual({ success: true })
       })
     }
+
+    it('accepts section="physical" with required fields present', async () => {
+      const queryBuilder = makeQueryBuilder({ data: null, error: null })
+      const client = {
+        auth: {
+          getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-123' } }, error: null }),
+        },
+        from: vi.fn(() => queryBuilder),
+      }
+      vi.mocked(createClient).mockResolvedValue(client as any)
+
+      const res = await POST(makeRequest({ section: 'physical', data: { primary_goal: 'Fat Loss', sex: 'Male' } }))
+      expect(res.status).toBe(200)
+      expect(await json(res)).toEqual({ success: true })
+    })
   })
 })
 
@@ -425,7 +415,7 @@ describe('DELETE /api/onboarding', () => {
     expect(await json(res)).toEqual({ error: 'Unauthorized' })
   })
 
-  it('deletes user_onboarding record and returns success', async () => {
+  it('deletes user_onboarding record and cascades nulls to mirrored tables', async () => {
     const queryBuilder = makeQueryBuilder({ data: null, error: null })
     const client = {
       auth: {
@@ -439,8 +429,13 @@ describe('DELETE /api/onboarding', () => {
     expect(res.status).toBe(200)
     expect(await json(res)).toEqual({ success: true })
 
-    expect(client.from).toHaveBeenCalledWith('user_onboarding')
+    const fromCalls = (client.from as ReturnType<typeof vi.fn>).mock.calls.map((c: unknown[]) => c[0])
+    expect(fromCalls).toContain('user_onboarding')
+    expect(fromCalls).toContain('user_profile')
+    expect(fromCalls).toContain('user_goals')
+    expect(fromCalls).toContain('user_lifestyle')
+    expect(fromCalls).toContain('user_training')
     expect(queryBuilder.delete).toHaveBeenCalled()
-    expect(queryBuilder.eq).toHaveBeenCalledWith('user_id', 'user-123')
+    expect(queryBuilder.update).toHaveBeenCalled()
   })
 })

@@ -33,6 +33,9 @@ export interface TrainingSession {
   prs: number | null
   whoop_strain: number | null
   notes: string | null
+  template_id: string | null
+  finished_at: string | null
+  started_at: string | null
   created_at: string
   exercises?: Exercise[]
 }
@@ -202,6 +205,7 @@ export interface TodayContext {
   cycle: WhoopCycle | null
   supplements: SupplementLog[]
   trainingSessions: TrainingSession[]
+  recentTrainingSessions: TrainingSession[]
   recentLogs: DailyLog[]
   recentRecovery: WhoopRecovery[]
   recentSleep: WhoopSleep[]

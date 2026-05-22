@@ -116,7 +116,27 @@ export async function GET() {
     ? `\n- Recent blood work flags: ${labOutOfRange.map((b: BM) => `${b.name} ${b.value}${b.unit}`).join(', ')}`
     : ''
 
+  // Subjective wellness ratings from today's log
+  const feelingRecovery = ctx.dailyLog?.feeling_recovery ?? null
+  const feelingSleep = ctx.dailyLog?.feeling_sleep_quality ?? null
+  const feelingStrain = ctx.dailyLog?.feeling_strain ?? null
+  const todayLogNote = ctx.dailyLog?.notes ?? null
+
+  const subjectiveContext = [
+    feelingRecovery !== null ? `subjective recovery: ${feelingRecovery}/5` : '',
+    feelingSleep !== null ? `felt sleep quality: ${feelingSleep}/5` : '',
+    feelingStrain !== null ? `readiness for training: ${feelingStrain}/5` : '',
+  ].filter(Boolean).join(', ')
+
+  const obPhysical = userCtx.onboarding?.physical as { primary_goal?: string; secondary_goal?: string } | null
+  const primaryGoal = obPhysical?.primary_goal ?? 'General Health'
+  const secondaryGoal = obPhysical?.secondary_goal ?? null
+  const goalContext = `${primaryGoal}${secondaryGoal ? ` + ${secondaryGoal}` : ''}`
+  const isWeightLoss = primaryGoal.toLowerCase().includes('fat') || primaryGoal.toLowerCase().includes('loss') || primaryGoal.toLowerCase().includes('cut')
+
   const prompt = `Today is ${today}. Generate a personalised daily brief for this athlete. Return ONLY valid JSON, no markdown, no explanation.
+
+GOAL: ${goalContext}${isWeightLoss ? ' — this user is in a deliberate calorie deficit. Do NOT flag under-eating as a problem if calories are below target; treat hitting protein targets while staying under calorie target as success.' : ''}
 
 DATA:
 - Recovery score: ${recovery ?? 'no WHOOP data'}${hrv ? `, HRV: ${hrv}ms` : ''}${rhr ? `, RHR: ${rhr}bpm` : ''}
@@ -126,6 +146,8 @@ DATA:
 - 7-day avg protein: ${avgProtein7 ?? 'unknown'}g
 - 7-day avg recovery: ${avgRecovery7 ?? 'unknown'}%
 - Supplements taken: ${ctx.supplements.filter(s => s.taken).length}/${ctx.supplements.length}
+${subjectiveContext ? `- How they feel today: ${subjectiveContext}` : ''}
+${todayLogNote ? `- Today's note: "${todayLogNote}"` : ''}
 - Week intelligence: ${weekIntelContext || 'insufficient data'}${labContext}
 
 Return this exact JSON shape:

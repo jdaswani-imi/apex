@@ -8,7 +8,6 @@ const DAY_FULL: Record<number, string> = {
   0: 'Sunday', 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday',
   4: 'Thursday', 5: 'Friday', 6: 'Saturday',
 }
-const ORDERED_DAYS_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 function addDays(dateStr: string, n: number): string {
   const d = new Date(dateStr + 'T12:00:00')
@@ -35,17 +34,37 @@ export async function GET(req: Request) {
   const plan = planRes.data
   const allTemplates = allTemplatesRes.data ?? []
 
+  // Resolve the last completed template so we can advance the cycle
+  let cycleStartIdx = 0
+  if (allTemplates.length > 0) {
+    const { data: lastSession } = await supabase
+      .from('training_sessions')
+      .select('template_id')
+      .eq('user_id', user.id)
+      .not('finished_at', 'is', null)
+      .not('template_id', 'is', null)
+      .in('template_id', allTemplates.map(t => t.id))
+      .order('date', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (lastSession?.template_id) {
+      const lastIdx = allTemplates.findIndex(t => t.id === lastSession.template_id)
+      if (lastIdx !== -1) cycleStartIdx = (lastIdx + 1) % allTemplates.length
+    }
+  }
+
+  let cycleAdvance = 0 // how many training days we've passed to advance the cycle
+
   for (let i = 1; i <= 14; i++) {
     const checkDate = addDays(afterParam, i)
     const dayNum = new Date(checkDate + 'T12:00:00').getDay()
     const dayShort = DAY_SHORT[dayNum]
-    const dayFull = DAY_FULL[dayNum]
 
     const daysAway = i
-    const dayLabel = i === 1 ? 'Tomorrow' : dayFull
+    const dayLabel = i === 1 ? 'Tomorrow' : DAY_FULL[dayNum]
 
     if (!plan || plan.status !== 'active') {
-      // Fall back to manual training_split
       const split = trainingRes.data?.training_split ?? {}
       const sessionType = split[String(dayNum)] ?? 'Rest'
       if (/rest|off/i.test(sessionType)) continue
@@ -53,18 +72,16 @@ export async function GET(req: Request) {
     }
 
     const trainingDays: string[] = plan.training_days ?? []
-    const isTrainingDay = trainingDays.includes(dayShort) || trainingDays.includes(dayFull)
+    const isTrainingDay = trainingDays.includes(dayShort) || trainingDays.includes(DAY_FULL[dayNum])
     if (!isTrainingDay) continue
 
-    let template = allTemplates.find(
-      t => t.day_of_week === dayFull || t.day_of_week === dayShort
-    ) ?? null
+    // Cycle continuation is the single source of truth.
+    // day_of_week is intentionally not used — it produces wrong results after any deviation.
+    const template = allTemplates.length > 0
+      ? (allTemplates[(cycleStartIdx + cycleAdvance) % allTemplates.length] ?? null)
+      : null
 
-    if (!template) {
-      const daysOrdered = ORDERED_DAYS_SHORT.filter(d => trainingDays.includes(d))
-      const trainingIdx = daysOrdered.indexOf(dayShort)
-      template = trainingIdx !== -1 ? (allTemplates[trainingIdx] ?? null) : null
-    }
+    cycleAdvance++
 
     if (!template) {
       return NextResponse.json({ daysAway, date: checkDate, dayLabel, template: null, sessionType: 'Training' })

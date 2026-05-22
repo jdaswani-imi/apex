@@ -813,7 +813,7 @@ function PhysicalStep({ data, set, trainingData }: { data: StepData; set: StepSe
           <textarea
             value={data.health_conditions_detail ?? ''}
             onChange={e => set('health_conditions_detail', e.target.value)}
-            placeholder="Any additional details or medications?"
+            placeholder="Any additional context or relevant history?"
             rows={2}
             style={{ ...inputStyle, resize: 'none' }}
           />
@@ -1567,7 +1567,7 @@ function NutritionStep({ data, set, lifestyleData, physicalData, trainingData, w
       )}
 
       <Field label="Daily water intake">
-        <Stepper value={data.water_liters ?? 2} onChange={v => set('water_liters', v)} min={0} max={8} step={1} suffix="L" />
+        <Stepper value={data.water_liters ?? 2} onChange={v => set('water_liters', v)} min={0} max={8} step={0.5} suffix="L" />
       </Field>
       <Field label="Do you use electrolytes?">
         <Toggle value={data.uses_electrolytes ?? false} onChange={v => set('uses_electrolytes', v)} />
@@ -2756,6 +2756,9 @@ function DoneScreen({ sectionData, aiMacros, aiMacrosLoading, macrosAccepted, on
       >
         Download my profile summary
       </button>
+      <p style={{ fontSize: '11px', color: '#3f3f46', marginTop: '8px', textAlign: 'center' }}>
+        Includes health &amp; medication data — save to a private device only
+      </p>
     </div>
   )
 }
@@ -2929,6 +2932,8 @@ export default function OnboardingPage() {
 
   async function handleSkip() {
     if (currentSection) {
+      // Save any partial data the user entered before skipping
+      await saveCurrentStep()
       await fetch('/api/onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

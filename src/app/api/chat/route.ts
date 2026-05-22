@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
-import { getTodayContext, getFullUserContext } from '@/lib/db'
+import { getTodayContext, getFullUserContext, getCoachingMemory, saveCoachingMemory, deleteCoachingMemory } from '@/lib/db'
 import { buildSystemPrompt } from '@/lib/ai/system-prompt'
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
@@ -88,6 +88,74 @@ const TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ['names'],
+    },
+  },
+  {
+    name: 'log_feeling',
+    description:
+      "Save or update how the user is feeling right now — recovery, sleep quality, sleep hours felt, and readiness for training. Use whenever the user describes how they feel, mentions being tired/sore/stressed, or checks in on their energy. Scores are 1-5 (1=very poor, 5=excellent). Only set the fields the user actually mentioned.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        feeling_recovery: { type: 'number', description: '1-5: how recovered they feel overall' },
+        feeling_sleep_quality: { type: 'number', description: '1-5: how well they slept' },
+        feeling_sleep_hours: { type: 'number', description: '1-5: whether they felt they got enough sleep hours' },
+        feeling_strain: { type: 'number', description: '1-5: readiness for training/strain today' },
+        notes: { type: 'string', description: 'Optional free-text note to attach to today\'s log (e.g. "stressful day at work", "knee feels off")' },
+      },
+    },
+  },
+  {
+    name: 'save_coaching_note',
+    description:
+      "Save a persistent coaching insight, commitment, or accountability item that should be remembered across future sessions. Use when the user commits to something (\"I'll hit protein every day this week\"), reveals a pattern worth tracking (\"always skips supplements on Sundays\"), or after a key insight from the conversation. Key should be short and specific (e.g. \"protein_commitment_may\", \"sunday_supplement_issue\"). Category: commitment, pattern, insight, goal, or concern.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        key: { type: 'string', description: 'Short unique identifier for this note (snake_case, max 40 chars)' },
+        content: { type: 'string', description: 'The note content — what was agreed, observed, or flagged' },
+        category: {
+          type: 'string',
+          enum: ['commitment', 'pattern', 'insight', 'goal', 'concern'],
+          description: 'Type of coaching note',
+        },
+      },
+      required: ['key', 'content', 'category'],
+    },
+  },
+  {
+    name: 'get_coaching_notes',
+    description:
+      "Retrieve all saved coaching notes to review past commitments, patterns, and insights. Use when the user asks what you remember, references a past conversation, or when you need context on their history before giving advice.",
+    input_schema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'delete_coaching_note',
+    description:
+      "Delete a coaching note that is no longer relevant — e.g. a commitment has been fulfilled, a concern resolved, or the user asks to clear it.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        key: { type: 'string', description: 'The key of the note to delete' },
+      },
+      required: ['key'],
+    },
+  },
+  {
+    name: 'log_rest_day',
+    description:
+      "Log today as a rest day in the training record. Use when the user says they're resting, can't train, are too sore, have low recovery, have a sport commitment that replaces the gym, or are taking a planned off day. IMPORTANT: a rest day does NOT advance the training cycle — the same workout that was planned for today will be waiting for them next training day. Always tell the user what that next workout is after logging.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        notes: {
+          type: 'string',
+          description: 'Optional reason for rest (e.g. "sore", "recovery day", "cricket match", "travel")',
+        },
+      },
     },
   },
   {
@@ -179,11 +247,65 @@ async function executeTool(
       from.setDate(from.getDate() - days)
       const { data } = await supabase
         .from('training_sessions')
-        .select('date, session_type, duration_min, volume_kg, prs, exercises(name, sets, reps, weight_kg, is_pr)')
+        .select('date, session_type, duration_min, volume_kg, prs, notes, template_id, finished_at, exercises(name, sets, reps, weight_kg, is_pr, notes)')
         .eq('user_id', userId)
         .gte('date', from.toISOString().split('T')[0])
         .order('date', { ascending: false })
-      return JSON.stringify(data ?? [])
+      // Annotate each session so the AI knows whether it advanced the cycle
+      const annotated = (data ?? []).map(s => ({
+        ...s,
+        cycle_advancing: !!s.finished_at && !!s.template_id && !/^rest.?day$/i.test(s.session_type ?? ''),
+      }))
+      return JSON.stringify(annotated)
+    }
+
+    case 'log_feeling': {
+      const updates: Record<string, unknown> = {}
+      if (typeof inp.feeling_recovery === 'number') updates.feeling_recovery = Math.min(5, Math.max(1, inp.feeling_recovery))
+      if (typeof inp.feeling_sleep_quality === 'number') updates.feeling_sleep_quality = Math.min(5, Math.max(1, inp.feeling_sleep_quality))
+      if (typeof inp.feeling_sleep_hours === 'number') updates.feeling_sleep_hours = Math.min(5, Math.max(1, inp.feeling_sleep_hours))
+      if (typeof inp.feeling_strain === 'number') updates.feeling_strain = Math.min(5, Math.max(1, inp.feeling_strain))
+      if (typeof inp.notes === 'string' && inp.notes.trim()) updates.notes = inp.notes.trim()
+      if (Object.keys(updates).length === 0) return JSON.stringify({ success: false, error: 'No fields provided' })
+      const { error } = await supabase
+        .from('daily_logs')
+        .upsert({ user_id: userId, date: today, ...updates }, { onConflict: 'user_id,date' })
+      if (error) return JSON.stringify({ success: false, error: error.message })
+      return JSON.stringify({ success: true, saved: updates })
+    }
+
+    case 'save_coaching_note': {
+      const result = await saveCoachingMemory(
+        String(inp.key ?? ''),
+        String(inp.content ?? ''),
+        String(inp.category ?? 'general'),
+      )
+      if (!result) return JSON.stringify({ success: false, error: 'Failed to save' })
+      return JSON.stringify({ success: true, saved: result })
+    }
+
+    case 'get_coaching_notes': {
+      const notes = await getCoachingMemory()
+      return JSON.stringify(notes)
+    }
+
+    case 'delete_coaching_note': {
+      await deleteCoachingMemory(String(inp.key ?? ''))
+      return JSON.stringify({ success: true })
+    }
+
+    case 'log_rest_day': {
+      const { error } = await supabase.from('training_sessions').insert({
+        user_id: userId,
+        date: today,
+        session_type: 'Rest day',
+        notes: typeof inp.notes === 'string' ? inp.notes : null,
+      })
+      if (error) return JSON.stringify({ success: false, error: error.message })
+      return JSON.stringify({
+        success: true,
+        message: 'Rest day logged. The training cycle is unchanged — the same workout will be ready next training day.',
+      })
     }
 
     case 'mark_supplements_taken': {
@@ -299,6 +421,16 @@ export async function POST(request: Request) {
             } else if (block.name === 'mark_supplements_taken') {
               const names = inp.names as string[]
               toolCallSummary.push({ tool: 'supplement', label: `Marked ${names.join(' + ')} → taken` })
+            } else if (block.name === 'log_rest_day') {
+              toolCallSummary.push({ tool: 'rest', label: 'Logged rest day — cycle position held' })
+            } else if (block.name === 'log_feeling') {
+              toolCallSummary.push({ tool: 'feeling', label: 'Saved how you feel today' })
+            } else if (block.name === 'save_coaching_note') {
+              toolCallSummary.push({ tool: 'memory', label: `Saved coaching note: ${inp.key}` })
+            } else if (block.name === 'delete_coaching_note') {
+              toolCallSummary.push({ tool: 'memory', label: `Cleared coaching note: ${inp.key}` })
+            } else if (block.name === 'get_coaching_notes') {
+              toolCallSummary.push({ tool: 'read', label: 'Retrieved coaching history' })
             }
 
             return { type: 'tool_result' as const, tool_use_id: block.id, content: result }

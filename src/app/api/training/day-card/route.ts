@@ -8,8 +8,6 @@ const DAY_FULL: Record<number, string> = {
   0: 'Sunday', 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday',
   4: 'Thursday', 5: 'Friday', 6: 'Saturday',
 }
-const ORDERED_DAYS_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-
 function addDays(dateStr: string, n: number): string {
   const d = new Date(dateStr + 'T12:00:00')
   d.setDate(d.getDate() + n)
@@ -23,6 +21,8 @@ async function resolveTemplate(
   plan: { status: string; training_days: string[] } | null,
   allTemplates: { id: string; name: string; description: string; color: string; sort_order: number; day_of_week: string | null }[],
   trainingRes: { training_split: Record<string, string> } | null,
+  cycleStartIdx: number,
+  cycleAdvance: number,
 ) {
   const dayNum = new Date(dateStr + 'T12:00:00').getDay()
   const dayShort = DAY_SHORT[dayNum]
@@ -38,15 +38,12 @@ async function resolveTemplate(
   const isTrainingDay = trainingDays.includes(dayShort) || trainingDays.includes(dayFull)
   if (!isTrainingDay) return { isRest: true, template: null, sessionType: 'Rest' }
 
-  let template = allTemplates.find(
-    t => t.day_of_week === dayFull || t.day_of_week === dayShort,
-  ) ?? null
-
-  if (!template) {
-    const daysOrdered = ORDERED_DAYS_SHORT.filter(d => trainingDays.includes(d))
-    const idx = daysOrdered.indexOf(dayShort)
-    template = idx !== -1 ? (allTemplates[idx] ?? null) : null
-  }
+  // Cycle continuation is the single source of truth — day_of_week is skipped intentionally.
+  // After any deviation (rest on training day, or training on rest day) the day_of_week
+  // field always maps to the original plan and produces the wrong result.
+  const template = allTemplates.length > 0
+    ? (allTemplates[(cycleStartIdx + cycleAdvance) % allTemplates.length] ?? null)
+    : null
 
   if (!template) return { isRest: false, template: null, sessionType: 'Training' }
 
@@ -93,8 +90,41 @@ export async function GET(req: Request) {
     ? loggedSessions[0]?.session_type ?? null
     : null
 
+  // Check if a rest day was explicitly logged for this date (no finished_at)
+  const { data: restCheck } = await supabase
+    .from('training_sessions')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('date', dateParam)
+    .eq('session_type', 'Rest day')
+    .is('finished_at', null)
+    .limit(1)
+  const restLogged = (restCheck?.length ?? 0) > 0
+
+  // Resolve cycle start: last real completed session (rest days excluded) using template IDs
+  let cycleStartIdx = 0
+  if (allTemplates.length > 0) {
+    const { data: lastRealSession } = await supabase
+      .from('training_sessions')
+      .select('template_id')
+      .eq('user_id', user.id)
+      .not('finished_at', 'is', null)
+      .not('template_id', 'is', null)
+      .neq('session_type', 'Rest day')
+      .in('template_id', allTemplates.map(t => t.id))
+      .lt('date', dateParam)
+      .order('date', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (lastRealSession?.template_id) {
+      const lastIdx = allTemplates.findIndex(t => t.id === lastRealSession.template_id)
+      if (lastIdx !== -1) cycleStartIdx = (lastIdx + 1) % allTemplates.length
+    }
+  }
+
   const { isRest, template, sessionType } = await resolveTemplate(
-    supabase, user.id, dateParam, plan, allTemplates, trainingData,
+    supabase, user.id, dateParam, plan, allTemplates, trainingData, cycleStartIdx, 0,
   )
 
   const today = {
@@ -104,24 +134,24 @@ export async function GET(req: Request) {
     sessionLogged: sessionCount > 0,
     sessionDone: sessionCount > 0,
     alternativeSession,
+    restLogged,
   }
 
-  // Only look up next workout when it's actually needed (rest or done day)
+  // Look up next workout when rest, done, or rest day explicitly logged
   let next = null
-  if (isRest || sessionCount > 0) {
+  if (isRest || sessionCount > 0 || restLogged) {
+    let lookaheadCycleAdvance = 0
     for (let i = 1; i <= 14; i++) {
       const checkDate = addDays(dateParam, i)
-      const dayNum = new Date(checkDate + 'T12:00:00').getDay()
-      const dayShort = DAY_SHORT[dayNum]
-      const dayFull = DAY_FULL[dayNum]
-      const dayLabel = i === 1 ? 'Tomorrow' : DAY_FULL[dayNum]
+      const dayLabel = i === 1 ? 'Tomorrow' : DAY_FULL[new Date(checkDate + 'T12:00:00').getDay()]
 
       const { isRest: checkRest, template: nextTemplate, sessionType: nextType } = await resolveTemplate(
         supabase, user.id, checkDate, plan, allTemplates, trainingData,
+        cycleStartIdx, lookaheadCycleAdvance,
       )
 
       if (!checkRest) {
-        void dayShort; void dayFull
+        lookaheadCycleAdvance++
         next = { daysAway: i, date: checkDate, dayLabel, template: nextTemplate, sessionType: nextType }
         break
       }

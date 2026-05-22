@@ -46,6 +46,8 @@ interface TodayData {
   sessionLogged: boolean
   sessionDone: boolean
   alternativeSession: string | null
+  restLogged?: boolean
+  trainedOnRestDay?: boolean
 }
 
 interface DayCard {
@@ -127,10 +129,11 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
     )
   }
 
-  const { isRest, template, sessionType, sessionDone, alternativeSession } = card.today
+  const { isRest, template, sessionType, sessionDone, alternativeSession, restLogged, trainedOnRestDay } = card.today
   const next = card.next
 
-  if (isRest) {
+  if (isRest || restLogged) {
+    const isChosenRest = restLogged && !isRest
     return (
       <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-center gap-4">
@@ -142,7 +145,9 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
               {isToday ? "Today's Session" : 'Session'}
             </p>
             <p className="text-foreground font-semibold text-base">Rest Day</p>
-            <p className="text-muted-foreground/60 text-xs mt-0.5">Recovery · light activity encouraged</p>
+            <p className="text-muted-foreground/60 text-xs mt-0.5">
+              {isChosenRest ? 'Logged · cycle position held for next session' : 'Recovery · light activity encouraged'}
+            </p>
           </div>
         </div>
         <NextBadge next={next} />
@@ -169,7 +174,9 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
                 {isToday ? "Today's Session" : 'Session'}
               </p>
               <p className="text-foreground font-semibold text-base truncate">{displayName}</p>
-              <p className="text-green-500 text-xs mt-0.5 font-medium">Training done for today</p>
+              <p className="text-green-500 text-xs mt-0.5 font-medium">
+                {trainedOnRestDay ? 'Bonus session · cycle advanced' : 'Training done for today'}
+              </p>
             </div>
             <ChevronRight size={16} className="text-muted-foreground/30 flex-shrink-0" />
           </div>

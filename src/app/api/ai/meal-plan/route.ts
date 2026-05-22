@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
-  if (!await checkRateLimit(`${user.id}:meal-plan`, 5, 60 * 60 * 1000)) return rateLimitResponse()
+  if (!await checkRateLimit(`${user.id}:meal-plan`, 15, 60 * 60 * 1000)) return rateLimitResponse()
 
   const body = await request.json() as {
     is_training_day?: boolean
@@ -189,19 +189,25 @@ Return this exact JSON shape (only include the remaining meals, not already-eate
   try {
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1000,
+      max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }],
     })
 
-    const raw = response.content
+    const text = response.content
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
       .map(b => b.text)
       .join('')
-      .replace(/^```(?:json)?\s*/i, '')
-      .replace(/\s*```\s*$/, '')
-      .trim()
+
+    // Extract JSON robustly — find outermost { ... } to ignore any preamble or trailing text
+    const start = text.indexOf('{')
+    const end = text.lastIndexOf('}')
+    if (start === -1 || end === -1 || end <= start) {
+      throw new Error('No JSON object found in response')
+    }
+    const raw = text.slice(start, end + 1)
 
     const plan = JSON.parse(raw) as MealPlan
+    if (!Array.isArray(plan.meals)) throw new Error('Invalid plan shape')
     plan.already_logged_calories = loggedCals
     plan.already_logged_protein_g = loggedProtein
     return Response.json(plan)

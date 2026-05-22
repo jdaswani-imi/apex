@@ -599,6 +599,10 @@ const FoodContent = memo(function FoodContent({ proteinTarget, calorieTarget, is
           })),
         }),
       })
+      if (res.status === 429) {
+        setMealPlanError('Too many requests — wait a few minutes and try again.')
+        return
+      }
       const plan = await res.json() as MealPlan
       if (!res.ok || !Array.isArray(plan.meals)) {
         setMealPlanError('Couldn\'t generate a plan right now. Try again.')

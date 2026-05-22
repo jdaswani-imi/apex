@@ -7,6 +7,7 @@ import {
   getRecentTraining,
   getUserGoals,
   getUserTraining,
+  getOnboardingData,
 } from '@/lib/db'
 import {
   buildWeekIntelligence,
@@ -51,13 +52,14 @@ export async function GET() {
   cutoff.setDate(cutoff.getDate() - 8)
   const fromDate = cutoff.toISOString().split('T')[0]
 
-  const [dailyLogs, recoveries, sleeps, sessions, goals, trainingConfig, suppResult, foodResult] = await Promise.all([
+  const [dailyLogs, recoveries, sleeps, sessions, goals, trainingConfig, onboarding, suppResult, foodResult] = await Promise.all([
     getRecentDailyLogs(8),
     getRecentRecovery(8),
     getRecentSleep(8),
     getRecentTraining(8),
     getUserGoals(),
     getUserTraining(),
+    getOnboardingData(),
     supabase
       .from('supplement_logs')
       .select('*')
@@ -159,6 +161,24 @@ export async function GET() {
   const yMissedSupps = yest.supplements.filter(s => !s.taken).map(s => s.supplement_name)
   const yTrained = yest.sessions.length > 0
 
+  // Subjective wellness from yesterday's log
+  const yFeelingRecovery = yest.log?.feeling_recovery ?? null
+  const yFeelingSleep = yest.log?.feeling_sleep_quality ?? null
+  const yFeelingStrain = yest.log?.feeling_strain ?? null
+  const yLogNote = yest.log?.notes ?? null
+
+  // Check if WHOOP score and subjective feeling diverge significantly
+  const whoopVsSubjectiveDivergence =
+    yRecovery !== null && yFeelingRecovery !== null
+      ? (() => {
+          const whoopNorm = yRecovery / 100
+          const subjNorm = (yFeelingRecovery - 1) / 4
+          const diff = Math.abs(whoopNorm - subjNorm)
+          if (diff > 0.3) return yRecovery > yFeelingRecovery * 20 ? 'whoop_higher' : 'subjective_higher'
+          return null
+        })()
+      : null
+
   // today's scheduled session
   const todayDow = new Date().getDay()
   const todayScheduled = trainingSplit?.[todayDow.toString()] ?? null
@@ -184,6 +204,26 @@ export async function GET() {
     : null
   const completedSessions = dayDataList.filter(d => d.sessions.length > 0).length
 
+  // ── User profile context from onboarding ─────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ob = (onboarding ?? {}) as Record<string, any>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const obCoaching = (ob.coaching ?? {}) as Record<string, any>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const obPhysical  = (ob.physical  ?? {}) as Record<string, any>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const obSleep     = (ob.sleep_ext ?? {}) as Record<string, any>
+
+  const coachingStyle  = (obCoaching.coaching_style     as string) || 'Direct & blunt'
+  const bluntness      = (obCoaching.feedback_bluntness as number) ?? 4
+  const primaryGoal    = (obPhysical.primary_goal       as string) || 'General Health'
+  const targetWeight   = (obPhysical.target_weight_kg   as number) ?? (goals?.target_weight_kg as number) ?? null
+  const injuries:      string[] = (obPhysical.injuries_list ?? []).filter((i: string) => i !== 'None')
+  const sleepIssues:   string[] = obSleep.sleep_issues ?? []
+  const userGoalContext = goals?.target_event_name
+    ? `target event: ${goals.target_event_name as string}${goals.target_event_date ? ` on ${goals.target_event_date as string}` : ''}`
+    : targetWeight ? `target weight: ${targetWeight}kg` : primaryGoal
+
   // ── Build AI prompt ───────────────────────────────────────────────────────
 
   const actionableFlags = intel.yesterdayFlags.filter(f => f !== 'no_data')
@@ -199,7 +239,12 @@ export async function GET() {
 
   const weekAvg = intel.weightedAverage !== null ? `${intel.weightedAverage}/100` : 'unknown'
 
-  const prompt = `You are an intelligent health coach. Generate a morning briefing for an athlete. Return ONLY valid JSON, no markdown.
+  const prompt = `You are Apex, a personal optimisation coach. Generate a morning briefing. Tone: ${coachingStyle}, bluntness ${bluntness}/5${bluntness >= 4 ? ' — say it straight' : ''}. Return ONLY valid JSON, no markdown.
+
+USER:
+- Goal: ${userGoalContext}
+${injuries.length > 0 ? `- Injuries: ${injuries.join(', ')} — factor into training advice` : ''}
+${sleepIssues.filter((i: string) => i !== 'None').length > 0 ? `- Known sleep issues: ${sleepIssues.filter((i: string) => i !== 'None').join(', ')}` : ''}
 
 CONTEXT:
 - Yesterday's overall score: ${intel.yesterdayScore ?? 'no data'}/100 (${intel.yesterdayQuality})
@@ -211,7 +256,13 @@ DETAILED YESTERDAY DATA:
 - Protein: ${yProtein !== null ? `${yProtein}g vs ${proteinTarget}g target (${Math.round((yProtein / proteinTarget) * 100)}%)` : 'not logged'}
 - Calories: ${yCals !== null ? `${yCals} kcal` : 'not logged'}
 - Sleep: ${ySleepHrs !== null ? `${ySleepHrs}h${ySleepPerf !== null ? `, ${ySleepPerf}% performance` : ''}${yDeep !== null ? `, ${yDeep}min deep` : ''}${yREM !== null ? `, ${yREM}min REM` : ''}` : 'no data'}
-- Recovery: ${yRecovery !== null ? `${yRecovery}%` : 'no WHOOP data'}
+- Recovery (WHOOP): ${yRecovery !== null ? `${yRecovery}%` : 'no WHOOP data'}
+${yFeelingRecovery !== null ? `- How they felt (subjective recovery): ${yFeelingRecovery}/5` : ''}
+${yFeelingSleep !== null ? `- Felt sleep quality: ${yFeelingSleep}/5` : ''}
+${yFeelingStrain !== null ? `- Felt ready for strain: ${yFeelingStrain}/5` : ''}
+${whoopVsSubjectiveDivergence === 'whoop_higher' ? '⚠️ WHOOP shows better recovery than how they felt — may be building fatigue the sensor hasn\'t caught yet. Prioritise caution.' : ''}
+${whoopVsSubjectiveDivergence === 'subjective_higher' ? '⚠️ They felt better than WHOOP scored — could be mental resilience or sensor lag. Moderate approach.' : ''}
+${yLogNote ? `- Yesterday's log note: "${yLogNote}" — use this context in your message` : ''}
 - Supplements: ${ySuppTotal > 0 ? `${ySuppTaken}/${ySuppTotal} taken${yMissedSupps.length > 0 ? `, missed: ${yMissedSupps.slice(0, 3).join(', ')}${yMissedSupps.length > 3 ? '...' : ''}` : ''}` : 'none scheduled'}
 - Training: ${yTrained ? 'completed a session' : 'no session logged'}
 

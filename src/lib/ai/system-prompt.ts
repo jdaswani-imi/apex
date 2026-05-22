@@ -1,6 +1,15 @@
 import type { TodayContext } from '@/lib/types'
 import { getCyclePhase } from '@/lib/types'
 
+type LabReport = {
+  filename: string
+  report_date: string | null
+  report_type: string
+  summary: string | null
+  structured_data: LabStructuredData | null
+  created_at: string
+}
+
 type Biomarker = {
   name: string
   value: string
@@ -25,6 +34,13 @@ type EveningCommitment = {
   end: string
 }
 
+type CoachingMemoryEntry = {
+  key: string
+  content: string
+  category: string
+  updated_at: string
+}
+
 // UserCtx shape comes from getFullUserContext() — typed loosely here because
 // it aggregates multiple Supabase tables without generated types
 type UserCtx = {
@@ -35,15 +51,10 @@ type UserCtx = {
   lifestyle: Record<string, unknown> | null
   baselines: Record<string, unknown>[] | null
   latestCycle: { period_start_date: string; cycle_length_days: number } | null
-  latestLab: {
-    filename: string
-    report_date: string | null
-    report_type: string
-    summary: string | null
-    structured_data: LabStructuredData | null
-    created_at: string
-  } | null
+  latestLab: LabReport | null
+  allLabReports: LabReport[]
   onboarding: Record<string, unknown> | null
+  coachingMemory: CoachingMemoryEntry[]
 }
 
 export function buildSystemPrompt(ctx: TodayContext, userCtx: UserCtx): string {
@@ -119,6 +130,10 @@ export function buildSystemPrompt(ctx: TodayContext, userCtx: UserCtx): string {
   const obCoaching  = (ob.coaching      ?? {}) as Record<string, any>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const obTravel    = (ob.travel        ?? {}) as Record<string, any>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const obSleep     = (ob.sleep_ext     ?? {}) as Record<string, any>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const obSupps     = (ob.supplements_ext ?? {}) as Record<string, any>
 
   // Coaching tone
   const coachingStyle    = (obCoaching.coaching_style as string)    || 'Direct & blunt'
@@ -186,6 +201,25 @@ export function buildSystemPrompt(ctx: TodayContext, userCtx: UserCtx): string {
 
   // Travel
   const upcomingEvents = (obTravel.upcoming_events as string) || ''
+
+  // Sleep (onboarding)
+  const sleepIssues:          string[] = obSleep.sleep_issues          ?? []
+  const presleepRoutine:      string[] = obSleep.presleep_routine_list ?? []
+  const sleepSupplements:     string[] = obSleep.sleep_supplements_list ?? []
+  const recoveryMethods:      string[] = obSleep.recovery_methods      ?? []
+  const sleepQualityRating:   number | null = obSleep.quality_rating   ?? null
+  const avgSleepHours:        number | null = obSleep.avg_sleep_hours  ?? null
+  const sleepEnvDark:         boolean = obSleep.env_dark               ?? true
+  const sleepEnvCool:         boolean = obSleep.env_cool               ?? true
+  const hasSleepContext = sleepIssues.length > 0 || presleepRoutine.length > 0 || sleepQualityRating !== null
+
+  // Supplements (onboarding)
+  const knownDeficiencies:    string[] = obSupps.deficiencies_list     ?? []
+  const consideringSupps:     string[] = obSupps.considering_list      ?? []
+  const medications:          string[] = (obSupps.medications_list     ?? []).filter((m: string) => m !== 'None')
+  const medicationsOther:     string   = (obSupps.medications_other    as string) || ''
+  const suppBudget:           string   = (obSupps.budget               as string) || ''
+  const hasMedications = medications.length > 0 || !!medicationsOther
 
   // ─── Supplement interaction rules — derived from active stack ─────────────
   const suppNames = (supplements ?? []).map(s => String(s.name ?? '').toLowerCase())
@@ -276,6 +310,25 @@ ${eventDate && goals ? `## TARGET EVENT
 - Performance: ${sleep?.sleep_performance_pct ? `${sleep.sleep_performance_pct}%` : '—'}
 - Deep sleep: ${sleep?.deep_sleep_min ? `${sleep.deep_sleep_min} min` : '—'}
 - REM: ${sleep?.rem_min ? `${sleep.rem_min} min` : '—'}
+${sleep?.sleep_efficiency_pct ? `- Efficiency: ${sleep.sleep_efficiency_pct}%` : ''}
+${sleep?.respiratory_rate ? `- Respiratory rate: ${sleep.respiratory_rate} breaths/min` : ''}
+
+${(() => {
+  const fr = log?.feeling_recovery ?? null
+  const fsq = log?.feeling_sleep_quality ?? null
+  const fsh = log?.feeling_sleep_hours ?? null
+  const fst = log?.feeling_strain ?? null
+  const hasAny = fr !== null || fsq !== null || fsh !== null || fst !== null
+  if (!hasAny) return ''
+  const lines = [
+    fr !== null ? `- How they feel today (recovery): ${fr}/5${fr <= 2 ? ' ⚠️ feeling rough — adjust intensity' : fr >= 4 ? ' — feeling good' : ''}` : null,
+    fsq !== null ? `- Felt sleep quality last night: ${fsq}/5${fsq <= 2 ? ' ⚠️ poor subjective sleep' : ''}` : null,
+    fsh !== null ? `- Felt they slept enough hours: ${fsh}/5` : null,
+    fst !== null ? `- Felt ready for strain/training: ${fst}/5${fst <= 2 ? ' ⚠️ do not push hard today regardless of WHOOP score' : ''}` : null,
+  ].filter(Boolean)
+  return `## HOW THEY FEEL TODAY (subjective check-in)\n${lines.join('\n')}\nNote: when WHOOP score and subjective rating diverge significantly, trust how they feel — the body knows.\n`
+})()}
+${log?.notes ? `## TODAY'S LOG NOTE\n"${log.notes}"\nFactor this context into all advice today.` : ''}
 
 ## TODAY'S NUTRITION SO FAR
 - Protein: ${ctx.foodTotals.protein ?? log?.protein_g ?? 0}g / ${goals?.daily_protein_target_g ?? 140}g target
@@ -286,6 +339,7 @@ ${waterLiters ? `- Water target: ${waterLiters}L daily` : ''}
 ## SUPPLEMENTS TODAY
 - Taken: ${suppTaken}/${suppTotal}
 - Still needed: ${missedSupps.length > 0 ? missedSupps.join(', ') : 'all done ✓'}
+${ctx.supplements.filter(s => s.notes && s.notes.trim()).map(s => `- ${s.supplement_name} note: "${s.notes}"`).join('\n') || ''}
 
 ## 7-DAY PATTERNS
 - Protein compliance: ${proteinComplianceNote}
@@ -299,6 +353,88 @@ ${Object.entries(training?.training_split ?? {}).map(([day, type]) => {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
   return `- ${days[Number(day)]}: ${type}`
 }).join('\n') || '— not configured'}
+
+## WORKOUT CYCLE (repeating sequence)
+${(() => {
+  const split = training?.training_split as Record<string, string> | null | undefined
+  if (!split) return '— not configured'
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+  const trainingDayEntries = Object.entries(split)
+    .filter(([, v]) => !/rest|off/i.test(v))
+    .sort(([a], [b]) => Number(a) - Number(b))
+  if (trainingDayEntries.length === 0) return '— no training days set'
+  const cycleStr = trainingDayEntries.map(([d, t]) => `${dayNames[Number(d)]}: ${t}`).join(' → ')
+
+  // Use recentTrainingSessions (last 21 days) — trainingSessions is today-only
+  const recent = ctx.recentTrainingSessions ?? []
+  const norm = (t: string) => t.toLowerCase().replace(/\s+day$/i, '').replace(/[_]+/g, ' ').trim()
+
+  // Last session that actually advanced the cycle = completed with a template_id
+  const lastCycleSession = recent.find(s =>
+    !!s.finished_at && !!s.template_id && !/^rest.?day$/i.test(s.session_type)
+  )
+  // Last session overall (including non-template workouts)
+  const lastRealSession = recent.find(s =>
+    !!s.finished_at && !/^rest.?day$/i.test(s.session_type)
+  )
+  const mostRecentEntry = recent[0]
+  const mostRecentWasRest = !!mostRecentEntry && /^rest.?day$/i.test(mostRecentEntry.session_type)
+
+  // What's next based on the last cycle-advancing session
+  const nextInCycle = (() => {
+    if (!lastCycleSession) return trainingDayEntries[0]?.[1] ?? null
+    const lastNorm = norm(lastCycleSession.session_type)
+    const lastIdx = trainingDayEntries.findIndex(([, t]) => norm(t) === lastNorm)
+    if (lastIdx === -1) return trainingDayEntries[0]?.[1] ?? null
+    return trainingDayEntries[(lastIdx + 1) % trainingDayEntries.length]?.[1] ?? null
+  })()
+
+  // Detect deviations in the last 7 real sessions
+  const deviationLines: string[] = []
+  const recentReal = recent.filter(s => !!s.finished_at && !/^rest.?day$/i.test(s.session_type)).slice(0, 7)
+
+  for (const s of recentReal) {
+    const sDayNum = new Date(s.date + 'T12:00:00').getDay()
+    const scheduled = split[String(sDayNum)] ?? 'Rest'
+    const scheduledIsRest = /rest|off/i.test(scheduled)
+    const actual = s.session_type
+    const sessionUsedTemplate = !!s.template_id
+
+    if (scheduledIsRest) {
+      // Trained on a rest day
+      deviationLines.push(`${s.date}: trained on rest day (${actual})${sessionUsedTemplate ? ' → cycle advanced' : ' → no template used, cycle unchanged'}`)
+    } else {
+      // On a training day — check if what they did matches what was scheduled
+      const scheduledNorm = norm(scheduled)
+      const actualNorm = norm(actual)
+      const matches = actualNorm.includes(scheduledNorm) || scheduledNorm.includes(actualNorm)
+      if (!matches) {
+        deviationLines.push(`${s.date}: scheduled "${scheduled}" but logged "${actual}"${sessionUsedTemplate ? ' → cycle advanced from this session' : ' → no template, cycle position unchanged (original session still due)'}`)
+      }
+    }
+  }
+
+  // Detect if the last real session was a substitution (non-template on a training day)
+  const lastWasSubstitution = lastRealSession && !lastRealSession.template_id && !deviationLines.length
+
+  return `Sequence: ${cycleStr} → (repeat)
+Last cycle session: ${lastCycleSession ? `${lastCycleSession.session_type} on ${lastCycleSession.date}` : 'none yet'}
+Last real session: ${lastRealSession ? `${lastRealSession.session_type} on ${lastRealSession.date}${!lastRealSession.template_id ? ' (no template — did not advance cycle)' : ''}` : 'none yet'}
+Next in cycle: ${nextInCycle ?? 'start from beginning'}
+${mostRecentWasRest ? `Most recent log was a rest day — cycle position frozen at "${nextInCycle}".` : ''}
+${deviationLines.length > 0 ? `\nRecent deviations from schedule:\n${deviationLines.map(l => `- ${l}`).join('\n')}` : ''}
+${lastWasSubstitution && lastRealSession ? `\nNote: Last session (${lastRealSession.session_type}) had no template — it was a free/manual session. The cycle position is unchanged.` : ''}
+
+Cycle rules:
+1. Only a completed session WITH a template advances the cycle. Free/manual sessions and cardio without a template do not.
+2. If the user did cardio/a free session instead of their scheduled strength day: that strength session is still next — do not skip it. Tell them so.
+3. If the user did a DIFFERENT strength template (e.g. Pull instead of Push): the cycle advanced from Pull. Push was skipped. Acknowledge it and ask if they want to re-insert it.
+4. Resting on a training day → same workout waits next training day. Cycle frozen.
+5. Training on a rest day with a template → cycle advances from that session.
+6. After any rest or substitution, always state: what the next session is and which day it falls on.
+7. If recovery is RED (<34%) or strain readiness ≤2: suggest a rest day, confirm the cycle is frozen at "${nextInCycle}".
+8. Never anchor to the calendar. The last template-based session is always the cycle reference.`
+})()}
 
 Gym: ${training?.gym_name ?? obTraining.gym_name ?? 'not set'}
 ${training?.smith_machine_bar_kg ? `Smith machine bar: ${training.smith_machine_bar_kg}kg` : ''}
@@ -328,6 +464,23 @@ ${lowerBaselines.length > 0
     ).join('\n')}`
   : ''}
 When a user logs a training session, check their logged weight/reps against these baselines and tell them exactly what to aim for next session.
+${(() => {
+  // Use recentTrainingSessions — trainingSessions is today-only and would show nothing for past days
+  const recent = (ctx.recentTrainingSessions ?? [])
+    .filter(s => !!s.finished_at || /^rest.?day$/i.test(s.session_type))
+    .slice(0, 5)
+  if (recent.length === 0) return ''
+  const lines = recent.flatMap(s => {
+    const isRest = /^rest.?day$/i.test(s.session_type)
+    const parts: string[] = [
+      `- ${s.date} ${s.session_type}${isRest ? ' (rest)' : ''}${s.duration_min ? ` (${s.duration_min}min)` : ''}${s.volume_kg ? `, ${s.volume_kg}kg volume` : ''}${s.prs ? `, ${s.prs} PR(s)` : ''}${s.template_id ? '' : ' [no template]'}`,
+    ]
+    if (s.notes) parts.push(`  Session note: "${s.notes}"`)
+    const exerciseNotes = (s.exercises ?? []).filter(e => e.notes).map(e => `  ${e.name} note: "${e.notes}"`)
+    return [...parts, ...exerciseNotes]
+  })
+  return lines.length > 0 ? `\n## RECENT SESSION LOG\n${lines.join('\n')}` : ''
+})()}
 
 ## TRAINING PROTOCOLS
 Progressive overload: double progression — hit the top of the rep range across all sets first, then add weight. Upper: +2.5kg. Lower: +5kg.
@@ -373,7 +526,15 @@ ${cycleInfo ? `## MENSTRUAL CYCLE
 ` : ''}
 ## SUPPLEMENT STACK
 ${supplements?.map(s => `- ${String(s.timing_notes ?? s.timing ?? 'anytime')}: ${String(s.name ?? '')} — ${String(s.dose ?? '')}`).join('\n') ?? 'Not configured'}
+${consideringSupps.length > 0 ? `\nConsidering adding: ${consideringSupps.join(', ')} — reference when relevant, suggest evidence-based ones that align with their goals and lab results.` : ''}
+${knownDeficiencies.filter(d => d !== 'None known').length > 0 ? `Known deficiencies (self-reported or blood-confirmed): ${knownDeficiencies.filter(d => d !== 'None known').join(', ')} — factor into all supplement and nutrition suggestions.` : ''}
+${suppBudget ? `Supplement budget: ${suppBudget}/month — stay within this when suggesting additions.` : ''}
 
+${hasMedications ? `## PRESCRIPTION MEDICATIONS — CHECK INTERACTIONS BEFORE EVERY SUPPLEMENT SUGGESTION
+${medications.length > 0 ? medications.map(m => `- ${m}`).join('\n') : ''}
+${medicationsOther ? `- ${medicationsOther}` : ''}
+These interact with supplements and nutrition. Key rules: statins deplete CoQ10; SSRIs/antidepressants — never recommend 5-HTP, St John's Wort, or SAMe; contraceptive pill — monitor B6, B12, magnesium, zinc (depleted by OCP); thyroid medication — iron and calcium must be 4h apart; anticoagulants (warfarin) — avoid high-dose omega-3, vitamin K changes, or any herb without checking; beta blockers — CoQ10 may be beneficial; Metformin — depletes B12. Always flag if a suggestion could interact.
+` : ''}
 ${hasSuppInteractionRules ? `## SUPPLEMENT INTERACTION RULES — NEVER VIOLATE
 ${hasIron ? '- IRON: never within 1h of coffee. Separate from calcium by 2h. Separate from zinc by 2h. 8PM timing is non-negotiable.' : ''}
 ${hasCrHmb ? '- CREATINE HMB: contains calcium — keep 2h away from iron.' : ''}
@@ -391,6 +552,29 @@ ${latestLab?.structured_data ? (() => {
   const date = latestLab.report_date ?? latestLab.created_at.slice(0, 10)
   const oor = (sd.biomarkers ?? []).filter(b => b.status === 'out_of_range')
   const suf = (sd.biomarkers ?? []).filter(b => b.status === 'sufficient')
+
+  // Build trend lines from multiple reports if available
+  const allReports = userCtx.allLabReports
+  const trendLines: string[] = []
+  if (allReports.length >= 2) {
+    const latestBiomarkers = new Map<string, string>(
+      (sd.biomarkers ?? []).map(b => [b.name.toLowerCase(), b.value])
+    )
+    const prev = allReports[1]
+    const prevDate = prev.report_date ?? prev.created_at.slice(0, 10)
+    const prevBiomarkers = prev.structured_data?.biomarkers ?? []
+    for (const pb of prevBiomarkers) {
+      const cur = latestBiomarkers.get(pb.name.toLowerCase())
+      if (!cur) continue
+      const curNum = parseFloat(cur)
+      const prevNum = parseFloat(pb.value)
+      if (isNaN(curNum) || isNaN(prevNum) || curNum === prevNum) continue
+      const dir = curNum > prevNum ? '↑' : '↓'
+      const pct = Math.round(Math.abs((curNum - prevNum) / prevNum) * 100)
+      trendLines.push(`- ${pb.name}: ${pb.value} ${pb.unit} (${prevDate}) → ${cur} ${pb.unit} (${date}) ${dir} ${pct}%`)
+    }
+  }
+
   return `## LATEST LAB RESULTS (${date})
 Summary: ${sd.summary ?? latestLab.summary ?? 'N/A'}
 Overall status: ${sd.overall_status ?? 'unknown'}
@@ -403,9 +587,16 @@ ${suf.map(b => `- ${b.name}: ${b.value} ${b.unit}`).join('\n') || '— none'}
 
 Lab recommendations:
 ${(sd.recommendations ?? []).map((r, i) => `${i + 1}. ${r}`).join('\n') || '— none'}
-
+${trendLines.length > 0 ? `\nBiomarker trends (vs previous panel):\n${trendLines.join('\n')}\nReference these trends when advising on supplements and protocols — improving markers deserve positive reinforcement.` : ''}
 Always factor these results into supplement, nutrition, training, and recovery suggestions. Proactively reference out-of-range markers when relevant.`
 })() : ''}
+
+${(() => {
+  const mem = userCtx.coachingMemory
+  if (mem.length === 0) return ''
+  const lines = mem.map(m => `- [${m.category}] ${m.key}: ${m.content}`)
+  return `## COACHING MEMORY (persistent notes from past sessions)\n${lines.join('\n')}\nReference these when giving advice. Call out accountability items if the user hasn't followed through. Use save_coaching_note to update or add new notes.`
+})()}
 
 ${hasSkincare ? `## SKINCARE PROTOCOL
 Skin type: ${skinType || 'not logged'}${skinConcerns.length > 0 ? ` | Concerns: ${skinConcerns.join(', ')}` : ''}
@@ -429,6 +620,17 @@ ${hairProducts ? `Current products: ${hairProducts}` : ''}
 - Social nights: ${lifestyle?.social_night ?? obLifestyle.social_night ?? 'not set'}
 ${wearables.length > 0 ? `- Wearables: ${wearables.join(', ')}` : ''}
 ${trackedBiometrics.length > 0 ? `- Tracked biometrics: ${trackedBiometrics.join(', ')}` : ''}
+
+${hasSleepContext ? `## SLEEP PROFILE
+${avgSleepHours !== null ? `- Self-reported avg sleep: ${avgSleepHours}h` : ''}
+${sleepQualityRating !== null ? `- Subjective quality: ${sleepQualityRating}/10${sleepQualityRating <= 5 ? ' — POOR. Sleep is the #1 lever for recovery, hormone balance, and fat loss. Prioritise sleep hygiene over extra training.' : sleepQualityRating <= 7 ? ' — moderate. Room for improvement.' : ' — good.'}` : ''}
+${sleepIssues.filter(i => i !== 'None').length > 0 ? `- Known sleep issues: ${sleepIssues.filter(i => i !== 'None').join(', ')}${sleepIssues.includes('Hard to fall asleep') ? ' → magnesium glycinate 30min before bed, phone off 1h before, no intense exercise within 3h of sleep' : ''}${sleepIssues.includes('Wake up during night') ? ' → check caffeine timing, alcohol, room temperature' : ''}${sleepIssues.includes('Wake unrefreshed') ? ' → deep sleep deficit — prioritise consistent sleep/wake times, no alcohol night before' : ''}` : ''}
+${presleepRoutine.filter(r => r !== 'Nothing specific').length > 0 ? `- Pre-sleep routine: ${presleepRoutine.filter(r => r !== 'Nothing specific').join(', ')}` : ''}
+${sleepSupplements.filter(s => s !== 'None').length > 0 ? `- Sleep tools/supplements they use: ${sleepSupplements.filter(s => s !== 'None').join(', ')}` : ''}
+${recoveryMethods.filter(r => r !== 'Nothing specific').length > 0 ? `- Post-training recovery methods: ${recoveryMethods.filter(r => r !== 'Nothing specific').join(', ')}` : ''}
+${!sleepEnvDark ? '- Sleep environment: NOT dark — suggest blackout curtains or sleep mask' : ''}
+${!sleepEnvCool ? '- Sleep environment: NOT cool — optimal sleep temp is 65–68°F (18–20°C), suggest fans or AC' : ''}
+` : ''}
 
 ${workStress !== null ? `## STRESS & MENTAL LOAD
 Work stress: ${workStress}/10${workStress >= 7 ? ' — HIGH. Elevated cortisol stalls fat loss and blunts training adaptations. Sleep and recovery are doubly important when this is high.' : workStress >= 5 ? ' — moderate. Monitor recovery scores for signs of accumulating fatigue.' : ' — manageable.'}
