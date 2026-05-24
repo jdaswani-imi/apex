@@ -3,7 +3,7 @@ import { getTodayContext, getFullUserContext, getUserGoals, getUserTraining } fr
 import { createClient } from '@/lib/supabase/server'
 import { buildWeekIntelligence, FLAG_LABELS, type DayData } from '@/lib/intelligence'
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
-import { getCachedAI, setCachedAI } from '@/lib/ai-cache'
+import { getCachedAI, setCachedAI, delCachedAI } from '@/lib/ai-cache'
 
 const anthropic = new Anthropic()
 
@@ -15,7 +15,7 @@ export interface DailyBrief {
   training_rec: string       // what to do today training-wise
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
@@ -23,8 +23,13 @@ export async function GET() {
 
   const todayDate = new Date().toISOString().split('T')[0]
   const cacheKey = `ai:brief:${user.id}:${todayDate}`
-  const cached = await getCachedAI<DailyBrief>(cacheKey)
-  if (cached) return Response.json(cached, { headers: { 'Cache-Control': 'private, max-age=7200' } })
+  const refresh = new URL(request.url).searchParams.get('refresh') === 'true'
+  if (refresh) {
+    await delCachedAI(cacheKey)
+  } else {
+    const cached = await getCachedAI<DailyBrief>(cacheKey)
+    if (cached) return Response.json(cached, { headers: { 'Cache-Control': 'private, max-age=7200' } })
+  }
 
   const [ctx, userCtx, goals, trainingConfig, suppResult] = await Promise.all([
     getTodayContext(),

@@ -57,7 +57,7 @@ export function AiBriefCard(props: AiBriefCardProps) {
       } catch {}
     }
 
-    fetch('/api/ai-brief')
+    fetch(force ? '/api/ai-brief?refresh=true' : '/api/ai-brief')
       .then(r => r.json())
       .then((data: DailyBrief) => {
         setBrief(data)
