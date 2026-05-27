@@ -118,6 +118,19 @@ export default async function TodayPage({
     : recovery >= 34 ? 'Yellow · train smart'
     : 'Red · rest or Zone 2'
 
+  // HRV baseline for recovery card display
+  const todayHRV = ctx.recovery?.hrv_rmssd_milli ?? null
+  const recentHRVValues = ctx.recentRecovery.slice(0, 7).map(r => r.hrv_rmssd_milli).filter((v): v is number => v != null)
+  const hrvBaseline = recentHRVValues.length >= 3
+    ? Math.round(recentHRVValues.reduce((a, b) => a + b, 0) / recentHRVValues.length)
+    : null
+  const hrvDevPct = todayHRV !== null && hrvBaseline !== null
+    ? Math.round(((todayHRV - hrvBaseline) / hrvBaseline) * 100)
+    : null
+
+  const todaySpO2 = ctx.recovery?.spo2_percentage ?? null
+  const spO2Low = todaySpO2 !== null && parseFloat(String(todaySpO2)) < 95
+
   const sortedSupplements = [...ctx.supplements].sort((a, b) => {
     const aEntry = SUPPLEMENT_CATALOG.find(e => e.name === a.supplement_name)
     const bEntry = SUPPLEMENT_CATALOG.find(e => e.name === b.supplement_name)
@@ -414,8 +427,21 @@ export default async function TodayPage({
             <div className="grid grid-cols-4 gap-3">
               {ctx.recovery?.hrv_rmssd_milli !== null && ctx.recovery?.hrv_rmssd_milli !== undefined && (
                 <div>
-                  <p className="text-foreground font-bold text-2xl leading-none">{Math.round(ctx.recovery.hrv_rmssd_milli)}</p>
+                  <div className="flex items-baseline gap-1">
+                    <p className="text-foreground font-bold text-2xl leading-none">{Math.round(ctx.recovery.hrv_rmssd_milli)}</p>
+                    {hrvDevPct !== null && (
+                      <span className={cn(
+                        'text-[9px] font-bold leading-none',
+                        hrvDevPct >= 10 ? 'text-green-400' : hrvDevPct <= -15 ? 'text-red-400' : 'text-muted-foreground/50'
+                      )}>
+                        {hrvDevPct > 0 ? '+' : ''}{hrvDevPct}%
+                      </span>
+                    )}
+                  </div>
                   <p className="text-muted-foreground text-[10px] mt-1.5 font-medium">HRV ms</p>
+                  {hrvBaseline !== null && (
+                    <p className="text-muted-foreground/40 text-[9px] mt-0.5">avg {hrvBaseline}ms</p>
+                  )}
                 </div>
               )}
               {ctx.recovery?.resting_heart_rate !== null && ctx.recovery?.resting_heart_rate !== undefined && (
@@ -426,8 +452,14 @@ export default async function TodayPage({
               )}
               {ctx.recovery?.spo2_percentage !== null && ctx.recovery?.spo2_percentage !== undefined && (
                 <div>
-                  <p className="text-sky-400 font-bold text-2xl leading-none">{parseFloat(String(ctx.recovery.spo2_percentage)).toFixed(1)}%</p>
+                  <div className="flex items-baseline gap-1">
+                    <p className={cn('font-bold text-2xl leading-none', spO2Low ? 'text-amber-400' : 'text-sky-400')}>
+                      {parseFloat(String(ctx.recovery.spo2_percentage)).toFixed(1)}%
+                    </p>
+                    {spO2Low && <span className="text-[9px] font-bold text-amber-400 leading-none">↓</span>}
+                  </div>
                   <p className="text-muted-foreground text-[10px] mt-1.5 font-medium">SpO₂</p>
+                  {spO2Low && <p className="text-amber-400/70 text-[9px] mt-0.5">below 95%</p>}
                 </div>
               )}
               {ctx.cycle?.strain !== null && ctx.cycle?.strain !== undefined && (
@@ -462,37 +494,52 @@ export default async function TodayPage({
         )}
 
         {/* Sleep — last night summary */}
-        {showSleep && ctx.sleep && (
-          <Link href={isToday ? '/sleep' : `/sleep?date=${date}`} className="bg-card border border-border rounded-2xl p-4 hover:border-white/15 transition-all duration-200 block">
+        {showSleep && ctx.sleep && (() => {
+          const deepExcellent = (ctx.sleep.deep_sleep_min ?? 0) >= 90
+          const remExcellent = (ctx.sleep.rem_min ?? 0) >= 90
+          const sleepExcellent = deepExcellent && remExcellent
+          return (
+          <Link href={isToday ? '/sleep' : `/sleep?date=${date}`} className={cn(
+            'bg-card border rounded-2xl p-4 hover:border-white/15 transition-all duration-200 block',
+            sleepExcellent ? 'border-emerald-500/30' : 'border-border'
+          )}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Moon size={14} className="text-blue-400" />
                 <span className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Last Night&apos;s Sleep</span>
               </div>
-              {ctx.sleep.sleep_performance_pct && (
-                <span className={cn(
-                  'text-xs font-bold px-2 py-0.5 rounded-full',
-                  ctx.sleep.sleep_performance_pct >= 70 ? 'bg-emerald-500/15 text-emerald-400' :
-                  ctx.sleep.sleep_performance_pct >= 50 ? 'bg-yellow-500/15 text-yellow-400' : 'bg-red-500/15 text-red-400'
-                )}>{ctx.sleep.sleep_performance_pct}%</span>
-              )}
+              <div className="flex items-center gap-2">
+                {sleepExcellent && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
+                    Elite
+                  </span>
+                )}
+                {ctx.sleep.sleep_performance_pct && (
+                  <span className={cn(
+                    'text-xs font-bold px-2 py-0.5 rounded-full',
+                    ctx.sleep.sleep_performance_pct >= 70 ? 'bg-emerald-500/15 text-emerald-400' :
+                    ctx.sleep.sleep_performance_pct >= 50 ? 'bg-yellow-500/15 text-yellow-400' : 'bg-red-500/15 text-red-400'
+                  )}>{ctx.sleep.sleep_performance_pct}%</span>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-4 gap-2">
               {[
-                { label: 'Duration', value: ctx.sleep.duration_hrs ? `${ctx.sleep.duration_hrs}h` : '—', hint: 'aim 8h' },
-                { label: 'Perf', value: ctx.sleep.sleep_performance_pct ? `${ctx.sleep.sleep_performance_pct}%` : '—', hint: '>85%' },
-                { label: 'Deep', value: ctx.sleep.deep_sleep_min ? `${ctx.sleep.deep_sleep_min}m` : '—', hint: '>20%' },
-                { label: 'REM', value: ctx.sleep.rem_min ? `${ctx.sleep.rem_min}m` : '—', hint: '>20%' },
-              ].map(({ label, value, hint }) => (
+                { label: 'Duration', value: ctx.sleep.duration_hrs ? `${ctx.sleep.duration_hrs}h` : '—', hint: 'aim 8h', highlight: false },
+                { label: 'Perf', value: ctx.sleep.sleep_performance_pct ? `${ctx.sleep.sleep_performance_pct}%` : '—', hint: '>85%', highlight: false },
+                { label: 'Deep', value: ctx.sleep.deep_sleep_min ? `${ctx.sleep.deep_sleep_min}m` : '—', hint: '>90m', highlight: deepExcellent },
+                { label: 'REM', value: ctx.sleep.rem_min ? `${ctx.sleep.rem_min}m` : '—', hint: '>90m', highlight: remExcellent },
+              ].map(({ label, value, hint, highlight }) => (
                 <div key={label}>
-                  <p className="text-foreground font-bold text-xl leading-none">{value}</p>
+                  <p className={cn('font-bold text-xl leading-none', highlight ? 'text-emerald-400' : 'text-foreground')}>{value}</p>
                   <p className="text-muted-foreground text-[10px] mt-1 font-medium">{label}</p>
-                  <p className="text-muted-foreground/40 text-[9px] mt-0.5">{hint}</p>
+                  <p className={cn('text-[9px] mt-0.5', highlight ? 'text-emerald-400/60' : 'text-muted-foreground/40')}>{highlight ? '⭐ excellent' : hint}</p>
                 </div>
               ))}
             </div>
           </Link>
-        )}
+          )
+        })()}
 
       </div>{/* end right col */}
       </div>{/* end stats grid */}

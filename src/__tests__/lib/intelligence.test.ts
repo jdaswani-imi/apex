@@ -62,6 +62,7 @@ function makeSession(): TrainingSession {
     session_type: 'Strength', gym: null, duration_min: 60,
     volume_kg: null, prs: null, whoop_strain: null,
     notes: null, created_at: '2025-01-01T00:00:00Z',
+    template_id: null, finished_at: null, started_at: null,
   }
 }
 

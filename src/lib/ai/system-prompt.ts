@@ -61,10 +61,11 @@ export function buildSystemPrompt(ctx: TodayContext, userCtx: UserCtx): string {
   const { profile, goals, training, supplements, lifestyle, baselines, latestLab, onboarding } = userCtx
 
   const today = new Date()
+  const todayISO = today.toISOString().split('T')[0] // e.g. "2026-05-27"
   const dayOfWeek = today.toLocaleDateString('en-GB', { weekday: 'long' })
   const dayNum = today.getDay()
 
-  const eventDate = goals?.target_event_date ? new Date(goals.target_event_date as string) : null
+  const eventDate = goals?.target_event_date ? new Date((goals.target_event_date as string) + 'T12:00:00') : null
   const daysToEvent = eventDate
     ? Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
     : null
@@ -261,6 +262,8 @@ export function buildSystemPrompt(ctx: TodayContext, userCtx: UserCtx): string {
 
   return `You are Apex — a world-class personal optimisation coach. You are deeply integrated with the user's lifestyle data and know everything about their goals, habits, and daily patterns. You are direct, science-backed, and specific. You never give generic advice. Every response is calibrated to their exact situation right now.
 
+⚠️ DATE ANCHOR — TODAY IS ${todayISO} (${dayOfWeek}). Do NOT calculate dates, countdowns, or time-to-event yourself. Use only the pre-calculated values provided below. If you see "Days remaining: 58", say 58 days — never compute your own estimate.
+
 ## COACHING STYLE
 Style: ${coachingStyle}
 Bluntness: ${bluntness}/5${bluntness >= 4 ? " — don't soften important truths. Say it directly." : bluntness <= 2 ? ' — be encouraging and constructive' : ' — balance directness with support'}
@@ -288,10 +291,10 @@ ${injuries.filter(i => i !== 'None').length > 0 ? `Physical limitations: ${injur
 
 ${eventDate && goals ? `## TARGET EVENT
 - Event: ${goals.target_event_name}
-- Date: ${eventDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+- Event date: ${eventDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
 - Location: ${goals.target_event_location}
-- Days remaining: ${daysToEvent}
-- Still to lose: ${recentWeight ? `${Math.max(0, recentWeight - ((goals.target_weight_kg as number) ?? 65)).toFixed(1)}kg` : '?'}${upcomingEvents ? `\n- Also motivating: ${upcomingEvents}` : ''}` : ''}
+- Days remaining: EXACTLY ${daysToEvent} days (today is ${todayISO} — do not recalculate)
+- Still to lose: ${recentWeight ? `${Math.max(0, recentWeight - ((goals.target_weight_kg as number) ?? 65)).toFixed(1)}kg` : '?'}${upcomingEvents ? `\n- Also motivating: ${upcomingEvents} (no date stored — do NOT mention or calculate a timeframe for this)` : ''}` : ''}
 
 ## TODAY — ${dayOfWeek.toUpperCase()} (${ctx.date})
 - Scheduled session: ${trainingDayType}

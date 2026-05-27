@@ -224,6 +224,28 @@ export async function GET() {
     ? `target event: ${goals.target_event_name as string}${goals.target_event_date ? ` on ${goals.target_event_date as string}` : ''}`
     : targetWeight ? `target weight: ${targetWeight}kg` : primaryGoal
 
+  // ── HRV baseline: avg of days 2-7 excluding yesterday ────────────────────
+  const yHRV = yest.recovery?.hrv_rmssd_milli ?? null
+  const ySpO2 = yest.recovery?.spo2_percentage ?? null
+  const hrvValues = dayDataList.slice(1).map(d => d.recovery?.hrv_rmssd_milli).filter((v): v is number => v != null)
+  const hrvBaseline = hrvValues.length >= 3
+    ? Math.round(hrvValues.reduce((a, b) => a + b, 0) / hrvValues.length)
+    : null
+  const hrvDeviationPct = yHRV !== null && hrvBaseline !== null
+    ? Math.round(((yHRV - hrvBaseline) / hrvBaseline) * 100)
+    : null
+
+  // ── Sleep architecture quality flags ─────────────────────────────────────
+  const excellentDeep = yDeep !== null && yDeep >= 90
+  const excellentREM = yREM !== null && yREM >= 90
+  const sleepArchitectureNote = excellentDeep && excellentREM
+    ? `⭐ Exceptional sleep architecture: ${yDeep}min deep + ${yREM}min REM — both above average. Acknowledge this win; it supports optimal physical and cognitive recovery.`
+    : excellentDeep
+    ? `✓ Strong deep sleep: ${yDeep}min (above average, supports physical recovery).`
+    : excellentREM
+    ? `✓ Strong REM sleep: ${yREM}min (above average, supports cognitive recovery).`
+    : null
+
   // ── Build AI prompt ───────────────────────────────────────────────────────
 
   const actionableFlags = intel.yesterdayFlags.filter(f => f !== 'no_data')
@@ -240,6 +262,7 @@ export async function GET() {
   const weekAvg = intel.weightedAverage !== null ? `${intel.weightedAverage}/100` : 'unknown'
 
   const prompt = `You are Apex, a personal optimisation coach. Generate a morning briefing. Tone: ${coachingStyle}, bluntness ${bluntness}/5${bluntness >= 4 ? ' — say it straight' : ''}. Return ONLY valid JSON, no markdown.
+${todayIsRest ? '\n⚠️ CRITICAL — TODAY IS A SCHEDULED REST DAY. Your message and ALL three recovery_actions must NOT mention training, workouts, or exercise sessions. Focus exclusively on recovery, nutrition, sleep, and supplement habits. The training page_insight should acknowledge the rest day and advise on active recovery (walking, mobility, light movement) only.' : ''}
 
 USER:
 - Goal: ${userGoalContext}
@@ -256,7 +279,10 @@ DETAILED YESTERDAY DATA:
 - Protein: ${yProtein !== null ? `${yProtein}g vs ${proteinTarget}g target (${Math.round((yProtein / proteinTarget) * 100)}%)` : 'not logged'}
 - Calories: ${yCals !== null ? `${yCals} kcal` : 'not logged'}
 - Sleep: ${ySleepHrs !== null ? `${ySleepHrs}h${ySleepPerf !== null ? `, ${ySleepPerf}% performance` : ''}${yDeep !== null ? `, ${yDeep}min deep` : ''}${yREM !== null ? `, ${yREM}min REM` : ''}` : 'no data'}
+${sleepArchitectureNote ? `- ${sleepArchitectureNote}` : ''}
 - Recovery (WHOOP): ${yRecovery !== null ? `${yRecovery}%` : 'no WHOOP data'}
+${yHRV !== null ? `- HRV yesterday: ${Math.round(yHRV)}ms${hrvBaseline !== null ? ` (${hrvDeviationPct !== null && hrvDeviationPct > 0 ? '+' : ''}${hrvDeviationPct}% vs ${hrvBaseline}ms baseline — ${hrvDeviationPct !== null && hrvDeviationPct >= 10 ? 'elevated: strong recovery signal' : hrvDeviationPct !== null && hrvDeviationPct <= -15 ? 'suppressed: possible fatigue or stress' : 'within normal range'})` : ''}` : ''}
+${ySpO2 !== null ? `- SpO₂: ${parseFloat(String(ySpO2)).toFixed(1)}%${parseFloat(String(ySpO2)) < 95 ? ' ⚠️ below optimal (normal ≥95%) — flag this in your sleep insight' : ''}` : ''}
 ${yFeelingRecovery !== null ? `- How they felt (subjective recovery): ${yFeelingRecovery}/5` : ''}
 ${yFeelingSleep !== null ? `- Felt sleep quality: ${yFeelingSleep}/5` : ''}
 ${yFeelingStrain !== null ? `- Felt ready for strain: ${yFeelingStrain}/5` : ''}
@@ -272,17 +298,17 @@ ${yLogNote ? `- Yesterday's log note: "${yLogNote}" — use this context in your
 - Training sessions: ${completedSessions}${scheduledTrainingDays !== null ? `/${scheduledTrainingDays} scheduled days` : ' in last 7 days'}
 
 TODAY:
-- Scheduled training: ${todayIsRest ? 'rest day' : (todayScheduled ?? 'not configured')}
+- Scheduled training: ${todayIsRest ? 'rest day — NO training recommended' : (todayScheduled ?? 'not configured')}
 
 Return this exact JSON:
 {
-  "message": "<warm 1-sentence morning message acknowledging yesterday and motivating today, specific to actual data>",
-  "recovery_actions": ["<specific action 1>", "<specific action 2>", "<specific action 3>"],
+  "message": "<warm 1-sentence morning message acknowledging yesterday and motivating today, specific to actual data — if rest day, do NOT mention training>",
+  "recovery_actions": ["<specific action 1 with a number/target>", "<specific action 2 with a number/target>", "<specific action 3 with a number/target>"],
   "page_insights": {
-    "food": "<1 sentence referencing yesterday's protein/calorie numbers and one clear goal for today>",
-    "sleep": "<1 sentence referencing yesterday's sleep hours/quality and one concrete improvement for tonight>",
+    "food": "<1 sentence referencing yesterday's protein/calorie numbers and one clear quantified goal for today, e.g. 'Hit Xg protein across 3+ meals'>",
+    "sleep": "<1 sentence referencing yesterday's sleep architecture — call out exceptional deep/REM if present, and one concrete habit improvement for tonight>",
     "supplements": "<1 sentence about yesterday's adherence with specific supplement names if missed, action for today>",
-    "training": "<1 sentence referencing yesterday's training and today's scheduled session with specific advice>"
+    "training": "<if rest day: acknowledge rest day and suggest light active recovery e.g. 20min walk or mobility work; otherwise give specific training advice based on recovery score>"
   }
 }`
 

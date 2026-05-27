@@ -41,6 +41,16 @@ export async function POST(request: Request) {
   const systemPrompt = buildSystemPrompt(ctx, userCtx)
   const focus = PAGE_FOCUS[page as string] ?? 'Give the single most important insight from today\'s data in 1-2 sentences.'
 
+  // Build a fresh date/event anchor for the user message — this is never cached
+  // by Anthropic's ephemeral cache so it always reflects the real current date.
+  const goals = userCtx.goals
+  const eventName = goals?.target_event_name as string | null ?? null
+  const eventDateStr = goals?.target_event_date as string | null ?? null
+  const daysToEvent = eventDateStr
+    ? Math.ceil((new Date(eventDateStr + 'T12:00:00').getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null
+  const dateAnchor = `[Context: today is ${today}${daysToEvent !== null && eventName ? `. The user is EXACTLY ${daysToEvent} days from ${eventName} — use this number, do not recalculate.` : '.'}] `
+
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 150,
@@ -48,7 +58,7 @@ export async function POST(request: Request) {
     messages: [
       {
         role: 'user',
-        content: `${focus} Be direct. No greeting, no sign-off. Just the insight.`,
+        content: `${dateAnchor}${focus} Be direct. No greeting, no sign-off. Just the insight.`,
       },
     ],
   })

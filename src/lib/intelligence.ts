@@ -110,29 +110,29 @@ export function scoreDay(
     else { earned += 3; flags.push('missed_supplements') }
   }
 
-  // Training (max 10)
+  // Training (max 20)
   if (trainingSplit) {
     const dow = new Date(data.date + 'T12:00:00').getDay()
     const scheduled = trainingSplit[dow.toString()]
     const isRest = !scheduled || scheduled.toLowerCase() === 'rest'
-    totalWeight += 10
-    if (isRest) earned += 10
-    else if (data.sessions.length > 0) earned += 10
+    totalWeight += 20
+    if (isRest) earned += 20
+    else if (data.sessions.length > 0) earned += 20
     else flags.push('skipped_training')
   } else if (data.sessions.length > 0) {
-    totalWeight += 10
-    earned += 10
+    totalWeight += 20
+    earned += 20
   }
 
-  // Steps (max 10)
+  // Steps (max 5)
   const steps = data.log?.steps ?? null
   if (steps !== null) {
     const pct = steps / stepsTarget
-    totalWeight += 10
-    if (pct >= 1.0) earned += 10
-    else if (pct >= 0.8) earned += 7
-    else if (pct >= 0.5) { earned += 4; flags.push('low_steps') }
-    else { earned += 1; flags.push('low_steps') }
+    totalWeight += 5
+    if (pct >= 1.0) earned += 5
+    else if (pct >= 0.8) earned += 4
+    else if (pct >= 0.5) { earned += 2; flags.push('low_steps') }
+    else { earned += 0; flags.push('low_steps') }
   }
 
   const score = totalWeight > 0 ? Math.round((earned / totalWeight) * 100) : null
