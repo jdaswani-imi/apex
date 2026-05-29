@@ -25,7 +25,9 @@ Strong recovery bounce — 77% green WHOOP after Friday's 34% red. HRV jumped to
 
 ## Cycle & Activity
 
-*WHOOP cycle data not yet synced for Sunday — update after day closes.*
+| Metric | Value |
+|--------|-------|
+| Steps | 9,299 |
 
 **Strain target:** Reached strain target for the day per WHOOP. No specific session was logged as the vehicle — WHOOP recorded the activity independently.
 

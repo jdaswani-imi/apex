@@ -41,9 +41,9 @@ Yellow recovery at 51% — expected dip after Sunday's 87% green and the Stairma
 | Avg Heart Rate | 67 bpm |
 | Max Heart Rate | 160 bpm |
 | Energy | 4,814 kJ |
-| Steps | — |
+| Steps | 7,556 |
 
-**Notes:** Strain of 13.0 from the strength session — appropriate for a 50-minute lift. Lowest average HR of the week at 67bpm (strength training keeps avg HR lower than cardio). Max HR of 160bpm from the session. Energy output (4,814 kJ) is the lowest of the period — notably lower than all other days. Steps not captured. The lower energy output likely reflects a shorter overall active day despite the 50-minute session.
+**Notes:** Strain of 13.0 from the strength session — appropriate for a 50-minute lift. Lowest average HR of the week at 67bpm (strength training keeps avg HR lower than cardio). Max HR of 160bpm from the session. Energy output (4,814 kJ) is the lowest of the period — notably lower than all other days. Steps at 7,556 — below the 10,000 target, consistent with a lower-movement day. The lower energy output likely reflects a shorter overall active day despite the 50-minute session.
 
 ---
 

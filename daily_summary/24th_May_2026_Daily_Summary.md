@@ -41,9 +41,9 @@ Peak day of the week — 87% green recovery, the only genuine green in the perio
 | Avg Heart Rate | 72 bpm |
 | Max Heart Rate | 169 bpm |
 | Energy | 8,416 kJ |
-| Steps | — |
+| Steps | 11,817 |
 
-**Notes:** Strain of 14.1 — appropriate for a green day cardio session. Max HR of 169bpm from the Stairmaster reflects the cardiovascular demand of 150 flights. Steps not captured for this day. Energy output at 8,416 kJ is consistent with a moderate training day. On an 87% green, the body had the capacity to absorb significantly more strain — this was a conservative, well-chosen session.
+**Notes:** Strain of 14.1 — appropriate for a green day cardio session. Max HR of 169bpm from the Stairmaster reflects the cardiovascular demand of 150 flights. Steps at 11,817 — above the 10,000 target. Energy output at 8,416 kJ is consistent with a moderate training day. On an 87% green, the body had the capacity to absorb significantly more strain — this was a conservative, well-chosen session.
 
 ---
 

@@ -15,7 +15,7 @@ import {
   type DayFlag,
   type DayData,
 } from '@/lib/intelligence'
-import { getCachedAI, setCachedAI } from '@/lib/ai-cache'
+import { getCachedAI, setCachedAI, delCachedAI } from '@/lib/ai-cache'
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 export interface MorningIntelligence {
@@ -34,9 +34,10 @@ export interface MorningIntelligence {
     supplements: string
     training: string
   }
+  week_pattern: string | null
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
@@ -45,8 +46,13 @@ export async function GET() {
 
   const today = new Date().toISOString().split('T')[0]
   const cacheKey = `ai:morning:${user.id}:${today}`
-  const cached = await getCachedAI<MorningIntelligence>(cacheKey)
-  if (cached) return Response.json(cached, { headers: { 'Cache-Control': 'private, max-age=7200' } })
+  const refresh = new URL(request.url).searchParams.get('refresh') === 'true'
+  if (refresh) {
+    await delCachedAI(cacheKey)
+  } else {
+    const cached = await getCachedAI<MorningIntelligence>(cacheKey)
+    if (cached) return Response.json(cached, { headers: { 'Cache-Control': 'private, max-age=7200' } })
+  }
 
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - 8)
@@ -302,8 +308,9 @@ TODAY:
 
 Return this exact JSON:
 {
-  "message": "<warm 1-sentence morning message acknowledging yesterday and motivating today, specific to actual data — if rest day, do NOT mention training>",
-  "recovery_actions": ["<specific action 1 with a number/target>", "<specific action 2 with a number/target>", "<specific action 3 with a number/target>"],
+  "message": "<2-sentence morning message — sentence 1: acknowledge yesterday with the most specific data point (protein hit/miss, sleep duration, or recovery score); sentence 2: name the single most important action for today with a specific number — if rest day, do NOT mention training>",
+  "week_pattern": "<1 sentence identifying the dominant 7-day pattern most impacting performance — be specific with numbers (e.g. 'Protein averaged Xg vs Yg target all week' or 'HRV has been Z% below baseline for 5 days')>",
+  "recovery_actions": ["<action + brief why it matters: e.g. 'Hit 145g protein — averaging 118g this week'>", "<action + brief why>", "<action + brief why>"],
   "page_insights": {
     "food": "<1 sentence referencing yesterday's protein/calorie numbers and one clear quantified goal for today, e.g. 'Hit Xg protein across 3+ meals'>",
     "sleep": "<1 sentence referencing yesterday's sleep architecture — call out exceptional deep/REM if present, and one concrete habit improvement for tonight>",
@@ -312,8 +319,28 @@ Return this exact JSON:
   }
 }`
 
+  const weekPatternFallback: string | null = (() => {
+    if (avgProtein7 !== null && avgProtein7 < proteinTarget * 0.85) {
+      return `Protein has averaged ${avgProtein7}g vs your ${proteinTarget}g target all week — this gap is the highest-impact thing to close.`
+    }
+    if (avgSleep7 !== null && avgSleep7 < 7.0) {
+      return `Sleep has averaged ${avgSleep7}h over 7 days — adding consistent sleep time is your biggest recovery unlock.`
+    }
+    if (scheduledTrainingDays !== null && completedSessions < scheduledTrainingDays * 0.6) {
+      return `Training adherence is ${completedSessions}/${scheduledTrainingDays} scheduled sessions — closing this consistency gap drives the most progress.`
+    }
+    if (intel.trend === 'improving') {
+      return `Your 7-day performance trend is improving — sustain the consistency to compound these gains.`
+    }
+    if (intel.trend === 'declining') {
+      return `Performance has been declining over 7 days — identify the main gap (protein, sleep, or training) and close it today.`
+    }
+    return null
+  })()
+
   let message = ''
   let recovery_actions: string[] = []
+  let week_pattern: string | null = null
   let page_insights = {
     food: '',
     sleep: '',
@@ -325,7 +352,7 @@ Return this exact JSON:
     const anthropic = new Anthropic()
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 600,
+      max_tokens: 900,
       messages: [{ role: 'user', content: prompt }],
     })
     const raw = response.content
@@ -337,10 +364,12 @@ Return this exact JSON:
       .trim()
     const parsed = JSON.parse(raw) as {
       message: string
+      week_pattern?: string
       recovery_actions: string[]
       page_insights: { food: string; sleep: string; supplements: string; training: string }
     }
     message = parsed.message ?? ''
+    week_pattern = parsed.week_pattern ?? weekPatternFallback
     recovery_actions = Array.isArray(parsed.recovery_actions) ? parsed.recovery_actions : []
     page_insights = {
       food: parsed.page_insights?.food ?? '',
@@ -382,6 +411,7 @@ Return this exact JSON:
         ? `Rest day today — ${yTrained ? 'great session yesterday, let your body recover' : 'use the day for recovery and prep for tomorrow'}.`
         : `${todayScheduled} session scheduled today${yRecovery !== null ? ` — recovery at ${yRecovery}%, ${yRecovery >= 67 ? 'push hard' : yRecovery >= 34 ? 'train smart' : 'consider reducing intensity'}` : ''}.`,
     }
+    week_pattern = weekPatternFallback
   }
 
   const result: MorningIntelligence = {
@@ -399,6 +429,7 @@ Return this exact JSON:
     recovery_actions,
     tone,
     page_insights,
+    week_pattern,
   }
 
   await setCachedAI(cacheKey, result, 7200)

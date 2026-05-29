@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, Loader2, TrendingUp, TrendingDown, Minus, Sunrise } from 'lucide-react'
+import { X, Loader2, TrendingUp, TrendingDown, Minus, Sunrise, RefreshCw } from 'lucide-react'
 import type { MorningIntelligence } from '@/app/api/intelligence/morning/route'
 import { FLAG_LABELS, type DayFlag } from '@/lib/intelligence'
 
@@ -63,6 +63,7 @@ function TrendIcon({ trend }: { trend: string }) {
 export function MorningIntelligenceCard() {
   const [data, setData] = useState<MorningIntelligence | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [dismissed, setDismissed] = useState(false)
 
   const today = new Date().toISOString().split('T')[0]
@@ -114,6 +115,20 @@ export function MorningIntelligenceCard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [today])
 
+  function handleRefresh() {
+    try { localStorage.removeItem(cacheKey) } catch {}
+    setRefreshing(true)
+    setData(null)
+    fetch(`/api/intelligence/morning?refresh=true`)
+      .then(r => r.json())
+      .then((d: MorningIntelligence) => {
+        setData(d)
+        try { localStorage.setItem(cacheKey, JSON.stringify(d)) } catch {}
+      })
+      .catch(() => {})
+      .finally(() => setRefreshing(false))
+  }
+
   function handleDismiss() {
     try { localStorage.setItem(dismissKey, '1') } catch {}
     setDismissed(true)
@@ -121,11 +136,11 @@ export function MorningIntelligenceCard() {
 
   if (dismissed || (!loading && !data)) return null
 
-  if (loading) {
+  if (loading || refreshing) {
     return (
       <div className="bg-card border border-border rounded-2xl px-4 py-3 flex items-center gap-2.5 text-muted-foreground/40">
         <Loader2 size={13} className="animate-spin shrink-0" />
-        <span className="text-xs">Loading morning check-in…</span>
+        <span className="text-xs">{refreshing ? 'Refreshing morning check-in…' : 'Loading morning check-in…'}</span>
       </div>
     )
   }
@@ -148,18 +163,34 @@ export function MorningIntelligenceCard() {
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Morning Check-in</span>
           <span className={`text-[10px] font-bold ${toneConfig.labelColor} ml-1`}>{toneConfig.label}</span>
         </div>
-        <button
-          onClick={handleDismiss}
-          className="text-muted-foreground/40 hover:text-muted-foreground transition-colors"
-          aria-label="Dismiss"
-        >
-          <X size={13} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRefresh}
+            className="text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+            aria-label="Refresh"
+          >
+            <RefreshCw size={11} />
+          </button>
+          <button
+            onClick={handleDismiss}
+            className="text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+            aria-label="Dismiss"
+          >
+            <X size={13} />
+          </button>
+        </div>
       </div>
 
       <div className="px-4 pt-3 pb-4 space-y-3">
         {/* AI message */}
         <p className="text-sm text-foreground/90 leading-relaxed">{data.message}</p>
+
+        {/* Week pattern */}
+        {data.week_pattern && (
+          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2">
+            <p className="text-[11px] text-muted-foreground/80 leading-relaxed">{data.week_pattern}</p>
+          </div>
+        )}
 
         {/* Yesterday summary row */}
         <div className="flex items-center gap-2 flex-wrap">

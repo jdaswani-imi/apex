@@ -136,6 +136,8 @@ export interface FoodLog {
   carbs_g: number | null
   fats_g: number | null
   notes: string | null
+  meal_rating: number | null
+  meal_suggestions: string | null
   created_at: string
 }
 

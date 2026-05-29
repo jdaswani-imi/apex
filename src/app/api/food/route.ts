@@ -18,12 +18,9 @@ export async function GET(request: Request) {
     .eq('date', date)
     .order('created_at', { ascending: true })
 
-  const isPast = date < todayStr
-  const headers = new Headers({
-    'Cache-Control': isPast ? 'private, max-age=3600' : 'private, max-age=30, must-revalidate',
+  return NextResponse.json(data ?? [], {
+    headers: { 'Cache-Control': 'no-store' },
   })
-
-  return NextResponse.json(data ?? [], { headers })
 }
 
 export async function POST(request: Request) {

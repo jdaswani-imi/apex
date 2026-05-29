@@ -12,11 +12,15 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { name, meal_type, calories, protein_g, carbs_g, fats_g } = body
+  const { name, meal_type, calories, protein_g, carbs_g, fats_g, meal_rating, meal_suggestions } = body
+
+  const patch: Record<string, unknown> = { name, meal_type, calories, protein_g, carbs_g, fats_g }
+  if (meal_rating !== undefined) patch.meal_rating = meal_rating
+  if (meal_suggestions !== undefined) patch.meal_suggestions = meal_suggestions
 
   const { data, error } = await supabase
     .from('food_logs')
-    .update({ name, meal_type, calories, protein_g, carbs_g, fats_g })
+    .update(patch)
     .eq('id', id)
     .eq('user_id', user.id)
     .select()

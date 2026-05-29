@@ -15,6 +15,7 @@ import { SUPPLEMENT_CATALOG } from '@/lib/supplements-catalog'
 import { DashboardSupplementStack } from '@/components/dashboard-supplement-stack'
 import { WhoopAutoSync } from '@/components/whoop-auto-sync'
 import { MorningIntelligenceCard } from '@/components/morning-intelligence-card'
+import { StepsCard } from '@/components/steps-card'
 
 export const dynamic = 'force-dynamic'
 
@@ -360,27 +361,12 @@ export default async function TodayPage({
         {/* Steps | Weight — 2-col */}
         <div className="grid grid-cols-2 gap-3">
           {/* Steps */}
-          <Link href={isToday ? '/week' : `/week?date=${date}`} className="bg-card border border-border rounded-2xl p-4 transition-all duration-200 hover:border-white/15 block">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Steps</span>
-              <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                <Footprints size={14} className={stats[1].color} />
-              </div>
-            </div>
-            <p className={cn('font-condensed text-3xl font-bold leading-none', stats[1].color)}>{stats[1].value}</p>
-            {steps !== null && (
-              <div className="mt-2">
-                <div className="w-full bg-white/5 rounded-full h-1">
-                  <div
-                    className={cn('h-1 rounded-full transition-all duration-500', steps >= stepsTarget ? 'bg-green-400' : 'bg-blue-400')}
-                    style={{ width: `${Math.min(100, Math.round((steps / stepsTarget) * 100))}%` }}
-                  />
-                </div>
-                <p className="text-muted-foreground text-[10px] mt-1.5">{Math.round((steps / stepsTarget) * 100)}% of {stepsTarget.toLocaleString()}</p>
-              </div>
-            )}
-            {steps === null && <p className="text-muted-foreground text-xs mt-2">target {stepsTarget.toLocaleString()}</p>}
-          </Link>
+          <StepsCard
+            date={date}
+            initialSteps={steps}
+            stepsTarget={stepsTarget}
+            isToday={isToday}
+          />
           {/* Weight */}
           <Link href={stats[2].href} className="bg-card border border-border rounded-2xl p-4 transition-all duration-200 hover:border-white/15 block">
             <div className="flex items-center justify-between mb-3">

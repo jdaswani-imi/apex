@@ -10,7 +10,9 @@ const anthropic = new Anthropic()
 export interface DailyBrief {
   readiness: number          // 0-100
   readiness_label: string    // 'Peak', 'Good', 'Moderate', 'Low'
+  coaching_note: string      // 2 sentences: what's working + #1 opportunity today
   priorities: string[]       // exactly 3 short action items
+  lever: string              // 7-10 words: single highest-impact change today
   insight: string            // 1 sentence pattern observation
   training_rec: string       // what to do today training-wise
 }
@@ -248,15 +250,17 @@ Return this exact JSON shape:
 {
   "readiness": <number 0-100, composite score based on recovery+sleep+recent trends>,
   "readiness_label": <"Peak" | "Good" | "Moderate" | "Low">,
+  "coaching_note": "<2 sentences — sentence 1: acknowledge what's genuinely working or a positive from the data (be specific); sentence 2: the #1 opportunity to improve performance today with a specific action and why it matters>",
   "priorities": [<3 specific quantified action strings, max 12 words each>],
-  "insight": <1 sentence pattern observation from the 7-day data — if sleep architecture was exceptional today (deep or REM ≥90min), call it out; otherwise be specific about a pattern>,
+  "lever": "<7-10 words: the single highest-impact change available today, derived from the data patterns>",
+  "insight": <1 sentence pattern observation from the 7-day data — if sleep architecture was exceptional today (deep or REM ≥90min), call it out; otherwise name a specific multi-day pattern with numbers>,
   "training_rec": <if rest day: active recovery only (walk/mobility), max 10 words; otherwise: confirm session type, reference last session volume if available, give RPE target based on recovery — max 20 words>
 }`
 
   try {
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 500,
+      max_tokens: 700,
       messages: [{ role: 'user', content: prompt }],
     })
 
@@ -280,14 +284,29 @@ Return this exact JSON shape:
       readinessScore >= 84 ? 'Peak' :
       readinessScore >= 67 ? 'Good' :
       readinessScore >= 34 ? 'Moderate' : 'Low'
+    const recentSessionCount = recentSessions.filter(s => !!s.finished_at).slice(0, 7).length
+    const positiveNote = avgRecovery7 !== null && avgRecovery7 >= 67
+      ? `Recovery is averaging ${avgRecovery7}% — a strong base to build on.`
+      : recentSessionCount >= 4
+      ? `Training consistency has been solid with ${recentSessionCount} sessions logged this week.`
+      : `You're building baseline data — every log unlocks better insights.`
+    const opportunityNote = protein < proteinTarget * 0.9
+      ? `Protein is the clearest gap — hitting ${proteinTarget}g today directly improves recovery and adaptation.`
+      : avgProtein7 !== null && avgProtein7 < proteinTarget * 0.85
+      ? `Protein has averaged ${avgProtein7}g vs your ${proteinTarget}g target — closing this gap is your biggest lever.`
+      : `Hit all three priorities consistently to maintain your current trajectory.`
     const fallback: DailyBrief = {
       readiness: readinessScore,
       readiness_label: readinessLabel,
+      coaching_note: `${positiveNote} ${opportunityNote}`,
       priorities: [
         `Hit ${proteinTarget}g protein today`,
         `Reach ${stepsTarget.toLocaleString()} steps`,
         'Log your meals',
       ],
+      lever: protein < proteinTarget * 0.8
+        ? `Hit ${proteinTarget}g protein — your biggest recovery driver`
+        : `Consistent daily logging unlocks your performance patterns`,
       insight: 'Keep logging consistently for better insights.',
       training_rec: todayIsRest
         ? '20min walk or mobility work'

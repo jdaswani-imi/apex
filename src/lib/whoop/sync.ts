@@ -147,6 +147,16 @@ export async function syncWhoopData(userId: string, days = 7) {
         steps: (score.steps as number) ?? null,
         synced_at: new Date().toISOString(),
       }, { onConflict: 'user_id,date' })
+
+      // Mirror steps into daily_logs so the dashboard picks them up
+      const cycleSteps = (score.steps as number) ?? null
+      if (cycleSteps !== null) {
+        await supabase.from('daily_logs').upsert(
+          { user_id: userId, date, steps: cycleSteps },
+          { onConflict: 'user_id,date' },
+        )
+      }
+
       results.cycles++
     }
   } catch (e: unknown) {

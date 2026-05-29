@@ -42,6 +42,7 @@ Red recovery day — 34% WHOOP, lowest of the week and a significant drop from 4
 | Avg Heart Rate | 66 bpm |
 | Max Heart Rate | 183 bpm |
 | Energy Expenditure | 6,612 kJ |
+| Steps | 8,511 |
 
 **Notes:** Max HR of 183 on a red recovery day indicates meaningful physical output despite no gym session being logged. Likely Stairmaster or cricket — consistent with the planned Stairmaster target (50 min, Level 9, 165+ floors) from the Friday note. Strain of 14.34 is appropriate — not aggressive, but not truly resting either. On a red day, keeping strain in the 12–15 orange band without pushing into red strain territory (18+) is the right call.
 

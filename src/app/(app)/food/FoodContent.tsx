@@ -31,6 +31,61 @@ const MEAL_COLORS: Record<MealType, { dot: string; label: string }> = {
 
 const OZ_PER_G = 1 / 28.3495
 
+// Semicircular gauge — arc from left to right over the top, colored red→green
+const ARC_R = 36
+const ARC_CX = 50
+const ARC_CY = 44
+const ARC_LEN = Math.PI * ARC_R // ≈ 113.1
+
+function ratingColor(score: number): string {
+  // 0 = red (hsl 0), 100 = green (hsl 120)
+  return `hsl(${Math.round(score * 1.2)}, 78%, 52%)`
+}
+
+function MealRatingDial({ rating, pending }: { rating: number | null; pending: boolean }) {
+  if (pending) {
+    return (
+      <div className="flex items-center justify-center" style={{ width: 44, height: 28 }}>
+        <Loader2 size={12} className="animate-spin text-muted-foreground/40" />
+      </div>
+    )
+  }
+  if (rating === null) return null
+
+  const color = ratingColor(rating)
+  const dashOffset = ARC_LEN * (1 - rating / 100)
+  const x1 = ARC_CX - ARC_R
+  const x2 = ARC_CX + ARC_R
+  const y = ARC_CY
+
+  return (
+    <div className="flex flex-col items-center shrink-0" style={{ width: 44, height: 32 }}>
+      <svg viewBox="0 0 100 52" width="44" height="26" style={{ overflow: 'visible' }}>
+        {/* Track */}
+        <path
+          d={`M ${x1} ${y} A ${ARC_R} ${ARC_R} 0 0 1 ${x2} ${y}`}
+          stroke="rgba(255,255,255,0.08)"
+          strokeWidth="7"
+          fill="none"
+          strokeLinecap="round"
+        />
+        {/* Score fill */}
+        <path
+          d={`M ${x1} ${y} A ${ARC_R} ${ARC_R} 0 0 1 ${x2} ${y}`}
+          stroke={color}
+          strokeWidth="7"
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={ARC_LEN}
+          strokeDashoffset={dashOffset}
+          style={{ transition: 'stroke-dashoffset 0.6s ease, stroke 0.6s ease' }}
+        />
+      </svg>
+      <span className="text-[10px] font-bold leading-none -mt-0.5" style={{ color }}>{rating}</span>
+    </div>
+  )
+}
+
 interface SearchResult {
   code: string | null
   name: string
@@ -155,6 +210,11 @@ const FoodContent = memo(function FoodContent({ proteinTarget, calorieTarget, is
   const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM)
   const [savingEdit, setSavingEdit] = useState(false)
 
+  // Tracks which food log IDs are awaiting an AI rating.
+  // The ref mirrors state so fetchLogs can read it without a dep-cycle.
+  const [pendingRatingIds, setPendingRatingIds] = useState<Set<string>>(new Set())
+  const pendingRatingIdsRef = useRef<Set<string>>(new Set())
+
   // Meal plan state
   const [showMealPlan, setShowMealPlan] = useState(false)
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null)
@@ -208,9 +268,16 @@ const FoodContent = memo(function FoodContent({ proteinTarget, calorieTarget, is
   const fetchLogs = useCallback(async () => {
     const cached = foodCache.get(viewDate)
     if (cached) {
-      setLogs(cached)
-      setLoading(false)
-      return
+      // Skip the cache if any entry is missing a rating and isn't currently being
+      // rated — covers both past dates and today (e.g. after a backfill).
+      const staleMissingRatings = cached.length > 0 &&
+        cached.some(l => l.meal_rating === null && !pendingRatingIdsRef.current.has(l.id))
+      if (!staleMissingRatings) {
+        setLogs(cached)
+        setLoading(false)
+        return
+      }
+      foodCache.delete(viewDate)
     }
     setLoading(true)
     const res = await window.fetch(`/api/food?date=${viewDate}`)
@@ -415,6 +482,54 @@ const FoodContent = memo(function FoodContent({ proteinTarget, calorieTarget, is
     }
   }
 
+  async function rateMealAsync(item: FoodLog) {
+    pendingRatingIdsRef.current = new Set(pendingRatingIdsRef.current).add(item.id)
+    setPendingRatingIds(pendingRatingIdsRef.current)
+    try {
+      // Pass sibling items from the same meal type so the AI has full meal context
+      const mealContext = logs
+        .filter(l => l.meal_type === item.meal_type && l.id !== item.id)
+        .map(l => ({ name: l.name, calories: l.calories, protein_g: l.protein_g, carbs_g: l.carbs_g, fats_g: l.fats_g }))
+
+      const rateRes = await window.fetch('/api/ai/rate-meal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: item.name,
+          meal_type: item.meal_type,
+          calories: item.calories,
+          protein_g: item.protein_g,
+          carbs_g: item.carbs_g,
+          fats_g: item.fats_g,
+          meal_context: mealContext,
+        }),
+      })
+      if (!rateRes.ok) return
+      const { rating, suggestions } = await rateRes.json()
+
+      await window.fetch(`/api/food/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meal_rating: rating, meal_suggestions: suggestions }),
+      })
+
+      setLogs(prev => {
+        const updated = prev.map(l =>
+          l.id === item.id ? { ...l, meal_rating: rating, meal_suggestions: suggestions } : l,
+        )
+        foodCache.set(viewDate, updated)
+        return updated
+      })
+    } catch {
+      // non-critical
+    } finally {
+      const s = new Set(pendingRatingIdsRef.current)
+      s.delete(item.id)
+      pendingRatingIdsRef.current = s
+      setPendingRatingIds(s)
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.name.trim()) return
@@ -443,6 +558,9 @@ const FoodContent = memo(function FoodContent({ proteinTarget, calorieTarget, is
         return updated
       })
       setRecentLoaded(false)
+
+      // Fire-and-forget: AI rates the meal and patches the DB row
+      rateMealAsync(item)
 
       // Silently persist USDA/OFF items to the user's custom food library
       // so they surface first in future searches without re-hitting external APIs.
@@ -1298,31 +1416,45 @@ const FoodContent = memo(function FoodContent({ proteinTarget, calorieTarget, is
                             </div>
                           </div>
                         ) : (
-                          <div className="px-4 py-3 flex items-center gap-3">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
-                              <p className="text-muted-foreground/60 text-xs mt-0.5">
-                                {[
-                                  item.calories !== null && `${item.calories} kcal`,
-                                  item.protein_g !== null && `${item.protein_g}g P`,
-                                  item.carbs_g !== null && `${item.carbs_g}g C`,
-                                  item.fats_g !== null && `${item.fats_g}g F`,
-                                ].filter(Boolean).join(' · ') || 'No macros logged'}
-                              </p>
+                          <div className="px-4 py-3">
+                            <div className="flex items-start gap-3">
+                              <MealRatingDial
+                                rating={item.meal_rating ?? null}
+                                pending={pendingRatingIds.has(item.id)}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
+                                <p className="text-muted-foreground/60 text-xs mt-0.5">
+                                  {[
+                                    item.calories !== null && `${item.calories} kcal`,
+                                    item.protein_g !== null && `${item.protein_g}g P`,
+                                    item.carbs_g !== null && `${item.carbs_g}g C`,
+                                    item.fats_g !== null && `${item.fats_g}g F`,
+                                  ].filter(Boolean).join(' · ') || 'No macros logged'}
+                                </p>
+                                {item.meal_suggestions && (
+                                  <p className="text-[11px] text-muted-foreground/50 mt-1 flex items-start gap-1 leading-snug">
+                                    <Sparkles size={10} className="shrink-0 mt-0.5 text-orange-400/60" />
+                                    {item.meal_suggestions}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  onClick={() => startEdit(item)}
+                                  className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground/40 hover:text-foreground/80 hover:bg-white/[0.06] transition-all duration-150"
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                                <button
+                                  onClick={() => remove(item.id)}
+                                  disabled={deletingId === item.id}
+                                  className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground/40 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150 disabled:opacity-40"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
                             </div>
-                            <button
-                              onClick={() => startEdit(item)}
-                              className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground/40 hover:text-foreground/80 hover:bg-white/[0.06] transition-all duration-150 shrink-0"
-                            >
-                              <Pencil size={13} />
-                            </button>
-                            <button
-                              onClick={() => remove(item.id)}
-                              disabled={deletingId === item.id}
-                              className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground/40 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150 shrink-0 disabled:opacity-40"
-                            >
-                              <Trash2 size={14} />
-                            </button>
                           </div>
                         )}
                       </div>

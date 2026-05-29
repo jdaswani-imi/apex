@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Sparkles, Loader2, ChevronRight, RefreshCw } from 'lucide-react'
+import { Sparkles, Loader2, ChevronRight, RefreshCw, Zap } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import type { DailyBrief } from '@/app/api/ai-brief/route'
@@ -134,6 +134,11 @@ export function AiBriefCard(props: AiBriefCardProps) {
             <p className="text-xs text-muted-foreground leading-relaxed">{brief.training_rec}</p>
           </div>
 
+          {/* Coaching note */}
+          {brief.coaching_note && (
+            <p className="text-xs text-foreground/75 leading-relaxed">{brief.coaching_note}</p>
+          )}
+
           {/* Priorities */}
           <div className="space-y-2">
             {brief.priorities.map((p, i) => (
@@ -145,6 +150,17 @@ export function AiBriefCard(props: AiBriefCardProps) {
               </div>
             ))}
           </div>
+
+          {/* Key lever */}
+          {brief.lever && (
+            <div className="flex items-start gap-2.5 rounded-xl bg-primary/[0.07] border border-primary/15 px-3 py-2.5">
+              <Zap size={11} className="text-primary shrink-0 mt-0.5" />
+              <div>
+                <span className="text-[9px] font-bold text-primary/60 uppercase tracking-widest block mb-0.5">Key lever</span>
+                <span className="text-xs text-foreground/80 leading-relaxed">{brief.lever}</span>
+              </div>
+            </div>
+          )}
 
           {/* Insight */}
           <div className="bg-secondary/40 rounded-xl px-3 py-2.5">

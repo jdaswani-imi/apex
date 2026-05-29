@@ -14,6 +14,7 @@ Rest day. Late wake. Solid recovery session, Lebanese dinner out, full Sunday sk
 | Machine | Stairmaster (TechnoGym) |
 | Duration | 30:23 |
 | Calories burned | ~273 kcal |
+| Steps | 4,822 |
 | Avg power | 120W |
 | Peak power | 142W |
 | Cadence | 60 spm |
