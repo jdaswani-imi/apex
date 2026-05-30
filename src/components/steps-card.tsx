@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import Link from 'next/link'
-import { Footprints, Check, X } from 'lucide-react'
+import { Footprints, Check, X, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 
@@ -72,16 +72,17 @@ export function StepsCard({ date, initialSteps, stepsTarget, isToday }: StepsCar
     <div className="bg-card border border-border rounded-2xl p-4 transition-all duration-200 hover:border-white/15">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Steps</span>
         <Link
           href={weekHref}
-          className="text-muted-foreground text-xs font-bold uppercase tracking-widest hover:text-foreground transition-colors"
           onClick={e => e.stopPropagation()}
+          className="flex items-center gap-1.5"
         >
-          Steps
+          <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
+            <Footprints size={14} className={color} />
+          </div>
+          <ChevronRight size={14} className="text-muted-foreground/30 hover:text-muted-foreground transition-colors" />
         </Link>
-        <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
-          <Footprints size={14} className={color} />
-        </div>
       </div>
 
       {editing ? (
@@ -138,18 +139,16 @@ export function StepsCard({ date, initialSteps, stepsTarget, isToday }: StepsCar
         /* ── Empty state ── */
         <button
           onClick={startEdit}
-          className="w-full text-left group"
+          className="w-full text-left"
         >
-          <p className="font-condensed text-3xl font-bold leading-none text-muted-foreground/30">
-            —
-          </p>
-          <div className="mt-2 flex items-center gap-1.5">
-            <span className="text-[11px] font-semibold text-blue-400/70 group-hover:text-blue-400 transition-colors">
+          <p className="font-condensed text-3xl font-bold leading-none text-muted-foreground/30">—</p>
+          <div className="mt-2">
+            <span className="text-[11px] font-semibold text-primary hover:text-primary/80 transition-colors">
               + Log steps
             </span>
-            <span className="text-[10px] text-muted-foreground/40">
-              · target {stepsTarget.toLocaleString()}
-            </span>
+            <p className="text-[10px] text-muted-foreground/40 mt-0.5">
+              Target: {stepsTarget.toLocaleString()} steps
+            </p>
           </div>
         </button>
       )}

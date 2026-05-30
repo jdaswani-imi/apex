@@ -4,7 +4,11 @@ import { ChatClient } from './chat-client'
 
 export const dynamic = 'force-dynamic'
 
-export default async function ChatPage() {
+export default async function ChatPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>
+}) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -15,5 +19,11 @@ export default async function ChatPage() {
     .eq('user_id', user.id)
     .maybeSingle()
 
-  return <ChatClient onboardingCompleted={onboarding?.completed === true} />
+  const params = await searchParams
+  return (
+    <ChatClient
+      onboardingCompleted={onboarding?.completed === true}
+      initialInput={params.q ?? ''}
+    />
+  )
 }

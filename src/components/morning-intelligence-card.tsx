@@ -54,6 +54,67 @@ const FLAG_COLORS: Record<DayFlag, string> = {
   no_data: 'text-muted-foreground bg-muted',
 }
 
+function splitSentences(text: string): string[] {
+  // Prefer paragraph-level split (handles AI messages with \n\n separators)
+  const paras = text.split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
+  if (paras.length > 1) return paras
+  return text.match(/[^.!?]+[.!?]+\s*/g)?.map(s => s.trim()).filter(Boolean) ?? [text]
+}
+
+function MessageWithReadMore({ message }: { message: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const sentences = splitSentences(message)
+  const firstSentence = sentences[0] ?? message
+  const secondSentence = sentences[1] ?? ''
+  // Show 2 sentences max when expanded — the Today's Focus section already covers the detail
+  const expandedText = [firstSentence, secondSentence].filter(Boolean).join(' ')
+  const hasMore = sentences.length > 1
+
+  return (
+    <div>
+      <p className="text-sm text-foreground/90 leading-relaxed">
+        {expanded ? expandedText : firstSentence}
+        {hasMore && !expanded && (
+          <button
+            onClick={() => setExpanded(true)}
+            className="ml-1.5 text-[11px] font-semibold text-primary/70 hover:text-primary transition-colors"
+          >
+            Read more
+          </button>
+        )}
+      </p>
+      {expanded && hasMore && (
+        <button
+          onClick={() => setExpanded(false)}
+          className="mt-0.5 text-[11px] font-semibold text-primary/50 hover:text-primary/70 transition-colors"
+        >
+          Show less
+        </button>
+      )}
+    </div>
+  )
+}
+
+function RecoverySparkline({ scores }: { scores: { score: number | null }[] }) {
+  const W = 56, H = 14
+  const pts = scores.map((d, i) => {
+    const y = d.score !== null ? H - 1 - Math.round((d.score / 100) * (H - 4)) : H / 2
+    const x = scores.length > 1 ? Math.round((i / (scores.length - 1)) * (W - 6)) + 3 : W / 2
+    return { x, y, score: d.score }
+  })
+  const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
+
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="overflow-visible shrink-0">
+      <path d={pathD} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeLinejoin="round" />
+      {pts.map((p, i) => {
+        const color = p.score === null ? '#6b7280' : p.score >= 67 ? '#4ade80' : p.score >= 34 ? '#f59e0b' : '#f87171'
+        return <circle key={i} cx={p.x} cy={p.y} r="3" fill={color} />
+      })}
+    </svg>
+  )
+}
+
 function TrendIcon({ trend }: { trend: string }) {
   if (trend === 'improving') return <TrendingUp size={11} className="text-green-400" />
   if (trend === 'declining') return <TrendingDown size={11} className="text-red-400" />
@@ -182,15 +243,8 @@ export function MorningIntelligenceCard() {
       </div>
 
       <div className="px-4 pt-3 pb-4 space-y-3">
-        {/* AI message */}
-        <p className="text-sm text-foreground/90 leading-relaxed">{data.message}</p>
-
-        {/* Week pattern */}
-        {data.week_pattern && (
-          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2">
-            <p className="text-[11px] text-muted-foreground/80 leading-relaxed">{data.week_pattern}</p>
-          </div>
-        )}
+        {/* AI message — first sentence on load, expandable */}
+        <MessageWithReadMore message={data.message} />
 
         {/* Yesterday summary row */}
         <div className="flex items-center gap-2 flex-wrap">
@@ -239,16 +293,19 @@ export function MorningIntelligenceCard() {
           </div>
         )}
 
-        {/* Week avg + trend */}
+        {/* Week avg + trend + inline sparkline */}
         {(data.week_weighted_avg !== null || data.week_trend !== 'insufficient_data') && (
-          <div className="flex items-center gap-3 text-[10px] text-muted-foreground/60">
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60">
             {data.week_weighted_avg !== null && (
               <span>7-day avg <span className="text-muted-foreground font-semibold">{data.week_weighted_avg}</span></span>
             )}
             {data.week_trend !== 'insufficient_data' && (
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-2">
                 <TrendIcon trend={data.week_trend} />
                 <span className="capitalize">{data.week_trend}</span>
+                {scores.some(d => d.score !== null) && (
+                  <RecoverySparkline scores={scores} />
+                )}
               </span>
             )}
           </div>

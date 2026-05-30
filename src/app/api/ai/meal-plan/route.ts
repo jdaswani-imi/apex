@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { getFullUserContext, getUserGoals } from '@/lib/db'
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
+import { getCachedAI, setCachedAI } from '@/lib/ai-cache'
 
 const anthropic = new Anthropic()
 
@@ -50,6 +51,13 @@ export async function POST(request: Request) {
   const isTrainingDay = body.is_training_day ?? false
   const alreadyLogged: LoggedMeal[] = body.already_logged ?? []
   const currentHour: number = body.current_hour ?? new Date().getHours()
+
+  // Cache key changes when: training day, time block (every 2h), or total logged cals change
+  const today = new Date().toISOString().split('T')[0]
+  const loggedCalSum = alreadyLogged.reduce((s, m) => s + (m.calories ?? 0), 0)
+  const cacheKey = `ai:meal-plan:${user.id}:${today}:${isTrainingDay ? 1 : 0}:${Math.floor(currentHour / 2)}:${loggedCalSum}`
+  const cachedPlan = await getCachedAI<MealPlan>(cacheKey)
+  if (cachedPlan) return Response.json(cachedPlan)
 
   const [userCtx, goals] = await Promise.all([
     getFullUserContext(),
@@ -210,6 +218,7 @@ Return this exact JSON shape (only include the remaining meals, not already-eate
     if (!Array.isArray(plan.meals)) throw new Error('Invalid plan shape')
     plan.already_logged_calories = loggedCals
     plan.already_logged_protein_g = loggedProtein
+    await setCachedAI(cacheKey, plan, 1800)
     return Response.json(plan)
   } catch (err) {
     console.error('[meal-plan] failed:', err)

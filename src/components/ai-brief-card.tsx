@@ -8,7 +8,7 @@ import type { DailyBrief } from '@/app/api/ai-brief/route'
 
 const READINESS_CONFIG: Record<string, { label: string; bar: string; text: string; bg: string; border: string }> = {
   Peak:     { label: 'Peak',     bar: 'bg-green-400',  text: 'text-green-400',  bg: 'bg-green-500/10',  border: 'border-green-500/25' },
-  Good:     { label: 'Good',     bar: 'bg-lime-400',   text: 'text-lime-400',   bg: 'bg-lime-500/10',   border: 'border-lime-500/25' },
+  Good:     { label: 'Good',     bar: 'bg-green-400',  text: 'text-green-400',  bg: 'bg-green-500/10',  border: 'border-green-500/25' },
   Moderate: { label: 'Moderate', bar: 'bg-yellow-400', text: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/25' },
   Low:      { label: 'Low',      bar: 'bg-red-400',    text: 'text-red-400',    bg: 'bg-red-500/10',    border: 'border-red-500/25' },
 }
@@ -169,7 +169,13 @@ export function AiBriefCard(props: AiBriefCardProps) {
 
           {/* Ask Coach CTA */}
           <Link
-            href="/chat"
+            href={`/chat?q=${encodeURIComponent(
+              brief.coaching_note
+                ? `Tell me more about: ${brief.coaching_note}`
+                : brief.lever
+                ? `Explain this in more detail: ${brief.lever}`
+                : `Elaborate on today's daily brief and what I should focus on.`
+            )}`}
             className="flex items-center justify-between bg-primary/[0.07] border border-primary/15 rounded-xl px-3 py-2.5 hover:bg-primary/10 transition-colors"
           >
             <span className="text-xs text-muted-foreground">Ask Apex to elaborate</span>

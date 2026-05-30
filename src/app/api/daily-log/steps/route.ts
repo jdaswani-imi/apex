@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { delCachedAI } from '@/lib/ai-cache'
 
 export async function POST(req: Request) {
   const supabase = await createClient()
@@ -18,5 +19,12 @@ export async function POST(req: Request) {
     .upsert({ user_id: user.id, date, steps }, { onConflict: 'user_id,date' })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await delCachedAI(
+    `db:recent-logs:${user.id}:8`,
+    `db:recent-logs:${user.id}:14`,
+    `db:recent-logs:${user.id}:30`,
+  )
+
   return NextResponse.json({ ok: true, date, steps })
 }

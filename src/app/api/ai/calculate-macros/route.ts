@@ -1,6 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { getFullUserContext } from '@/lib/db'
+import { getCachedAI, setCachedAI } from '@/lib/ai-cache'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 
 const anthropic = new Anthropic()
 
@@ -16,6 +18,12 @@ export async function POST() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
+  if (!await checkRateLimit(`${user.id}:calculate-macros`, 5, 3600_000)) return rateLimitResponse()
+
+  const today = new Date().toISOString().split('T')[0]
+  const cacheKey = `ai:macros:${user.id}:${today}`
+  const cached = await getCachedAI<MacroRecommendation>(cacheKey)
+  if (cached) return Response.json(cached)
 
   const userCtx = await getFullUserContext()
   const { profile, goals, lifestyle } = userCtx
@@ -110,6 +118,7 @@ Return ONLY valid JSON, no markdown:
       .trim()
 
     const result = JSON.parse(raw) as MacroRecommendation
+    await setCachedAI(cacheKey, result, 86400)
     return Response.json(result)
   } catch (err) {
     console.error('[calculate-macros] failed:', err)

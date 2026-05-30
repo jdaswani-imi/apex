@@ -2,14 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, MessageCircle, Dumbbell, UtensilsCrossed, LayoutGrid } from 'lucide-react'
+import { Home, Brain, Dumbbell, Utensils, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const nav = [
   { href: '/', icon: Home, label: 'Today' },
-  { href: '/chat', icon: MessageCircle, label: 'Coach' },
+  { href: '/chat', icon: Brain, label: 'Coach' },
   { href: '/training', icon: Dumbbell, label: 'Train' },
-  { href: '/food', icon: UtensilsCrossed, label: 'Food' },
+  { href: '/food', icon: Utensils, label: 'Food' },
   { href: '/more', icon: LayoutGrid, label: 'More' },
 ]
 

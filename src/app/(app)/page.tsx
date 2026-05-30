@@ -1,9 +1,10 @@
+import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getTodayContext, getUserGoals } from '@/lib/db'
 import { getDaysToEvent, cn } from '@/lib/utils'
-import { Zap, Footprints, Scale, Music2, Moon, Activity, UtensilsCrossed, CalendarDays, Info } from 'lucide-react'
+import { Zap, Footprints, Scale, Music2, Moon, Activity, UtensilsCrossed, CalendarDays, Info, ChevronRight, AlertTriangle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { QualitativeCheckin } from '@/components/qualitative-checkin'
 import { DayNav } from '@/components/day-nav'
@@ -111,6 +112,22 @@ export default async function TodayPage({
     ?? ctx.recentLogs.find(l => l.weight_kg !== null)?.weight_kg
     ?? null
 
+  // Weight enrichment (after `weight` is resolved)
+  const weightLogs = ctx.recentLogs.filter(l => l.weight_kg !== null).slice(0, 8)
+  const weightSparkData = [...weightLogs].reverse().slice(-4)
+  const weightGapToTarget = weight !== null && weightTarget !== null ? weightTarget - weight : null
+  let weeklyWeightRate: string | null = null
+  if (weightLogs.length >= 2) {
+    const latest = weightLogs[0]
+    const oldest = weightLogs[weightLogs.length - 1]
+    const daysDiff = (new Date(latest.date).getTime() - new Date(oldest.date).getTime()) / (1000 * 60 * 60 * 24)
+    if (daysDiff > 0) {
+      const change = ((latest.weight_kg ?? 0) - (oldest.weight_kg ?? 0))
+      const rate = (change / daysDiff) * 7
+      weeklyWeightRate = (rate >= 0 ? '+' : '') + rate.toFixed(1)
+    }
+  }
+
   const hasMacros = protein !== null || carbs !== null || fats !== null
 
   const recoveryLabel = recovery === null
@@ -177,6 +194,27 @@ export default async function TodayPage({
     ctx.recentRecovery.map(r => [r.date, r.recovery_score])
   )
 
+  // Training session map for week strip encoding
+  const trainingByDate: Record<string, { type: string; strain: number | null }> = {}
+  for (const s of [...ctx.recentTrainingSessions].reverse()) {
+    trainingByDate[s.date] = { type: s.session_type, strain: s.whoop_strain ?? null }
+  }
+  function sessionDotStyle(type: string, strain: number | null): { color: string; size: string } {
+    const t = type.toLowerCase()
+    // Exact hex-matched Tailwind classes: orange-500=#F97316, blue-500=#3B82F6, green-500=#22C55E, gray-500=#6B7280
+    const color = /push/.test(t) ? 'bg-orange-500'
+      : /pull/.test(t) ? 'bg-blue-500'
+      : /leg|lower/.test(t) ? 'bg-green-500'
+      : /cardio|zone|run|bike|swim/.test(t) ? 'bg-gray-500'
+      : /rest/.test(t) ? 'bg-gray-500'
+      : 'bg-orange-500' // unknown type → orange so it's always visible
+    // Base 8px, scale up with strain
+    const size = strain !== null && strain >= 18 ? 'w-3 h-3'
+      : strain !== null && strain >= 14 ? 'w-2.5 h-2.5'
+      : 'w-2 h-2'
+    return { color, size }
+  }
+
   return (
     <div className="px-4 md:px-6 pt-4 md:pt-6 pb-8 space-y-4">
       <WhoopAutoSync />
@@ -184,7 +222,7 @@ export default async function TodayPage({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-muted-foreground text-sm tracking-widest uppercase">
+          <p className="text-xs font-medium text-muted-foreground tracking-widest uppercase">
             {isToday ? getGreeting() : isFutureDate ? 'Looking ahead' : 'Past day'}
           </p>
           <DayNav date={date} todayStr={todayStr} />
@@ -207,13 +245,24 @@ export default async function TodayPage({
           const isFuture = d > todayStr
           const isBeyondMax = d > maxFutureDate
           const isSelected = d === date
-          const score = recoveryByDate[d] ?? null
-          const dotColor = score === null
-            ? isFuture ? 'bg-muted/50' : 'bg-muted-foreground/30'
-            : score >= 67 ? 'bg-green-400'
-            : score >= 34 ? 'bg-yellow-400'
-            : 'bg-red-400'
           const dayNum = new Date(d + 'T12:00:00').getDate()
+          const session = trainingByDate[d] ?? null
+          const hasSession = session !== null && !/^rest.?day$/i.test(session.type)
+          const isRestDay = session !== null && /^rest.?day$/i.test(session.type)
+
+          // Dot: session-type encoded for past days, recovery-based if no session
+          let dotEl: ReactNode
+          if (isFuture || isBeyondMax) {
+            dotEl = <span className="w-2 h-2 rounded-full bg-muted-foreground/15" />
+          } else if (hasSession) {
+            const { color, size } = sessionDotStyle(session.type, session.strain)
+            dotEl = <span className={cn('rounded-full', color, size)} />
+          } else if (isRestDay) {
+            dotEl = <span className="w-2 h-2 rounded-full bg-gray-600/70" />
+          } else {
+            // No session logged — empty ring (8px)
+            dotEl = <span className="w-2 h-2 rounded-full border border-white/25" />
+          }
 
           if (isBeyondMax) {
             return (
@@ -221,9 +270,9 @@ export default async function TodayPage({
                 key={d}
                 className="flex-1 flex flex-col items-center gap-1 py-2 rounded-2xl"
               >
-                <span className="text-xs font-bold text-muted-foreground/25">{DAY_LETTERS[i]}</span>
+                <span className="text-[10px] font-bold text-muted-foreground/25">{DAY_LETTERS[i]}</span>
                 <span className="text-sm font-semibold text-muted-foreground/25">{dayNum}</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/20" />
+                {dotEl}
               </div>
             )
           }
@@ -242,7 +291,7 @@ export default async function TodayPage({
               )}
             >
               <span className={cn(
-                'text-xs font-bold',
+                'text-[10px] font-bold',
                 isSelected && isFuture ? 'text-sky-400' : isSelected ? 'text-orange-400' : isFuture ? 'text-muted-foreground/40' : 'text-muted-foreground'
               )}>
                 {DAY_LETTERS[i]}
@@ -253,11 +302,21 @@ export default async function TodayPage({
               )}>
                 {dayNum}
               </span>
-              <span className={cn('w-1.5 h-1.5 rounded-full', dotColor)} />
+              {dotEl}
             </Link>
           )
         })}
       </div>
+
+      {/* SpO₂ alert banner */}
+      {isToday && spO2Low && todaySpO2 !== null && (
+        <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
+          <AlertTriangle size={14} className="text-amber-400 shrink-0" />
+          <p className="text-sm text-amber-300">
+            SpO₂ below threshold ({parseFloat(String(todaySpO2)).toFixed(1)}%) — retest tonight
+          </p>
+        </div>
+      )}
 
       {/* Morning intelligence check-in — today only */}
       {isToday && <MorningIntelligenceCard />}
@@ -284,14 +343,12 @@ export default async function TodayPage({
         {/* Nutrition — full width */}
         <Link href={isToday ? '/food' : `/food?date=${date}`} className="bg-card border border-border rounded-2xl p-4 hover:border-orange-500/25 transition-all duration-200 block">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Nutrition</span>
-            <div className="flex items-center gap-2">
-              {calories !== null && calorieTarget !== null && (
-                <span className="text-[10px] text-muted-foreground font-medium">{calories.toLocaleString()} / {calorieTarget.toLocaleString()} kcal</span>
-              )}
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Nutrition</span>
+            <div className="flex items-center gap-1.5">
               <div className="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center">
                 <UtensilsCrossed size={14} className="text-orange-400" />
               </div>
+              <ChevronRight size={14} className="text-muted-foreground/30" />
             </div>
           </div>
           {hasMacros ? (
@@ -336,9 +393,15 @@ export default async function TodayPage({
               {/* Calorie progress bar */}
               {calories !== null && calorieTarget !== null && (
                 <div>
-                  <div className="w-full bg-white/5 rounded-full h-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] text-muted-foreground">Calories</span>
+                    <span className={cn('text-[10px] font-semibold', calories >= calorieTarget ? 'text-green-400' : 'text-muted-foreground')}>
+                      {calories.toLocaleString()} / {calorieTarget.toLocaleString()} kcal
+                    </span>
+                  </div>
+                  <div className="w-full bg-white/5 rounded-full h-1.5">
                     <div
-                      className={cn('h-1 rounded-full transition-all duration-500', calories >= calorieTarget ? 'bg-green-400' : 'bg-orange-500/60')}
+                      className={cn('h-1.5 rounded-full transition-all duration-500', calories >= calorieTarget ? 'bg-green-400' : 'bg-orange-500/60')}
                       style={{ width: `${Math.min(100, Math.round((calories / calorieTarget) * 100))}%` }}
                     />
                   </div>
@@ -362,21 +425,65 @@ export default async function TodayPage({
         <div className="grid grid-cols-2 gap-3">
           {/* Steps */}
           <StepsCard
+            key={date}
             date={date}
             initialSteps={steps}
             stepsTarget={stepsTarget}
             isToday={isToday}
           />
           {/* Weight */}
-          <Link href={stats[2].href} className="bg-card border border-border rounded-2xl p-4 transition-all duration-200 hover:border-white/15 block">
+          <Link href="/progress" className="bg-card border border-border rounded-2xl p-4 transition-all duration-200 hover:border-white/15 block">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Weight</span>
-              <div className="w-7 h-7 rounded-lg bg-green-500/10 flex items-center justify-center">
-                <Scale size={14} className="text-green-400" />
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Weight</span>
+              <div className="flex items-center gap-1.5">
+                <div className="w-7 h-7 rounded-lg bg-green-500/10 flex items-center justify-center">
+                  <Scale size={14} className="text-green-400" />
+                </div>
+                <ChevronRight size={14} className="text-muted-foreground/30" />
               </div>
             </div>
-            <p className="font-condensed text-3xl font-bold leading-none text-green-400">{stats[2].value}</p>
-            <p className="text-muted-foreground text-xs mt-2 leading-tight">{stats[2].sub}</p>
+            {weight !== null ? (
+              <>
+                <p className="font-condensed text-3xl font-bold leading-none text-green-400">{weight}kg</p>
+                {weightGapToTarget !== null && (
+                  <p className={cn('text-[10px] font-semibold mt-1.5', weightGapToTarget < 0 ? 'text-amber-400' : 'text-muted-foreground')}>
+                    {weightGapToTarget > 0 ? '+' : ''}{weightGapToTarget.toFixed(1)} kg to go
+                  </p>
+                )}
+                {weeklyWeightRate !== null && (
+                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">{weeklyWeightRate} kg/week avg</p>
+                )}
+                {weightSparkData.length >= 2 && (() => {
+                  const vals = weightSparkData.map(l => l.weight_kg!)
+                  const min = Math.min(...vals), max = Math.max(...vals)
+                  const W = 52, H = 18
+                  const pts = vals.map((v, i) => ({
+                    x: vals.length > 1 ? Math.round((i / (vals.length - 1)) * (W - 4)) + 2 : W / 2,
+                    y: max === min ? H / 2 : H - 2 - Math.round(((v - min) / (max - min)) * (H - 6)),
+                  }))
+                  const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
+                  return (
+                    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="mt-2 overflow-visible">
+                      <path d={pathD} fill="none" stroke="rgba(74,222,128,0.3)" strokeWidth="1" strokeLinejoin="round" />
+                      {pts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="2" fill="#4ade80" />)}
+                    </svg>
+                  )
+                })()}
+              </>
+            ) : (
+              <>
+                <p className="font-condensed text-3xl font-bold leading-none text-muted-foreground/40">— kg</p>
+                {weightTarget !== null && (
+                  <p className="text-[10px] font-semibold text-muted-foreground/60 mt-1.5">Target: {weightTarget} kg</p>
+                )}
+                <p className="text-[9px] text-muted-foreground/35 mt-0.5">· log weight</p>
+                {/* Stub sparkline placeholder */}
+                <svg width={52} height={18} viewBox="0 0 52 18" className="mt-2 overflow-visible">
+                  <path d="M 2 10 L 18 10 L 34 10 L 50 10" fill="none" stroke="#6B7280" strokeWidth="1" strokeLinejoin="round" />
+                  {[2, 18, 34, 50].map((x, i) => <circle key={i} cx={x} cy={10} r="3" fill="#6B7280" />)}
+                </svg>
+              </>
+            )}
           </Link>
         </div>
 
@@ -390,24 +497,27 @@ export default async function TodayPage({
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Activity size={14} className="text-primary" />
-                <span className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Recovery</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Recovery</span>
               </div>
-              {recovery !== null && (
-                <div className="flex items-center gap-2">
-                  <span className={cn(
-                    'font-condensed text-2xl font-bold leading-none',
-                    recovery >= 67 ? 'text-green-400' : recovery >= 34 ? 'text-yellow-400' : 'text-red-400'
-                  )}>{recovery}%</span>
-                  <span className={cn(
-                    'text-[10px] font-semibold px-2 py-0.5 rounded-full',
-                    recovery >= 67 ? 'bg-green-500/15 text-green-400' :
-                    recovery >= 34 ? 'bg-yellow-500/15 text-yellow-400' :
-                    'bg-red-500/15 text-red-400'
-                  )}>
-                    {recovery >= 67 ? 'Green' : recovery >= 34 ? 'Yellow' : 'Red'}
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                {recovery !== null && (
+                  <>
+                    <span className={cn(
+                      'font-condensed text-2xl font-bold leading-none',
+                      recovery >= 67 ? 'text-green-400' : recovery >= 34 ? 'text-yellow-400' : 'text-red-400'
+                    )}>{recovery}%</span>
+                    <span className={cn(
+                      'text-[10px] font-semibold px-2 py-0.5 rounded-full',
+                      recovery >= 67 ? 'bg-green-500/15 text-green-400' :
+                      recovery >= 34 ? 'bg-yellow-500/15 text-yellow-400' :
+                      'bg-red-500/15 text-red-400'
+                    )}>
+                      {recovery >= 67 ? 'Green' : recovery >= 34 ? 'Yellow' : 'Red'}
+                    </span>
+                  </>
+                )}
+                <ChevronRight size={14} className="text-muted-foreground/30" />
+              </div>
             </div>
             {/* Vitals grid */}
             <div className="grid grid-cols-4 gap-3">
@@ -438,14 +548,14 @@ export default async function TodayPage({
               )}
               {ctx.recovery?.spo2_percentage !== null && ctx.recovery?.spo2_percentage !== undefined && (
                 <div>
-                  <div className="flex items-baseline gap-1">
+                  <div className="flex items-center gap-0.5">
+                    {spO2Low && <AlertTriangle size={11} className="text-amber-400 shrink-0" />}
                     <p className={cn('font-bold text-2xl leading-none', spO2Low ? 'text-amber-400' : 'text-sky-400')}>
                       {parseFloat(String(ctx.recovery.spo2_percentage)).toFixed(1)}%
                     </p>
-                    {spO2Low && <span className="text-[9px] font-bold text-amber-400 leading-none">↓</span>}
                   </div>
                   <p className="text-muted-foreground text-[10px] mt-1.5 font-medium">SpO₂</p>
-                  {spO2Low && <p className="text-amber-400/70 text-[9px] mt-0.5">below 95%</p>}
+                  {spO2Low && <p className="text-amber-400/70 text-[9px] mt-0.5">retest tonight</p>}
                 </div>
               )}
               {ctx.cycle?.strain !== null && ctx.cycle?.strain !== undefined && (
@@ -469,13 +579,13 @@ export default async function TodayPage({
           /* No WHOOP — show simple recovery card */
           <Link href={isToday ? '/sleep' : `/sleep?date=${date}`} className="bg-card border border-border rounded-2xl p-4 hover:border-white/15 transition-all duration-200 block">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Recovery</span>
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Recovery</span>
               <div className="w-7 h-7 rounded-lg bg-yellow-500/10 flex items-center justify-center">
                 <Zap size={14} className="text-yellow-400" />
               </div>
             </div>
             <p className="font-condensed text-3xl font-bold leading-none text-muted-foreground/50">—</p>
-            <p className="text-muted-foreground text-xs mt-2">Connect WHOOP to track</p>
+            <p className="text-xs text-muted-foreground mt-2">Connect WHOOP to track</p>
           </Link>
         )}
 
@@ -492,7 +602,7 @@ export default async function TodayPage({
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Moon size={14} className="text-blue-400" />
-                <span className="text-muted-foreground text-xs font-bold uppercase tracking-widest">Last Night&apos;s Sleep</span>
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Last Night&apos;s Sleep</span>
               </div>
               <div className="flex items-center gap-2">
                 {sleepExcellent && (
@@ -502,24 +612,29 @@ export default async function TodayPage({
                 )}
                 {ctx.sleep.sleep_performance_pct && (
                   <span className={cn(
-                    'text-xs font-bold px-2 py-0.5 rounded-full',
+                    'text-[10px] font-bold px-2 py-0.5 rounded-full',
                     ctx.sleep.sleep_performance_pct >= 70 ? 'bg-emerald-500/15 text-emerald-400' :
                     ctx.sleep.sleep_performance_pct >= 50 ? 'bg-yellow-500/15 text-yellow-400' : 'bg-red-500/15 text-red-400'
                   )}>{ctx.sleep.sleep_performance_pct}%</span>
                 )}
+                <ChevronRight size={14} className="text-muted-foreground/30" />
               </div>
             </div>
             <div className="grid grid-cols-4 gap-2">
               {[
-                { label: 'Duration', value: ctx.sleep.duration_hrs ? `${ctx.sleep.duration_hrs}h` : '—', hint: 'aim 8h', highlight: false },
-                { label: 'Perf', value: ctx.sleep.sleep_performance_pct ? `${ctx.sleep.sleep_performance_pct}%` : '—', hint: '>85%', highlight: false },
-                { label: 'Deep', value: ctx.sleep.deep_sleep_min ? `${ctx.sleep.deep_sleep_min}m` : '—', hint: '>90m', highlight: deepExcellent },
-                { label: 'REM', value: ctx.sleep.rem_min ? `${ctx.sleep.rem_min}m` : '—', hint: '>90m', highlight: remExcellent },
-              ].map(({ label, value, hint, highlight }) => (
+                { label: 'Duration', value: ctx.sleep.duration_hrs ? `${ctx.sleep.duration_hrs}h` : '—', hint: 'aim 8h', highlight: false, pb: false },
+                { label: 'Perf', value: ctx.sleep.sleep_performance_pct ? `${ctx.sleep.sleep_performance_pct}%` : '—', hint: '>85%', highlight: false, pb: false },
+                { label: 'Deep', value: ctx.sleep.deep_sleep_min ? `${ctx.sleep.deep_sleep_min}m` : '—', hint: '>90m', highlight: deepExcellent, pb: deepExcellent },
+                { label: 'REM', value: ctx.sleep.rem_min ? `${ctx.sleep.rem_min}m` : '—', hint: '>90m', highlight: remExcellent, pb: false },
+              ].map(({ label, value, hint, highlight, pb }) => (
                 <div key={label}>
                   <p className={cn('font-bold text-xl leading-none', highlight ? 'text-emerald-400' : 'text-foreground')}>{value}</p>
-                  <p className="text-muted-foreground text-[10px] mt-1 font-medium">{label}</p>
-                  <p className={cn('text-[9px] mt-0.5', highlight ? 'text-emerald-400/60' : 'text-muted-foreground/40')}>{highlight ? '⭐ excellent' : hint}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 font-medium">{label}</p>
+                  {pb ? (
+                    <span className="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 mt-0.5">PB</span>
+                  ) : (
+                    <p className={cn('text-[9px] mt-0.5', highlight ? 'text-emerald-400/60' : 'text-muted-foreground/40')}>{hint}</p>
+                  )}
                 </div>
               ))}
             </div>
@@ -542,7 +657,7 @@ export default async function TodayPage({
 
       {/* Supplements */}
       {showSupplements && suppTotal > 0 && (
-        <DashboardSupplementStack initialSupplements={sortedSupplements} date={date} />
+        <DashboardSupplementStack key={date} initialSupplements={sortedSupplements} date={date} />
       )}
 
       {/* Target event */}
@@ -551,30 +666,62 @@ export default async function TodayPage({
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-purple-500/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-pink-500/10 rounded-full blur-2xl pointer-events-none" />
         <div className="relative">
-          <div className="flex items-center gap-1.5 mb-2">
+          <div className="flex items-center gap-1.5 mb-3">
             <Music2 size={14} className="text-purple-400" />
-            <span className="text-purple-300 text-xs font-bold uppercase tracking-widest">{eventName ?? 'Target Event'}</span>
+            <span className="text-xs font-bold text-purple-300 uppercase tracking-widest">{eventName ?? 'Target Event'}</span>
           </div>
-          <div className="flex items-end justify-between mb-3">
-            <div className="flex items-end gap-2">
-              <span className="font-condensed text-7xl font-bold text-white leading-none">{days}</span>
-              <span className="text-muted-foreground text-sm mb-2">days to go</span>
+
+          {/* Centrepiece: day count */}
+          <div className="flex items-end justify-between mb-1">
+            <div>
+              <div className="flex items-baseline gap-2 leading-none">
+                <span className="font-condensed text-8xl font-black text-white leading-none">{days}</span>
+                <span className="text-sm font-semibold text-purple-300/70 mb-1">days to go</span>
+              </div>
+              <div className="mt-1">
+                {weightGapToTarget !== null && Math.abs(weightGapToTarget) > 0.1 ? (
+                  <p className="text-sm font-semibold text-amber-300/80">
+                    {weightGapToTarget < 0 ? '−' : '+'}{Math.abs(weightGapToTarget).toFixed(1)} kg to goal
+                  </p>
+                ) : (
+                  <p className="text-sm font-medium text-purple-300/40">— kg to goal</p>
+                )}
+                {(weightTarget !== null || eventDateFormatted || eventLocation) && (
+                  <p className="text-[10px] text-purple-300/40 mt-0.5 leading-relaxed">
+                    {[
+                      weightTarget !== null ? `Target: ${weightTarget} kg` : null,
+                      eventDateFormatted,
+                      eventLocation,
+                    ].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+              </div>
             </div>
             {totalDays !== null && (
-              <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-xs">
+              <Badge className="bg-purple-500/25 text-purple-200 border-purple-400/40 text-sm font-bold px-3 py-1.5">
                 {progress}% done
               </Badge>
             )}
           </div>
+
+          {/* Thicker progress bar with phase markers */}
           {totalDays !== null && (
-          <div className="w-full bg-white/10 rounded-full h-1.5 mb-1.5">
-            <div
-              className="bg-gradient-to-r from-purple-500 via-violet-400 to-pink-400 h-1.5 rounded-full transition-all duration-700"
-              style={{ width: `${progress}%` }}
-            />
+          <div className="mt-4 mb-1">
+            <div className="w-full bg-white/10 rounded-full h-2 relative">
+              <div
+                className="bg-gradient-to-r from-purple-500 via-violet-400 to-pink-400 h-2 rounded-full transition-all duration-700"
+                style={{ width: `${progress}%` }}
+              />
+              <div className="absolute inset-y-0 w-px bg-white/60" style={{ left: '33%' }} />
+              <div className="absolute inset-y-0 w-px bg-white/60" style={{ left: '66%' }} />
+            </div>
+            <div className="relative mt-1" style={{ height: '14px' }}>
+              <span className="absolute text-[10px] text-white/50" style={{ left: '0%' }}>P1</span>
+              <span className="absolute text-[10px] text-white/50" style={{ left: '33%', transform: 'translateX(-50%)' }}>P2</span>
+              <span className="absolute text-[10px] text-white/50" style={{ left: '66%', transform: 'translateX(-50%)' }}>P3</span>
+            </div>
           </div>
           )}
-          <p className="text-muted-foreground text-sm">{[eventDateFormatted, eventLocation].filter(Boolean).join(' · ')}</p>
         </div>
       </div>
       )}

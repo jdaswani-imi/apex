@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 import { getUserLifestyle, getUserGoals } from '@/lib/db'
+import { getCachedAI, setCachedAI } from '@/lib/ai-cache'
 
 const anthropic = new Anthropic()
 
@@ -28,10 +29,18 @@ export async function POST(request: Request) {
     carbs_g?: number | null
     fats_g?: number | null
     meal_context?: MealContextItem[]
+    force?: boolean
   }
 
-  const { name, meal_type, calories, protein_g, carbs_g, fats_g, meal_context } = body
+  const { name, meal_type, calories, protein_g, carbs_g, fats_g, meal_context, force } = body
   if (!name?.trim()) return NextResponse.json({ error: 'Missing name' }, { status: 400 })
+
+  // Cache by meal fingerprint — ratings are stable for the same item + macros + user
+  const cacheKey = `ai:rate-meal:${user.id}:${name.trim().toLowerCase()}:${calories ?? 0}:${protein_g ?? 0}`
+  if (!force) {
+    const cachedRating = await getCachedAI<{ rating: number; suggestions: string }>(cacheKey)
+    if (cachedRating) return NextResponse.json(cachedRating)
+  }
 
   // Fetch user profile in parallel with no extra latency
   const [lifestyle, goals] = await Promise.all([getUserLifestyle(), getUserGoals()])
@@ -97,10 +106,12 @@ Respond with JSON only (no markdown, no explanation):
   const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : ''
   try {
     const parsed = JSON.parse(raw.replace(/^```(?:json)?\n?|\n?```$/g, '').trim())
-    return NextResponse.json({
+    const result = {
       rating: Math.min(100, Math.max(0, Math.round(Number(parsed.rating)))),
       suggestions: String(parsed.suggestions ?? '').trim(),
-    })
+    }
+    await setCachedAI(cacheKey, result, 86400)
+    return NextResponse.json(result)
   } catch {
     return NextResponse.json({ error: 'Parse error' }, { status: 500 })
   }

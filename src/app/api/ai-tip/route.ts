@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   const today = new Date().toISOString().split('T')[0]
   const cacheKey = `ai:tip:${user.id}:${page ?? 'today'}:${today}`
   const cached = await getCachedAI<{ tip: string }>(cacheKey)
-  if (cached) return Response.json(cached, { headers: { 'Cache-Control': 'private, max-age=1800' } })
+  if (cached) return Response.json(cached, { headers: { 'Cache-Control': 'private, max-age=7200' } })
 
   const [ctx, userCtx] = await Promise.all([
     getTodayContext(),
@@ -66,8 +66,8 @@ export async function POST(request: Request) {
   const tip = response.content[0].type === 'text' ? response.content[0].text : ''
   const result = { tip }
 
-  await setCachedAI(cacheKey, result, 1800)
+  await setCachedAI(cacheKey, result, 7200)
   return Response.json(result, {
-    headers: { 'Cache-Control': 'private, max-age=1800' },
+    headers: { 'Cache-Control': 'private, max-age=7200' },
   })
 }

@@ -18,14 +18,12 @@ function NextBadge({ next }: { next: NextWorkout | null | undefined }) {
   const label = t ? t.name : next.sessionType
   const exStr = t?.exerciseCount ? ` · ${t.exerciseCount} ex` : ''
   return (
-    <div className="mt-3 pt-3 border-t border-white/[0.05] flex items-center gap-2">
-      <CalendarClock size={12} className="text-muted-foreground/50 flex-shrink-0" />
-      <div className="flex-1 min-w-0">
-        <span className="text-muted-foreground text-xs font-semibold">{next.dayLabel}</span>
-        <span className="text-muted-foreground/40 text-xs"> — {label}{exStr}</span>
-      </div>
+    <div className="mt-2 pt-2 border-t border-white/[0.04] flex items-center gap-1.5">
+      <CalendarClock size={10} className="text-muted-foreground/40 flex-shrink-0" />
+      <span className="text-xs text-muted-foreground/50">{next.dayLabel}</span>
+      <span className="text-xs text-muted-foreground/50"> — {label}{exStr}</span>
       {t && (
-        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
+        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 ml-auto opacity-60" style={{ backgroundColor: t.color }} />
       )}
     </div>
   )
@@ -135,18 +133,18 @@ export function TodayWorkoutCard({ isToday, date }: Props) {
   if (isRest || restLogged) {
     const isChosenRest = restLogged && !isRest
     return (
-      <div className="bg-card border border-border rounded-2xl p-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-muted border border-border flex items-center justify-center flex-shrink-0">
-            <Moon size={20} className="text-muted-foreground" />
+      <div className="bg-card border border-border rounded-2xl px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-muted border border-border flex items-center justify-center flex-shrink-0">
+            <Moon size={16} className="text-muted-foreground/60" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-0.5">
+            <p className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest mb-0.5">
               {isToday ? "Today's Session" : 'Session'}
             </p>
-            <p className="text-foreground font-semibold text-base">Rest Day</p>
-            <p className="text-muted-foreground/60 text-xs mt-0.5">
-              {isChosenRest ? 'Logged · cycle position held for next session' : 'Recovery · light activity encouraged'}
+            <p className="text-foreground font-semibold text-sm">Rest Day</p>
+            <p className="text-[10px] text-muted-foreground/50 mt-0.5">
+              {isChosenRest ? 'Logged · cycle held' : 'Recovery · light activity ok'}
             </p>
           </div>
         </div>

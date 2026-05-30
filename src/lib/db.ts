@@ -163,10 +163,7 @@ export async function getTodaySupplements(date: string): Promise<SupplementLog[]
   const user = await getAuthUser()
   if (!user) return []
 
-  const todayStr = new Date().toISOString().split('T')[0]
-  if (date === todayStr) {
-    await ensureSupplementRows(user.id, date)
-  }
+  await ensureSupplementRows(user.id, date)
 
   const { data } = await supabase
     .from('supplement_logs')

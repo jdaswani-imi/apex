@@ -282,9 +282,9 @@ function ActionButtons({ actions }: { actions: ChatAction[] }) {
   )
 }
 
-export function ChatClient({ onboardingCompleted }: { onboardingCompleted: boolean }) {
+export function ChatClient({ onboardingCompleted, initialInput = '' }: { onboardingCompleted: boolean; initialInput?: string }) {
   const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState('')
+  const [input, setInput] = useState(initialInput)
   const [loading, setLoading] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
@@ -297,6 +297,12 @@ export function ChatClient({ onboardingCompleted }: { onboardingCompleted: boole
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Focus input when pre-populated
+  useEffect(() => {
+    if (initialInput) inputRef.current?.focus()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true)
