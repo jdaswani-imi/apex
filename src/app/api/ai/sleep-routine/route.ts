@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { MODEL_HAIKU } from '@/lib/ai/models'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 import { getCachedAI, setCachedAI } from '@/lib/ai-cache'
@@ -103,7 +104,7 @@ Return ONLY valid JSON, no markdown:
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: MODEL_HAIKU,
       max_tokens: 600,
       messages: [{ role: 'user', content: prompt }],
     })

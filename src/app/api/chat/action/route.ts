@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { todayLocal } from '@/lib/date'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
     payload: Record<string, unknown>
   }
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
 
   switch (type) {
     case 'log_meal': {

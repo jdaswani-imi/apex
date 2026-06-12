@@ -1,4 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { MODEL_HAIKU } from '@/lib/ai/models'
+import { todayLocal } from '@/lib/date'
 import { getTodayContext, getFullUserContext } from '@/lib/db'
 import { buildSystemPrompt } from '@/lib/ai/system-prompt'
 import { createClient } from '@/lib/supabase/server'
@@ -24,7 +26,7 @@ export async function POST(request: Request) {
 
   const { page } = await request.json()
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const cacheKey = `ai:tip:${user.id}:${page ?? 'today'}:${today}`
   const cached = await getCachedAI<{ tip: string }>(cacheKey)
   if (cached) return Response.json(cached, { headers: { 'Cache-Control': 'private, max-age=7200' } })
@@ -52,7 +54,7 @@ export async function POST(request: Request) {
   const dateAnchor = `[Context: today is ${today}${daysToEvent !== null && eventName ? `. The user is EXACTLY ${daysToEvent} days from ${eventName} — use this number, do not recalculate.` : '.'}] `
 
   const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: MODEL_HAIKU,
     max_tokens: 150,
     system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
     messages: [

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, Suspense } from 'react'
+import { todayLocal } from '@/lib/date'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
@@ -11,7 +12,7 @@ import { PageInsightBanner } from '@/components/page-insight-banner'
 
 function SupplementsContent() {
   const searchParams = useSearchParams()
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = todayLocal()
   const viewDate = searchParams.get('date') ?? todayStr
   const isToday = viewDate === todayStr
 

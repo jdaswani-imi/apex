@@ -1,4 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { MODEL_HAIKU } from '@/lib/ai/models'
+import { todayLocal } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 import {
   getRecentDailyLogs,
@@ -44,7 +46,7 @@ export async function GET(request: Request) {
 
   if (!await checkRateLimit(`rl:morning:${user.id}`, 10, 3600_000)) return rateLimitResponse()
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const cacheKey = `ai:morning:${user.id}:${today}`
   const refresh = new URL(request.url).searchParams.get('refresh') === 'true'
   if (refresh) {
@@ -351,7 +353,7 @@ Return this exact JSON:
   try {
     const anthropic = new Anthropic()
     const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: MODEL_HAIKU,
       max_tokens: 900,
       messages: [{ role: 'user', content: prompt }],
     })

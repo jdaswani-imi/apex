@@ -1,4 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { MODEL_HAIKU } from '@/lib/ai/models'
+import { todayLocal, localDateStr } from '@/lib/date'
 import { getTodayContext, getFullUserContext, getUserGoals, getUserTraining, getRecentTraining, getExerciseBaselines } from '@/lib/db'
 import { createClient } from '@/lib/supabase/server'
 import { buildWeekIntelligence, FLAG_LABELS, type DayData } from '@/lib/intelligence'
@@ -23,7 +25,7 @@ export async function GET(request: Request) {
   if (!user) return new Response('Unauthorized', { status: 401 })
   if (!await checkRateLimit(`${user.id}:ai-brief`, 10, 60 * 60 * 1000)) return rateLimitResponse()
 
-  const todayDate = new Date().toISOString().split('T')[0]
+  const todayDate = todayLocal()
   const cacheKey = `ai:brief:${user.id}:${todayDate}`
   const refresh = new URL(request.url).searchParams.get('refresh') === 'true'
   if (refresh) {
@@ -99,19 +101,26 @@ export async function GET(request: Request) {
     if (!suppsByDate[s.date]) suppsByDate[s.date] = []
     suppsByDate[s.date].push(s)
   }
+  // Group actual training sessions by date so the week scorer doesn't flag
+  // every scheduled day as "skipped" (which the brief then reports as fact).
+  const sessionsByDate: Record<string, typeof recentSessions> = {}
+  for (const s of recentSessions) {
+    if (!sessionsByDate[s.date]) sessionsByDate[s.date] = []
+    sessionsByDate[s.date].push(s)
+  }
 
   const weekDayData: DayData[] = []
   for (let i = 1; i <= 7; i++) {
     const d = new Date()
     d.setDate(d.getDate() - i)
-    const date = d.toISOString().split('T')[0]
+    const date = localDateStr(d)
     weekDayData.push({
       date,
       log: logByDate[date] ?? null,
       recovery: recovByDate[date] ?? null,
       sleep: sleepByDate[date] ?? null,
       supplements: suppsByDate[date] ?? [],
-      sessions: [],
+      sessions: sessionsByDate[date] ?? [],
     })
   }
 
@@ -182,7 +191,7 @@ export async function GET(request: Request) {
     ? recentSessions.find(s =>
         !!s.finished_at &&
         normType(s.session_type).includes(normType(upcomingType)) &&
-        s.date !== new Date().toISOString().split('T')[0]
+        s.date !== todayLocal()
       ) ?? null
     : null
 
@@ -259,7 +268,7 @@ Return this exact JSON shape:
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: MODEL_HAIKU,
       max_tokens: 700,
       messages: [{ role: 'user', content: prompt }],
     })
@@ -277,8 +286,9 @@ Return this exact JSON shape:
     return Response.json(brief, {
       headers: { 'Cache-Control': 'private, max-age=7200' },
     })
-  } catch {
-    // Fallback brief if AI fails
+  } catch (err) {
+    // Fallback brief if AI fails — log so outages/parse failures aren't invisible.
+    console.error('ai-brief generation failed, serving fallback:', err)
     const readinessScore = recovery ?? 70
     const readinessLabel =
       readinessScore >= 84 ? 'Peak' :

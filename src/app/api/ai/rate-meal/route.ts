@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { MODEL_HAIKU } from '@/lib/ai/models'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
@@ -98,7 +99,7 @@ Respond with JSON only (no markdown, no explanation):
 {"rating": <integer 0-100>, "suggestions": "<suggestion>"}`
 
   const message = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+    model: MODEL_HAIKU,
     max_tokens: 150,
     messages: [{ role: 'user', content: prompt }],
   })

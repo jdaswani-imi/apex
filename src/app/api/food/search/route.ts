@@ -8,9 +8,13 @@ const USDA_CARBS   = 1005
 const USDA_FAT     = 1004
 
 // ── Cache ─────────────────────────────────────────────────────────────────────
+// Only the public USDA/OFF results are cached. User-specific custom foods are
+// fetched per-request and merged in — caching them keyed by query alone leaked
+// one user's private custom foods to anyone searching the same term.
 const cache = new Map<string, { results: SearchItem[]; expiresAt: number }>()
 const CACHE_TTL_MS = 5 * 60 * 1000
-const CACHE_VERSION = 1
+const CACHE_VERSION = 2
+const CACHE_MAX_ENTRIES = 500
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface SearchItem {
@@ -207,22 +211,28 @@ export async function GET(request: Request) {
   const q = searchParams.get('q')?.trim()
   if (!q || q.length < 2) return NextResponse.json([])
 
-  const cacheKey = `v${CACHE_VERSION}:${q.toLowerCase()}`
-  const cached = cache.get(cacheKey)
-  if (cached && cached.expiresAt > Date.now()) {
-    return NextResponse.json(cached.results)
-  }
-
   const queryWords = q.toLowerCase().split(/\s+/).filter(Boolean)
+  const cacheKey = `v${CACHE_VERSION}:${q.toLowerCase()}`
 
-  const [custom, usda, off] = await Promise.all([
+  // Custom foods are always per-request (user-scoped); only the public sources
+  // come from / go to the shared cache.
+  const cached = cache.get(cacheKey)
+  const publicResultsPromise = cached && cached.expiresAt > Date.now()
+    ? Promise.resolve(cached.results)
+    : Promise.all([searchUSDA(q), searchOFF(q, queryWords)]).then(([usda, off]) => {
+        const publicResults = merge([], usda, off)
+        if (cache.size >= CACHE_MAX_ENTRIES) {
+          const oldest = cache.keys().next().value
+          if (oldest !== undefined) cache.delete(oldest)
+        }
+        cache.set(cacheKey, { results: publicResults, expiresAt: Date.now() + CACHE_TTL_MS })
+        return publicResults
+      })
+
+  const [custom, publicResults] = await Promise.all([
     searchCustomFoods(q),
-    searchUSDA(q),
-    searchOFF(q, queryWords),
+    publicResultsPromise,
   ])
 
-  const results = merge(custom, usda, off)
-
-  cache.set(cacheKey, { results, expiresAt: Date.now() + CACHE_TTL_MS })
-  return NextResponse.json(results)
+  return NextResponse.json(merge(custom, publicResults, []))
 }

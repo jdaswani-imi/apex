@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
+import { todayLocal } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 import { invalidateUserAICaches, invalidateUserFoodCache } from '@/lib/ai-cache'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = todayLocal()
   const date = searchParams.get('date') ?? todayStr
 
   const supabase = await createClient()

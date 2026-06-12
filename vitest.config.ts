@@ -11,6 +11,9 @@ export default defineConfig({
     environment: 'node',
     pool: 'forks',
     maxWorkers: 10,
+    // Pin the timezone so date-boundary logic (see src/lib/date.ts) is
+    // deterministic regardless of where tests run (local vs CI).
+    env: { TZ: 'Asia/Dubai' },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],

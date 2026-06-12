@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { todayLocal } from "./date"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -24,10 +25,12 @@ export function getRecoveryLabel(score: number): string {
 }
 
 export function getDaysToEvent(fromDate: string | undefined, targetDate: string): number {
+  // Anchor both ends to noon so the result depends only on the calendar gap,
+  // not on the time of day the call happens to run (which flipped N vs N-1).
   const target = new Date(targetDate + 'T12:00:00')
-  const from = fromDate ? new Date(fromDate + 'T12:00:00') : new Date()
+  const from = new Date((fromDate || todayLocal()) + 'T12:00:00')
   const diff = target.getTime() - from.getTime()
-  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+  return Math.round(diff / (1000 * 60 * 60 * 24))
 }
 
 export function getTrainingDayType(date: Date, trainingSplit: Record<string, string>): string {

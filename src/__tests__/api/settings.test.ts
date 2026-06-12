@@ -82,26 +82,51 @@ describe('POST /api/settings', () => {
     expect(json).toEqual({ error: 'Invalid table' })
   })
 
-  it.each(['user_profile', 'user_goals', 'user_training', 'user_lifestyle'])(
-    'accepts table "%s" and returns success',
-    async (table) => {
+  it.each([
+    ['user_profile', { name: 'Jason' }],
+    ['user_goals', { target_weight_kg: 70 }],
+    ['user_training', { gym_name: 'TopGym' }],
+    ['user_lifestyle', { diet_type: 'vegetarian' }],
+  ] as const)(
+    'accepts table "%s", keeps allowed fields, and returns success',
+    async (table, validField) => {
       vi.resetModules()
       vi.clearAllMocks()
       const { client, queryBuilder } = makeSupabaseMock()
       mockCreateClient.mockResolvedValue(client as never)
 
       const { POST } = await importRoute()
-      const res = await POST(makePostRequest({ table, data: { foo: 'bar' } }))
+      const res = await POST(makePostRequest({ table, data: validField }))
       const json = await res.json()
 
       expect(res.status).toBe(200)
       expect(json).toEqual({ success: true })
       expect(client.from).toHaveBeenCalledWith(table)
       expect(queryBuilder.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({ user_id: 'user-123', foo: 'bar' }),
+        expect.objectContaining({ user_id: 'user-123', ...validField }),
       )
     },
   )
+
+  it('strips disallowed fields and cannot override user_id (mass-assignment guard)', async () => {
+    const { client, queryBuilder } = makeSupabaseMock()
+    mockCreateClient.mockResolvedValue(client as never)
+
+    const { POST } = await importRoute()
+    const res = await POST(
+      makePostRequest({
+        table: 'user_profile',
+        data: { name: 'Jason', api_token: 'attacker', user_id: 'someone-else', foo: 'bar' },
+      }),
+    )
+
+    expect(res.status).toBe(200)
+    const upserted = queryBuilder.upsert.mock.calls[0][0] as Record<string, unknown>
+    expect(upserted.name).toBe('Jason')
+    expect(upserted.user_id).toBe('user-123')
+    expect(upserted).not.toHaveProperty('api_token')
+    expect(upserted).not.toHaveProperty('foo')
+  })
 
   it('returns 500 when upsert fails', async () => {
     const { client } = makeSupabaseMock({ queryResult: { data: null, error: { message: 'DB exploded' } } })

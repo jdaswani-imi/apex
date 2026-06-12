@@ -86,3 +86,54 @@ describe('GET /api/health', () => {
     await expect(GET()).resolves.toBeDefined()
   })
 })
+
+describe('GET /api/health — npm_package_version edge cases', () => {
+  let originalVersion: string | undefined
+
+  beforeEach(() => {
+    originalVersion = process.env.npm_package_version
+    vi.resetModules()
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    if (originalVersion === undefined) {
+      delete process.env.npm_package_version
+    } else {
+      process.env.npm_package_version = originalVersion
+    }
+  })
+
+  it('returns empty string when npm_package_version is set to empty string (nullish coalescing does not trigger fallback)', async () => {
+    // The ?? operator only falls back for null/undefined, not for ''.
+    // This documents the intentional (if surprising) behavior.
+    process.env.npm_package_version = ''
+
+    vi.resetModules()
+    const { GET } = await importRoute()
+    const res = await GET()
+    const { version } = await res.json()
+
+    expect(version).toBe('')
+  })
+
+  it('returns the exact version string without trimming or coercion', async () => {
+    process.env.npm_package_version = '  2.0.0-beta.1  '
+
+    vi.resetModules()
+    const { GET } = await importRoute()
+    const res = await GET()
+    const { version } = await res.json()
+
+    expect(version).toBe('  2.0.0-beta.1  ')
+  })
+})
+
+describe('GET /api/health — module-level exports', () => {
+  it('exports dynamic = "force-dynamic" to opt out of static caching', async () => {
+    vi.resetModules()
+    const route = await importRoute()
+
+    expect((route as Record<string, unknown>).dynamic).toBe('force-dynamic')
+  })
+})

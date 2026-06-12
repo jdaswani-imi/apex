@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { todayLocal } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import { PlusCircle } from 'lucide-react'
 import { PageInsightBanner } from '@/components/page-insight-banner'
@@ -55,7 +56,7 @@ export default function TrainingPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocal(),
         session_type: templateName.toLowerCase().replace(/\s+/g, '_'),
         template_id: templateId,
         started_at: new Date().toISOString(),

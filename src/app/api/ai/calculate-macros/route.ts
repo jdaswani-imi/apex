@@ -1,4 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { MODEL_HAIKU } from '@/lib/ai/models'
+import { todayLocal } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 import { getFullUserContext } from '@/lib/db'
 import { getCachedAI, setCachedAI } from '@/lib/ai-cache'
@@ -20,7 +22,7 @@ export async function POST() {
   if (!user) return new Response('Unauthorized', { status: 401 })
   if (!await checkRateLimit(`${user.id}:calculate-macros`, 5, 3600_000)) return rateLimitResponse()
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const cacheKey = `ai:macros:${user.id}:${today}`
   const cached = await getCachedAI<MacroRecommendation>(cacheKey)
   if (cached) return Response.json(cached)
@@ -104,7 +106,7 @@ Return ONLY valid JSON, no markdown:
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: MODEL_HAIKU,
       max_tokens: 500,
       messages: [{ role: 'user', content: prompt }],
     }, { signal: AbortSignal.timeout(30_000) })

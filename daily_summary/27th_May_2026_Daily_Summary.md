@@ -3,7 +3,7 @@
 ---
 
 ## Overview
-Stairmaster cardio session at 17:32 — ~38 minutes total on the TechnoGym machine (Level 13), 150 floors, 388 kcal, HR peaking at 161 bpm on the machine display. WHOOP only captured the final 26:28 due to a missed tracking start (first ~12 minutes unrecorded). Of the tracked portion, 79% of time was spent in Zones 4–5 (163+ BPM) — a high-intensity cardiovascular session. Recovery, sleep, and nutrition data not captured for this day.
+Green recovery at 78% — slightly down from yesterday's 87% after the strength session, with HRV at 83.7ms and RHR at 58bpm. Sleep was 7.2h at 80% performance; REM was notably low at 53min (typical is 80–100min). High-intensity Stairmaster cardio session: 150 floors at Level 13 in ~38 minutes (388 kcal), with 79% of the WHOOP-tracked portion in Zones 4–5. Nutrition at 1,669 kcal and 149.9g protein — above the 140g target. Supplements 5/7, Ferroglobibin and Seed missed. Steps at 10,587 — above 10k for a second consecutive day.
 
 ---
 
@@ -11,11 +11,13 @@ Stairmaster cardio session at 17:32 — ~38 minutes total on the TechnoGym machi
 
 | Metric | Value |
 |--------|-------|
-| Recovery | — |
-| HRV | — |
-| Resting Heart Rate | — |
+| Recovery | **78%** — Green 🟢 |
+| HRV | 83.7ms |
+| Resting Heart Rate | 58 bpm |
+| Skin Temp | 34.68°C |
+| SpO2 | 91.1% |
 
-**Notes:** WHOOP recovery data not recorded for this date.
+**Notes:** 87% → 78% is a natural one-day drop after a high-volume strength session. Still firmly green. HRV at 83.7ms is healthy; RHR at 58bpm slightly elevated vs yesterday's 55bpm — normal training response. SpO2 back above 90% (91.1%) — the previous night's 89.1% reading was likely a one-off.
 
 ---
 
@@ -23,13 +25,14 @@ Stairmaster cardio session at 17:32 — ~38 minutes total on the TechnoGym machi
 
 | Metric | Value |
 |--------|-------|
-| Duration | — |
-| Sleep Performance | — |
-| Deep Sleep | — |
-| REM Sleep | — |
-| Sleep Efficiency | — |
+| Duration | 7.2h |
+| Sleep Performance | 80% |
+| Deep Sleep | 109 min |
+| REM Sleep | 53 min |
+| Light Sleep | 272 min |
+| Sleep Efficiency | 88.5% |
 
-**Notes:** Sleep data not recorded for this date.
+**Notes:** Deep sleep was excellent at 109min. REM at 53min is noticeably low — typical is 80–100min for this volume and duration. Efficiency at 88.5% is the lowest of the recent period (vs 92–95% typical). The REM deficit may have been influenced by the late training session on Tuesday. Sleep performance at 80% reflects these gaps but the 7.2h duration preserved total sleep quality.
 
 ---
 
@@ -37,11 +40,7 @@ Stairmaster cardio session at 17:32 — ~38 minutes total on the TechnoGym machi
 
 | Metric | Value |
 |--------|-------|
-| Strain | — |
-| Avg Heart Rate | — |
-| Max Heart Rate | — |
-| Energy | — |
-| Steps | — |
+| Steps | 10,587 |
 
 ---
 
@@ -77,7 +76,7 @@ Stairmaster cardio session at 17:32 — ~38 minutes total on the TechnoGym machi
 
 *Zone ranges last updated 20 May 2026.*
 
-**Notes:** Genuinely high-intensity cardio session — 79% of the tracked time in Zones 4–5 (163+ BPM) means this was not steady-state moderate effort, it was sustained near-maximal cardiovascular output. Level 13 on the TechnoGym Stairmaster is a demanding resistance setting. 150 floors in ~38 minutes is consistent with the 24 May session (150 floors in 45 min) but at a faster pace — this session was more intense. The WHOOP missed the first ~12 minutes of the session; the actual zone distribution across the full 38 minutes would show even more Zone 4–5 time if the warmup onset was also high-HR. 388 kcal in 38 minutes is a strong energy expenditure rate (~612 kcal/hr equivalent). The day-after effect of this session on Thursday's recovery should be monitored.
+**Notes:** 79% Zone 4–5 in the WHOOP-tracked portion confirms this was a high-intensity cardiovascular session, not steady-state moderate effort. 150 floors at Level 13 in ~38 minutes is a faster pace than the 24 May session (150 floors in 45 min) — fitness improving on this machine. 388 kcal in 38 minutes (~612 kcal/hr) is high energy expenditure. WHOOP missed the first ~12 min — start tracking before stepping on the machine going forward.
 
 ---
 
@@ -85,36 +84,52 @@ Stairmaster cardio session at 17:32 — ~38 minutes total on the TechnoGym machi
 
 | Meal | Food | Protein | Carbs | Fat | Kcal |
 |------|------|---------|-------|-----|------|
-| **Total** | | **—** | **—** | **—** | **—** |
+| Breakfast | Overnight Oats | 45g | 65g | 16g | 500 |
+| Breakfast | Banana | 3.9g | 12.6g | 1.9g | 97 |
+| Lunch | Cottage Cheese + 3 Rice Cakes | 34g | 30g | 2g | 272 |
+| Dinner | Party Food Dinner (Paneer + Soya Chaap) | 47g | 36g | 30g | 600 |
+| Snack | Barbell Cookies & Cream | 20g | 19g | 7g | 200 |
+| **Total** | | **149.9g ✅** | **162.6g** | **56.9g** | **1,669** |
 
-**Notes:** Nutrition not recorded for this date.
+**Notes:**
+- Protein at 149.9g — 9.9g above the 140g target. Strong day given it's a high-cardio day.
+- Calories at 1,669 — below the 2,100 maintenance target. For a day with 388 kcal burned on the Stairmaster, this represents a meaningful caloric deficit.
+- Party food dinner (Paneer + Soya Chaap) is a good protein-dense social meal — 47g protein, 600kcal.
+- Cottage Cheese + Rice Cakes as lunch is very light (272 kcal, 34g protein) — works as a pre-workout meal but insufficient alone for a cardio day.
+- The Barbell bar snack helps bridge the gap but the overall calorie intake is low relative to output today.
 
 ---
 
 ## Supplements
 
-| Supplement | Taken |
-|-----------|-------|
-| Ferroglobibin + OJ | — |
-| Humantra + Concentrace + Creatine HMB | — |
-| Magnesium Glycinate 360mg | — |
-| Rituals Essential Men 18+ Multivitamin | — |
-| Rituals Omega-3 DHA+EPA | — |
-| Seed DS-01 Daily Synbiotic | — |
-| Sleep + Restore PM02 | — |
+| Supplement | Taken | Time |
+|-----------|-------|------|
+| Ferroglobibin + OJ | ❌ | — |
+| Humantra + Concentrace + Creatine HMB | ✅ | 00:31 |
+| Magnesium Glycinate 360mg | ✅ | 00:31 |
+| Rituals Essential Men 18+ Multivitamin | ✅ | 00:31 |
+| Rituals Omega-3 DHA+EPA | ✅ | 00:31 |
+| Seed DS-01 Daily Synbiotic | ❌ | — |
+| Sleep + Restore PM02 | ✅ | 00:31 |
 
-**Notes:** Supplement data not recorded for this date.
+**5/7 taken.** Ferroglobibin and Seed DS-01 missed. All logged at 00:31 — very late evening dosing.
 
 ---
 
 ## Key Decisions & Learnings — 27 May 2026
 
 ### Training
-- **Back-to-back training days (Tue strength → Wed cardio) with high output on both.** The strength session on the 26th (10,148 kg, 3 PRs) followed by a high-intensity Stairmaster on the 27th is a significant consecutive load. Monitor Thursday recovery closely.
-- **79% Zone 4–5 in the WHOOP-tracked portion confirms this was high-intensity cardio**, not recovery work. Sustaining 163+ BPM for 20+ minutes on a Stairmaster is meaningful cardiovascular training, not active recovery.
-- **150 floors at Level 13 in ~38 minutes is a faster pace than the 24 May session** (also 150 floors, 45 min, Level implied lower). The faster completion time at the same floor count suggests fitness is improving on this exercise.
-- **WHOOP tracking missed first ~12 minutes** — start WHOOP activity tracking before stepping on the machine going forward. The real Zone distribution across the full 38 minutes is likely even more Zone 4–5 heavy given HR typically climbs during a session.
-- **388 kcal in 38 minutes (~612 kcal/hr)** — the Stairmaster remains one of the highest-output steady-state cardio machines. Combined with Tuesday's strength session, the two-day caloric expenditure is significant. Nutrition needs to match.
+- **Back-to-back high-output sessions (Tue strength → Wed Stairmaster)** — the 87%→78% recovery drop is mild and appropriate. The body absorbed the strength session well.
+- **150 floors at Level 13 in ~38 min beats the 24 May pace (45 min)** — measurable cardiovascular improvement on the Stairmaster within one week.
+- **79% Zone 4–5 in tracked portion** confirms this was high-intensity work. Monitor Thursday's recovery closely for the cumulative effect.
+- **Start WHOOP activity tracking before stepping on the machine** — the missed first 12 minutes consistently under-represents the zone data.
+
+### Recovery
+- **REM at 53min is the lowest of the recent period** — watch whether this correlates with the late cardio session. Training within 3–4 hours of sleep is associated with suppressed REM. Earlier session time would likely improve the sleep architecture.
+
+### Nutrition
+- **1,669 kcal on a high-cardio day is under-fuelling** — two consecutive days (Tue 2,183 was good, but Wed is the concern). The Stairmaster session alone burned 388 kcal; total intake barely covers it.
+- **Late supplement logging (00:31)** suggests supplements were taken just before sleep — not ideal for Humantra (hydration, best mid-day) but Magnesium and Sleep+Restore timing is appropriate. The missed Ferroglobibin (iron) and Seed (probiotic) are the most impactful omissions.
 
 ---
 
@@ -122,12 +137,12 @@ Stairmaster cardio session at 17:32 — ~38 minutes total on the TechnoGym machi
 
 | Category | Score |
 |---------|-------|
-| Training | 9/10 — high-intensity Stairmaster, 150 floors, strong Zone 4–5 output |
-| Nutrition | —/10 — not recorded |
-| Supplements | —/10 — not recorded |
-| Sleep | —/10 — not recorded |
-| Recovery | —/10 — not recorded |
+| Training | 9/10 — 150 floors, Level 13, 79% Zone 4–5, fastest Stairmaster pace yet |
+| Nutrition | 6/10 — protein above target, but calories too low for a high-cardio day |
+| Supplements | 7/10 — 5/7, Ferroglobibin and Seed missed |
+| Sleep | 7/10 — 7.2h, 80% performance but REM notably low at 53min |
+| Recovery | 8/10 — 78% green, solid HRV, normal post-strength dip |
 
 ---
 
-*Next log: Thursday 28 May 2026 — Monitor recovery after back-to-back high-output sessions (Tue strength + Wed Stairmaster). Start WHOOP tracking before stepping on machines.*
+*Next log: Thursday 28 May 2026 — Monitor recovery after back-to-back high-output sessions. Start WHOOP tracking before stepping on machines.*

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef, memo } from 'react'
+import { todayLocal } from '@/lib/date'
 
 // Session-level cache keyed by date string. Evicted on any mutation so stale
 // data never lingers, but navigating back to an already-viewed date is instant.
@@ -107,10 +108,10 @@ function WaterTracker({ todayStr }: { todayStr: string }) {
           <Droplets size={11} className="text-blue-400" />
           <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Hydration · target 3L</span>
         </div>
-        <span className="text-[10px] text-muted-foreground/50">{(cups * 0.375).toFixed(1)}L / 3L</span>
+        <span className="text-[10px] text-muted-foreground/50">{(cups * 0.5).toFixed(1)}L / 3L</span>
       </div>
       <div className="flex gap-1.5">
-        {Array.from({ length: 8 }).map((_, i) => (
+        {Array.from({ length: 6 }).map((_, i) => (
           <button
             key={i}
             type="button"
@@ -119,7 +120,7 @@ function WaterTracker({ todayStr }: { todayStr: string }) {
               'w-6 h-6 rounded-full border-2 transition-all duration-150',
               i < cups ? 'bg-blue-500 border-blue-400' : 'bg-transparent border-white/20 hover:border-blue-400/50',
             )}
-            aria-label={`${((i + 1) * 0.375).toFixed(2)}L`}
+            aria-label={`${((i + 1) * 500)}ml`}
           />
         ))}
       </div>
@@ -168,7 +169,7 @@ function FoodTipCard({ proteinGap, onLogFood }: { proteinGap: number; onLogFood:
   const [tip, setTip] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [visible, setVisible] = useState(true)
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const dismissKey = `apex_food_tip_v2_${today}`
 
   useEffect(() => {
@@ -351,7 +352,7 @@ const FoodContent = memo(function FoodContent({
   viewDate: viewDateProp,
   todayStr: todayStrProp,
 }: FoodContentProps) {
-  const todayStr = todayStrProp ?? new Date().toISOString().split('T')[0]
+  const todayStr = todayStrProp ?? todayLocal()
   const viewDate = viewDateProp ?? todayStr
   const isToday = viewDate === todayStr
   const dateLabel = new Date(viewDate + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
@@ -366,7 +367,8 @@ const FoodContent = memo(function FoodContent({
   const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM)
   const [savingEdit, setSavingEdit] = useState(false)
 
-  const [pendingRatingIds, setPendingRatingIds] = useState<Set<string>>(new Set())
+  // Only the setter is used (to force a re-render); the canonical value lives in the ref.
+  const [, setPendingRatingIds] = useState<Set<string>>(new Set())
   const pendingRatingIdsRef = useRef<Set<string>>(new Set())
 
   const [showMealPlan, setShowMealPlan] = useState(false)

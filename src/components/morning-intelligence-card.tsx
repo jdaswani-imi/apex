@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { todayLocal } from '@/lib/date'
 import { X, Loader2, TrendingUp, TrendingDown, Minus, Sunrise, RefreshCw } from 'lucide-react'
 import type { MorningIntelligence } from '@/app/api/intelligence/morning/route'
 import { FLAG_LABELS, type DayFlag } from '@/lib/intelligence'
@@ -127,7 +128,7 @@ export function MorningIntelligenceCard() {
   const [refreshing, setRefreshing] = useState(false)
   const [dismissed, setDismissed] = useState(false)
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const cacheKey = `${CACHE_KEY_PREFIX}${today}`
   const dismissKey = `${DISMISS_KEY_PREFIX}${today}`
 

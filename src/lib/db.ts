@@ -1,4 +1,5 @@
 import { createClient, getAuthUser } from '@/lib/supabase/server'
+import { todayLocal } from '@/lib/date'
 import { getCachedAI, setCachedAI } from '@/lib/ai-cache'
 import type {
   DailyLog, TrainingSession, Exercise,
@@ -775,7 +776,7 @@ export async function getTodayFoodTotals(date: string): Promise<FoodTotals> {
   const user = await getAuthUser()
   if (!user) return { protein: null, carbs: null, fats: null, calories: null }
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const ttl = date < today ? 3600 : 60
   const cacheKey = `db:food-totals:${user.id}:${date}`
   const cached = await getCachedAI<FoodTotals>(cacheKey)
@@ -813,7 +814,7 @@ export async function getTodayContext(dateOverride?: string): Promise<TodayConte
   const user = await getAuthUser()
   if (!user) return null
 
-  const today = dateOverride ?? new Date().toISOString().split('T')[0]
+  const today = dateOverride ?? todayLocal()
 
   const [
     dailyLog,

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { todayLocal } from '@/lib/date'
 import { ChevronRight, Minus, Plus, Trash2, UserCircle } from 'lucide-react'
 
 import { getCyclePhase } from '@/lib/types'
@@ -698,7 +699,7 @@ export default function SettingsPage() {
                           <label style={{ fontSize: '11px', color: 'var(--muted-foreground)', display: 'block', marginBottom: '4px' }}>Start / anchor date</label>
                           <input
                             type="date"
-                            value={(s.frequency_anchor_date as string) ?? new Date().toISOString().split('T')[0]}
+                            value={(s.frequency_anchor_date as string) ?? todayLocal()}
                             onChange={e => {
                               const updated = [...supplements]
                               updated[i] = { ...s, frequency_anchor_date: e.target.value }
@@ -738,7 +739,7 @@ export default function SettingsPage() {
                 name: '', dose: '', timing: 'before_bed', timing_notes: '',
                 sort_order: supplements.length + 1, active: true,
                 capsules: 1, frequency_type: 'daily', frequency_interval: 1,
-                frequency_anchor_date: new Date().toISOString().split('T')[0],
+                frequency_anchor_date: todayLocal(),
               }
               setSupplements([...supplements, newSupp])
             }}

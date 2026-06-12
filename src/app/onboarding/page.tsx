@@ -1801,7 +1801,6 @@ function SleepStep({ data, set, lifestyleData, physicalData, mentalData, trainin
 
   const wakeTimes = lifestyleData?.wake_times as Record<string, string> | undefined
   const wakeTime = wakeTimes ? avgTimeStr(Object.values(wakeTimes)) : undefined
-  const hasContext = (data.sleep_issues as string[] | undefined)?.length || (data.quality_rating !== undefined) || whoopData?.avgSleepHours
 
   async function getSleepRoutine() {
     setRoutineLoading(true)

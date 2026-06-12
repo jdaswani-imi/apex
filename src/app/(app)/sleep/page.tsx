@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, Suspense } from 'react'
+import { todayLocal } from '@/lib/date'
 import { useSearchParams } from 'next/navigation'
 import { Moon, Zap, Activity, Wind, RefreshCw, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -117,7 +118,7 @@ function SleepStageBar({ deep, rem, light, awake }: {
 
 function SleepContent() {
   const searchParams = useSearchParams()
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = todayLocal()
   const viewDate = searchParams.get('date') ?? todayStr
   const isToday = viewDate === todayStr
 

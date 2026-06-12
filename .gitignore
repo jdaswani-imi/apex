@@ -45,4 +45,10 @@ next-env.d.ts
 
 # logs
 *.log
+
+# env
 .env*
+
+# playwright-mcp artifacts and root-level screenshots
+.playwright-mcp/
+/*.png

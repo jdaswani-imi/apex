@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { todayLocal } from '@/lib/date'
 import { Sparkles, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -26,7 +27,7 @@ export function AITipButton({ page, className }: { page: Page; className?: strin
   const [loading, setLoading] = useState(true)
   const [visible, setVisible] = useState(true)
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const dismissKey = `apex_ai_tip_dismiss_${page}_${today}`
 
   useEffect(() => {

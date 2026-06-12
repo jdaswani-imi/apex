@@ -348,10 +348,10 @@ describe('scoreDay', () => {
       expect(scoreDay(day, baseGoals).score).toBe(100)
     })
 
-    it('awards 7pts for ≥80% and <100% of target', () => {
+    it('awards 4pts for ≥80% and <100% of target', () => {
       const day: DayData = { ...emptyDay(), log: makeLog({ steps: 8000 }) }
       const result = scoreDay(day, baseGoals)
-      expect(result.score).toBe(Math.round((7 / 10) * 100))
+      expect(result.score).toBe(Math.round((4 / 5) * 100))
       expect(result.flags).not.toContain('low_steps')
     })
 
@@ -362,10 +362,10 @@ describe('scoreDay', () => {
       expect(result.flags).toContain('low_steps')
     })
 
-    it('awards 1pt and low_steps for <50% of target', () => {
+    it('awards 0pts and low_steps for <50% of target', () => {
       const day: DayData = { ...emptyDay(), log: makeLog({ steps: 1000 }) }
       const result = scoreDay(day, baseGoals)
-      expect(result.score).toBe(Math.round((1 / 10) * 100))
+      expect(result.score).toBe(Math.round((0 / 5) * 100))
       expect(result.flags).toContain('low_steps')
     })
 

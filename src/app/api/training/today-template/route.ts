@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { todayLocal } from '@/lib/date'
 import { NextResponse } from 'next/server'
 
 const DAY_SHORT: Record<number, string> = {
@@ -16,7 +17,7 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url)
   const dateParam = searchParams.get('date')
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = todayLocal()
   const today = dateParam ?? todayStr
   const dayNum = new Date(today + 'T12:00:00').getDay()
   const todayShort = DAY_SHORT[dayNum]

@@ -1,4 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { MODEL_SONNET } from '@/lib/ai/models'
+import { todayLocal } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 import { getTodayContext, getFullUserContext, getCoachingMemory, saveCoachingMemory, deleteCoachingMemory } from '@/lib/db'
 import { buildSystemPrompt } from '@/lib/ai/system-prompt'
@@ -196,7 +198,7 @@ async function executeTool(
   userId: string,
 ): Promise<string> {
   const supabase = await createClient()
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const inp = input as Record<string, unknown>
 
   switch (name) {
@@ -375,7 +377,7 @@ export async function POST(request: Request) {
       // Tool-use loop — max 5 iterations to prevent runaway chains
       for (let i = 0; i < 5; i++) {
         const apiStream = anthropic.messages.stream({
-          model: 'claude-sonnet-4-6',
+          model: MODEL_SONNET,
           max_tokens: 1024,
           system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
           tools: TOOLS,

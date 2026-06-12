@@ -85,6 +85,26 @@ describe('GET /api/cycle', () => {
     expect(res.status).toBe(200)
     expect(json).toEqual([])
   })
+
+  it('sets Cache-Control header to private, max-age=300', async () => {
+    const { client } = makeSupabaseMock()
+    mockCreateClient.mockResolvedValue(client as never)
+    mockGetRecentMenstrualCycles.mockResolvedValue([] as never)
+
+    const { GET } = await importRoute()
+    const res = await GET()
+
+    expect(res.headers.get('Cache-Control')).toBe('private, max-age=300')
+  })
+
+  it('propagates rejection when getRecentMenstrualCycles throws', async () => {
+    const { client } = makeSupabaseMock()
+    mockCreateClient.mockResolvedValue(client as never)
+    mockGetRecentMenstrualCycles.mockRejectedValue(new Error('db failure'))
+
+    const { GET } = await importRoute()
+    await expect(GET()).rejects.toThrow('db failure')
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -195,6 +215,16 @@ describe('POST /api/cycle', () => {
       expect.objectContaining({ period_end_date: null, cycle_length_days: 28, notes: null }),
     )
   })
+
+  it('propagates rejection when upsertMenstrualCycle throws', async () => {
+    const { client } = makeSupabaseMock()
+    mockCreateClient.mockResolvedValue(client as never)
+    mockUpsertMenstrualCycle.mockRejectedValue(new Error('upsert failed'))
+
+    const { POST } = await importRoute()
+    const req = makeJsonRequest({ period_start_date: '2024-01-01' })
+    await expect(POST(req)).rejects.toThrow('upsert failed')
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -254,5 +284,14 @@ describe('DELETE /api/cycle', () => {
 
     expect(mockDeleteMenstrualCycle).toHaveBeenCalledOnce()
     expect(mockDeleteMenstrualCycle).toHaveBeenCalledWith('specific-cycle-id-999')
+  })
+
+  it('propagates rejection when deleteMenstrualCycle throws', async () => {
+    const { client } = makeSupabaseMock()
+    mockCreateClient.mockResolvedValue(client as never)
+    mockDeleteMenstrualCycle.mockRejectedValue(new Error('delete failed'))
+
+    const { DELETE } = await importRoute()
+    await expect(DELETE(makeDeleteRequest('cycle-xyz'))).rejects.toThrow('delete failed')
   })
 })

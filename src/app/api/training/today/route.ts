@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { todayLocal } from '@/lib/date'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
@@ -6,7 +7,7 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({})
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const dayNum = new Date().getDay()
 
   const { data: training } = await supabase

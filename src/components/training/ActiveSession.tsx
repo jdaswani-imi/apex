@@ -573,8 +573,11 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
       })
       const saved = await res.json()
 
+      // Apply to the *current* draft value, not the pre-await snapshot, so any
+      // weight/reps edits made while the request was in flight aren't clobbered.
       updateSections(draft => {
-        draft[secIdx].exercises[exIdx].sets[setIdx] = { ...set, done: true, is_pr: isPr, savedId: saved.id }
+        const cur = draft[secIdx].exercises[exIdx].sets[setIdx]
+        draft[secIdx].exercises[exIdx].sets[setIdx] = { ...cur, done: true, is_pr: isPr, savedId: saved?.id }
         return draft
       })
 
@@ -601,10 +604,20 @@ export default function ActiveSession({ sessionId, templateId, templateName, tem
         }, 300)
       }
     } else {
+      // Delete the persisted row so untick→retick doesn't create duplicates.
+      const savedId = set.savedId
       updateSections(draft => {
-        draft[secIdx].exercises[exIdx].sets[setIdx] = { ...set, done: false, is_pr: false }
+        const cur = draft[secIdx].exercises[exIdx].sets[setIdx]
+        draft[secIdx].exercises[exIdx].sets[setIdx] = { ...cur, done: false, is_pr: false, savedId: undefined }
         return draft
       })
+      if (savedId) {
+        try {
+          await fetch(`/api/training/exercise?id=${encodeURIComponent(savedId)}`, { method: 'DELETE' })
+        } catch {
+          // Best-effort; the row will be reconciled on next save.
+        }
+      }
     }
   }
 

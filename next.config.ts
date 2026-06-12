@@ -1,5 +1,11 @@
 import type { NextConfig } from "next";
 
+// 'unsafe-eval' is only needed for the dev HMR runtime; production Next.js does not require it.
+const isDev = process.env.NODE_ENV !== 'production'
+const scriptSrc = isDev
+  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+  : "script-src 'self' 'unsafe-inline'"
+
 const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'X-Frame-Options', value: 'DENY' },
@@ -14,8 +20,8 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      // Next.js inline scripts + React hydration
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      // Next.js inline scripts + React hydration ('unsafe-eval' dev-only, see above)
+      scriptSrc,
       // Supabase API + WHOOP + Anthropic (server-side only, but listed for completeness)
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.prod.whoop.com https://api.anthropic.com https://fdc.nal.usda.gov",
       // Google Fonts (Barlow loaded via next/font — inlined; keeping CDN fallback)

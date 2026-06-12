@@ -1,8 +1,15 @@
-import { whoopFetch, whoopFetchAll } from './client'
+import { whoopFetch, whoopFetchAll, getWhoopToken } from './client'
 import { createClient } from '@/lib/supabase/server'
+import { localDateStr } from '@/lib/date'
 
 export async function syncWhoopData(userId: string, days = 7) {
   const supabase = await createClient()
+
+  // Resolve (and if needed, refresh) the access token once, then reuse it for
+  // every request below — avoids re-reading the token row 6+ times and racing
+  // concurrent refreshes that would rotate the refresh_token out from under us.
+  const token = await getWhoopToken(userId)
+  if (!token) throw new Error('No Whoop token')
 
   const start = new Date()
   start.setDate(start.getDate() - days)
@@ -20,7 +27,7 @@ export async function syncWhoopData(userId: string, days = 7) {
 
   // Sync profile (1 request)
   try {
-    const profile = await whoopFetch(userId, '/v2/user/profile/basic') as Record<string, unknown>
+    const profile = await whoopFetch(userId, '/v2/user/profile/basic', undefined, token) as Record<string, unknown>
     await supabase.from('whoop_profile').upsert({
       user_id: userId,
       whoop_user_id: profile.user_id,
@@ -36,7 +43,7 @@ export async function syncWhoopData(userId: string, days = 7) {
 
   // Sync body measurements (1 request)
   try {
-    const body = await whoopFetch(userId, '/v2/user/measurement/body') as Record<string, unknown>
+    const body = await whoopFetch(userId, '/v2/user/measurement/body', undefined, token) as Record<string, unknown>
     await supabase.from('whoop_body').upsert({
       user_id: userId,
       height_meter: body.height_meter,
@@ -51,11 +58,11 @@ export async function syncWhoopData(userId: string, days = 7) {
 
   // Sync recovery (paginated, ≤10 pages)
   try {
-    const records = await whoopFetchAll(userId, '/v2/recovery', { start: startStr })
+    const records = await whoopFetchAll(userId, '/v2/recovery', { start: startStr }, token)
     for (const record of records as Record<string, unknown>[]) {
       if (record.score_state !== 'SCORED') continue
       const score = record.score as Record<string, unknown>
-      const date = new Date(record.created_at as string).toISOString().split('T')[0]
+      const date = localDateStr(record.created_at as string)
       await supabase.from('whoop_recovery').upsert({
         user_id: userId,
         date,
@@ -75,10 +82,10 @@ export async function syncWhoopData(userId: string, days = 7) {
 
   // Sync sleep (paginated, ≤10 pages)
   try {
-    const records = await whoopFetchAll(userId, '/v2/activity/sleep', { start: startStr })
+    const records = await whoopFetchAll(userId, '/v2/activity/sleep', { start: startStr }, token)
     for (const record of records as Record<string, unknown>[]) {
       if (!record.score) continue
-      const date = new Date(record.start as string).toISOString().split('T')[0]
+      const date = localDateStr(record.start as string)
       const score = record.score as Record<string, unknown>
       const stages = score.stage_summary as Record<string, number>
       const needed = score.sleep_needed as Record<string, number> | null
@@ -123,10 +130,10 @@ export async function syncWhoopData(userId: string, days = 7) {
 
   // Sync cycles (paginated, ≤10 pages)
   try {
-    const records = await whoopFetchAll(userId, '/v2/cycle', { start: startStr })
+    const records = await whoopFetchAll(userId, '/v2/cycle', { start: startStr }, token)
     for (const record of records as Record<string, unknown>[]) {
       if (record.score_state !== 'SCORED') continue
-      const date = new Date(record.start as string).toISOString().split('T')[0]
+      const date = localDateStr(record.start as string)
       const score = record.score as Record<string, unknown>
       const zones = score.zone_durations as Record<string, number> | null
       await supabase.from('whoop_cycles').upsert({
@@ -165,7 +172,7 @@ export async function syncWhoopData(userId: string, days = 7) {
 
   // Sync workouts (paginated, ≤10 pages)
   try {
-    const records = await whoopFetchAll(userId, '/v2/activity/workout', { start: startStr })
+    const records = await whoopFetchAll(userId, '/v2/activity/workout', { start: startStr }, token)
     for (const record of records as Record<string, unknown>[]) {
       if (record.score_state !== 'SCORED') continue
       const score = record.score as Record<string, unknown>

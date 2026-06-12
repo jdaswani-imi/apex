@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { todayLocal } from '@/lib/date'
 import { useRouter } from 'next/navigation'
 
 export function WhoopAutoSync() {
@@ -19,7 +20,7 @@ export function WhoopAutoSync() {
         if (!status.connected) return
         if (status.expired && !status.canRefresh) return
 
-        const today = new Date().toISOString().split('T')[0]
+        const today = todayLocal()
         const lastSynced = status.lastSyncedAt
           ? new Date(status.lastSyncedAt).toISOString().split('T')[0]
           : null

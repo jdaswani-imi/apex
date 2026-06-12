@@ -33,7 +33,8 @@ export function makeQueryBuilder(result: { data: unknown; error: unknown } = { d
     builder[m] = vi.fn(() => self)
   }
 
-  return self as ReturnType<typeof vi.fn> & Record<string, ReturnType<typeof vi.fn>>
+  type CallableMock = ReturnType<typeof vi.fn> & ((...args: unknown[]) => unknown)
+  return self as CallableMock & Record<string, CallableMock>
 }
 
 /**

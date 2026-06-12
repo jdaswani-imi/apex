@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
+import { todayLocal } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 import { ensureSupplementRows } from '@/lib/db'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const date = searchParams.get('date') ?? new Date().toISOString().split('T')[0]
+  const date = searchParams.get('date') ?? todayLocal()
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

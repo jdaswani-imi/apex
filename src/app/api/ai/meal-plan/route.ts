@@ -1,4 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { MODEL_HAIKU } from '@/lib/ai/models'
+import { todayLocal } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 import { getFullUserContext, getUserGoals } from '@/lib/db'
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
@@ -53,7 +55,7 @@ export async function POST(request: Request) {
   const currentHour: number = body.current_hour ?? new Date().getHours()
 
   // Cache key changes when: training day, time block (every 2h), or total logged cals change
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const loggedCalSum = alreadyLogged.reduce((s, m) => s + (m.calories ?? 0), 0)
   const cacheKey = `ai:meal-plan:${user.id}:${today}:${isTrainingDay ? 1 : 0}:${Math.floor(currentHour / 2)}:${loggedCalSum}`
   const cachedPlan = await getCachedAI<MealPlan>(cacheKey)
@@ -126,7 +128,7 @@ export async function POST(request: Request) {
   // If nothing remains, return an empty plan with full context
   if (remainingMealTypes.length === 0 || remainingCals <= 50) {
     return Response.json({
-      date: new Date().toISOString().split('T')[0],
+      date: todayLocal(),
       total_calories: loggedCals,
       total_protein_g: loggedProtein,
       total_carbs_g: loggedCarbs,
@@ -175,7 +177,7 @@ RULES:
 
 Return this exact JSON shape (only include the remaining meals, not already-eaten ones):
 {
-  "date": "${new Date().toISOString().split('T')[0]}",
+  "date": "${todayLocal()}",
   "total_calories": <sum of remaining meals only>,
   "total_protein_g": <sum of remaining meals only>,
   "total_carbs_g": <sum of remaining meals only>,
@@ -196,7 +198,7 @@ Return this exact JSON shape (only include the remaining meals, not already-eate
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: MODEL_HAIKU,
       max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }],
     })

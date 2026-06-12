@@ -9,7 +9,9 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json().catch(() => ({}))
-  const days = body.days ?? 7
+  // Clamp to a sane window — an unbounded `days` triggers unbounded upstream
+  // WHOOP pagination.
+  const days = Math.min(Math.max(Number(body.days) || 7, 1), 30)
 
   const results = await syncWhoopData(user.id, days)
   await Promise.all([

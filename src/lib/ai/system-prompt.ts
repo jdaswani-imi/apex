@@ -1,5 +1,7 @@
 import type { TodayContext } from '@/lib/types'
 import { getCyclePhase } from '@/lib/types'
+import { APP_TIMEZONE, todayLocal, localDayOfWeek, localDateStr } from '@/lib/date'
+import { getDaysToEvent } from '@/lib/utils'
 
 type LabReport = {
   filename: string
@@ -61,13 +63,13 @@ export function buildSystemPrompt(ctx: TodayContext, userCtx: UserCtx): string {
   const { profile, goals, training, supplements, lifestyle, baselines, latestLab, onboarding } = userCtx
 
   const today = new Date()
-  const todayISO = today.toISOString().split('T')[0] // e.g. "2026-05-27"
-  const dayOfWeek = today.toLocaleDateString('en-GB', { weekday: 'long' })
-  const dayNum = today.getDay()
+  const todayISO = todayLocal() // e.g. "2026-05-27", in the app timezone
+  const dayOfWeek = new Intl.DateTimeFormat('en-GB', { timeZone: APP_TIMEZONE, weekday: 'long' }).format(today)
+  const dayNum = localDayOfWeek(today)
 
   const eventDate = goals?.target_event_date ? new Date((goals.target_event_date as string) + 'T12:00:00') : null
-  const daysToEvent = eventDate
-    ? Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  const daysToEvent = goals?.target_event_date
+    ? getDaysToEvent(todayISO, goals.target_event_date as string)
     : null
 
   const trainingDayType = (training?.training_split as Record<string, string> | null | undefined)?.[String(dayNum)] ?? 'Rest'
@@ -80,9 +82,15 @@ export function buildSystemPrompt(ctx: TodayContext, userCtx: UserCtx): string {
   const suppTotal = ctx.supplements.length
   const missedSupps = ctx.supplements.filter(s => !s.taken).map(s => s.supplement_name)
 
-  const recentProtein = ctx.recentLogs.slice(0, 7).map(l => l.protein_g ?? 0)
-  const avgProtein = recentProtein.length > 0
-    ? Math.round(recentProtein.reduce((a, b) => a + b, 0) / recentProtein.length)
+  // Exclude today's still-accumulating log and days with no protein logged, so
+  // averages reflect actually-logged days rather than being deflated by zeros.
+  const recentProtein = ctx.recentLogs
+    .filter(l => l.date !== todayISO && l.protein_g != null)
+    .slice(0, 7)
+    .map(l => l.protein_g as number)
+  const proteinLoggedDays = recentProtein.length
+  const avgProtein = proteinLoggedDays > 0
+    ? Math.round(recentProtein.reduce((a, b) => a + b, 0) / proteinLoggedDays)
     : null
 
   const proteinTarget = (goals?.daily_protein_target_g as number) ?? 140
@@ -158,7 +166,7 @@ export function buildSystemPrompt(ctx: TodayContext, userCtx: UserCtx): string {
     ? (() => { const d = new Date(programStartDate); d.setDate(d.getDate() + 42); return d })()
     : null
   const rotationDaysLeft = rotationDueDate
-    ? Math.ceil((rotationDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    ? getDaysToEvent(todayISO, localDateStr(rotationDueDate))
     : null
   const rotationDue = rotationDaysLeft !== null && rotationDaysLeft <= 7
 
@@ -248,13 +256,17 @@ export function buildSystemPrompt(ctx: TodayContext, userCtx: UserCtx): string {
   const needsLipidProtocol = hasHighLDL || hasHighTG
 
   // ─── Protein compliance summary ───────────────────────────────────────────
-  const proteinComplianceNote = proteinHitDays <= 1
-    ? `CRITICAL — only ${proteinHitDays}/7 days hit target. This is the #1 reason recomposition stalls.`
-    : proteinHitDays <= 3
-      ? `inconsistent — ${proteinHitDays}/7 days hit target. Flag this and suggest fixes.`
-      : proteinHitDays <= 5
-        ? `improving — ${proteinHitDays}/7 days hit target`
-        : `strong — ${proteinHitDays}/7 days hit target`
+  // Denominate against days actually logged so sparse data doesn't masquerade
+  // as missed targets (e.g. "1/7 CRITICAL" when only one day was logged).
+  const proteinComplianceNote = proteinLoggedDays < 3
+    ? `insufficient data — only ${proteinLoggedDays} day(s) logged in the last week`
+    : proteinHitDays <= 1
+      ? `CRITICAL — only ${proteinHitDays}/${proteinLoggedDays} logged days hit target. This is the #1 reason recomposition stalls.`
+      : proteinHitDays <= 3
+        ? `inconsistent — ${proteinHitDays}/${proteinLoggedDays} logged days hit target. Flag this and suggest fixes.`
+        : proteinHitDays <= 5
+          ? `improving — ${proteinHitDays}/${proteinLoggedDays} logged days hit target`
+          : `strong — ${proteinHitDays}/${proteinLoggedDays} logged days hit target`
 
   // ─── Sport commitments (activities that count as training sessions) ────────
   const SPORT_ACTIVITIES = ['Cricket', 'Football', 'Basketball', 'Tennis', 'Padel', 'Martial Arts', 'Swimming', 'Running', 'Cycling']

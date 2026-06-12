@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { todayLocal } from '@/lib/date'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -45,7 +46,7 @@ export default async function WeekPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = todayLocal()
   const params = await searchParams
   const anchorDate = params.date ?? todayStr
 

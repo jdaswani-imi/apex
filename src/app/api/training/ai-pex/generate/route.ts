@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { MODEL_SONNET } from '@/lib/ai/models'
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
@@ -248,7 +249,7 @@ Return JSON exactly:
   let plan: GeneratedPlan
   try {
     const stream = anthropic.messages.stream({
-      model: 'claude-sonnet-4-6',
+      model: MODEL_SONNET,
       max_tokens: 8192,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],

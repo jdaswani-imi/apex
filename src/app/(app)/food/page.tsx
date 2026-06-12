@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { todayLocal } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 import { getUserGoals } from '@/lib/db'
 import FoodContent from './FoodContent'
@@ -16,7 +17,7 @@ export default async function FoodPage({
   if (!user) redirect('/login')
 
   const [goals, params] = await Promise.all([getUserGoals(), searchParams])
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = todayLocal()
   const viewDate = params.date ?? todayStr
 
   return (

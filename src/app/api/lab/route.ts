@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { MODEL_SONNET } from '@/lib/ai/models'
 import { getFullUserContext } from '@/lib/db'
 import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
@@ -102,7 +103,7 @@ Rules:
   let rawText: string
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: MODEL_SONNET,
       max_tokens: 16000,
       messages: [
         { role: 'user', content: [contentBlock, { type: 'text', text: prompt }] },

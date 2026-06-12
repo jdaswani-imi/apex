@@ -4,6 +4,12 @@ const WHOOP_BASE = 'https://api.prod.whoop.com/developer'
 const MAX_PAGES = 10        // cap per endpoint: 250 records max
 const PAGE_DELAY_MS = 700   // ~85 req/min ceiling, well under 100/min limit
 
+// Coalesce concurrent refreshes for the same user. WHOOP rotates the refresh
+// token on every use, so two parallel refreshes would each invalidate the
+// other's token and permanently break auth. Within a single server instance,
+// all callers share one in-flight refresh promise.
+const inFlightRefreshes = new Map<string, Promise<string | null>>()
+
 export async function getWhoopToken(userId: string): Promise<string | null> {
   const supabase = await createClient()
 
@@ -18,41 +24,55 @@ export async function getWhoopToken(userId: string): Promise<string | null> {
   if (new Date(tokenRow.expires_at) <= new Date()) {
     if (!tokenRow.refresh_token) return null
 
-    const refreshRes = await fetch('https://api.prod.whoop.com/oauth/oauth2/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: tokenRow.refresh_token,
-        client_id: process.env.WHOOP_CLIENT_ID!,
-        client_secret: process.env.WHOOP_CLIENT_SECRET!,
-      }),
-    })
+    const existing = inFlightRefreshes.get(userId)
+    if (existing) return existing
 
-    if (!refreshRes.ok) return null
-
-    const newTokens = await refreshRes.json()
-    const expiresAt = new Date(Date.now() + newTokens.expires_in * 1000).toISOString()
-
-    await supabase.from('whoop_tokens').update({
-      access_token: newTokens.access_token,
-      refresh_token: newTokens.refresh_token ?? tokenRow.refresh_token,
-      expires_at: expiresAt,
-      updated_at: new Date().toISOString(),
-    }).eq('user_id', userId)
-
-    return newTokens.access_token
+    const refreshPromise = refreshWhoopToken(userId, tokenRow.refresh_token)
+      .finally(() => inFlightRefreshes.delete(userId))
+    inFlightRefreshes.set(userId, refreshPromise)
+    return refreshPromise
   }
 
   return tokenRow.access_token
 }
 
+async function refreshWhoopToken(userId: string, refreshToken: string): Promise<string | null> {
+  const supabase = await createClient()
+
+  const refreshRes = await fetch('https://api.prod.whoop.com/oauth/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: process.env.WHOOP_CLIENT_ID!,
+      client_secret: process.env.WHOOP_CLIENT_SECRET!,
+    }),
+  })
+
+  if (!refreshRes.ok) return null
+
+  const newTokens = await refreshRes.json()
+  if (!newTokens.access_token || typeof newTokens.expires_in !== 'number') return null
+  const expiresAt = new Date(Date.now() + newTokens.expires_in * 1000).toISOString()
+
+  await supabase.from('whoop_tokens').update({
+    access_token: newTokens.access_token,
+    refresh_token: newTokens.refresh_token ?? refreshToken,
+    expires_at: expiresAt,
+    updated_at: new Date().toISOString(),
+  }).eq('user_id', userId)
+
+  return newTokens.access_token
+}
+
 export async function whoopFetch(
   userId: string,
   endpoint: string,
-  params?: Record<string, string>
+  params?: Record<string, string>,
+  prefetchedToken?: string,
 ): Promise<unknown> {
-  const token = await getWhoopToken(userId)
+  const token = prefetchedToken ?? await getWhoopToken(userId)
   if (!token) throw new Error('No Whoop token')
 
   const url = new URL(`${WHOOP_BASE}${endpoint}`)
@@ -71,9 +91,10 @@ export async function whoopFetch(
 export async function whoopFetchAll(
   userId: string,
   endpoint: string,
-  params?: Record<string, string>
+  params?: Record<string, string>,
+  prefetchedToken?: string,
 ): Promise<unknown[]> {
-  const token = await getWhoopToken(userId)
+  const token = prefetchedToken ?? await getWhoopToken(userId)
   if (!token) throw new Error('No Whoop token')
 
   const records: unknown[] = []

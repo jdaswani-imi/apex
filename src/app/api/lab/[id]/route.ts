@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
+import { MODEL_SONNET } from '@/lib/ai/models'
 import { getFullUserContext } from '@/lib/db'
+import { checkRateLimit, rateLimitResponse } from '@/lib/rate-limit'
 import Anthropic from '@anthropic-ai/sdk'
 
 const anthropic = new Anthropic()
@@ -61,6 +63,9 @@ export async function PATCH(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
+
+  // Re-analyze is a 16k-token Sonnet call; rate-limit it like the upload POST.
+  if (!await checkRateLimit(`${user.id}:lab`, 5, 60 * 60 * 1000)) return rateLimitResponse()
 
   const { id } = await params
   const { data: report, error: fetchErr } = await supabase
@@ -124,7 +129,7 @@ Extract every single biomarker. Adjust optimal ranges for this user's profile wh
   try {
     // Prefill assistant turn with '{' to guarantee JSON output starts immediately
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: MODEL_SONNET,
       max_tokens: 16000,
       messages: [
         { role: 'user', content: prompt },

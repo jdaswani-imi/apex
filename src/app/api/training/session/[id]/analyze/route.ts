@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { MODEL_HAIKU } from '@/lib/ai/models'
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 
@@ -155,7 +156,7 @@ Return JSON:
   let result: AnalyzeResult
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: MODEL_HAIKU,
       max_tokens: 1024,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],

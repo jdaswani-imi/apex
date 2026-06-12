@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
+import { todayLocal } from '@/lib/date'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getTodayContext, getUserGoals } from '@/lib/db'
 import { getDaysToEvent, cn } from '@/lib/utils'
-import { Zap, Footprints, Scale, Music2, Moon, Activity, UtensilsCrossed, CalendarDays, Info, ChevronRight, AlertTriangle } from 'lucide-react'
+import { Zap, Scale, Music2, Moon, Activity, UtensilsCrossed, CalendarDays, Info, ChevronRight, AlertTriangle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { QualitativeCheckin } from '@/components/qualitative-checkin'
 import { DayNav } from '@/components/day-nav'
@@ -62,7 +63,7 @@ export default async function TodayPage({
   const showSleep = focusedSections === null || focusedSections.includes('sleep')
   const showSupplements = focusedSections === null || focusedSections.includes('supplements')
 
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = todayLocal()
   const maxFutureDate = (() => {
     const d = new Date(todayStr + 'T12:00:00')
     d.setDate(d.getDate() + 7)
@@ -130,11 +131,6 @@ export default async function TodayPage({
 
   const hasMacros = protein !== null || carbs !== null || fats !== null
 
-  const recoveryLabel = recovery === null
-    ? 'Connect WHOOP'
-    : recovery >= 67 ? 'Green · push hard today'
-    : recovery >= 34 ? 'Yellow · train smart'
-    : 'Red · rest or Zone 2'
 
   // HRV baseline for recovery card display
   const todayHRV = ctx.recovery?.hrv_rmssd_milli ?? null
@@ -158,41 +154,8 @@ export default async function TodayPage({
   const suppTaken = ctx.supplements.filter(s => s.taken).length
   const suppTotal = ctx.supplements.length
 
-  const stats = [
-    {
-      label: 'Recovery',
-      value: recovery !== null ? `${recovery}%` : '—',
-      sub: recoveryLabel,
-      icon: Zap,
-      color: recovery === null ? 'text-yellow-400' : recovery >= 67 ? 'text-green-400' : recovery >= 34 ? 'text-yellow-400' : 'text-red-400',
-      bg: 'bg-yellow-500/10',
-      href: '/sleep',
-    },
-    {
-      label: 'Steps',
-      value: steps !== null ? steps.toLocaleString() : '—',
-      sub: steps !== null ? `${Math.round((steps / stepsTarget) * 100)}% of ${stepsTarget.toLocaleString()}` : `target ${stepsTarget.toLocaleString()}`,
-      icon: Footprints,
-      color: steps === null ? 'text-blue-400' : steps >= stepsTarget ? 'text-green-400' : 'text-blue-400',
-      bg: 'bg-blue-500/10',
-      href: '/week',
-    },
-    {
-      label: 'Weight',
-      value: weight !== null ? `${weight}kg` : '—',
-      sub: weightTarget !== null ? `target ${weightTarget}kg` : 'log weight',
-      icon: Scale,
-      color: 'text-green-400',
-      bg: 'bg-green-500/10',
-      href: '/progress',
-    },
-  ]
-
   // Build week strip data
   const weekDays = getWeekDays(date)
-  const recoveryByDate = Object.fromEntries(
-    ctx.recentRecovery.map(r => [r.date, r.recovery_score])
-  )
 
   // Training session map for week strip encoding
   const trainingByDate: Record<string, { type: string; strain: number | null }> = {}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { todayLocal } from '@/lib/date'
 import { X, Camera, Upload, Loader2, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -19,6 +20,18 @@ const SESSION_TYPES = [
   'Other',
 ]
 
+const CARDIO_TYPES = new Set(['Cardio', 'HIIT', 'Running', 'Cycling', 'Swimming', 'Walk'])
+
+const TODAY = todayLocal()
+
+function formatDateLabel(d: string) {
+  if (d === TODAY) return 'Today'
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  if (d === yesterday.toISOString().split('T')[0]) return 'Yesterday'
+  return new Date(d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+}
+
 interface Props {
   onClose: () => void
   onLogged: () => void
@@ -27,13 +40,20 @@ interface Props {
 export default function QuickLogModal({ onClose, onLogged }: Props) {
   const [sessionType, setSessionType] = useState('')
   const [customType, setCustomType] = useState('')
+  const [date, setDate] = useState(TODAY)
   const [duration, setDuration] = useState('')
+  const [distance, setDistance] = useState('')
+  const [level, setLevel] = useState('')
+  const [avgHr, setAvgHr] = useState('')
+  const [calories, setCalories] = useState('')
   const [notes, setNotes] = useState('')
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const isCardio = CARDIO_TYPES.has(sessionType)
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -71,7 +91,7 @@ export default function QuickLogModal({ onClose, onLogged }: Props) {
       }
 
       const body: Record<string, unknown> = {
-        date: new Date().toISOString().split('T')[0],
+        date,
         session_type: type.toLowerCase().replace(/\s+/g, '_'),
         started_at: new Date().toISOString(),
         finished_at: new Date().toISOString(),
@@ -80,11 +100,34 @@ export default function QuickLogModal({ onClose, onLogged }: Props) {
       if (notes.trim()) body.notes = notes.trim()
       if (photoUrl) body.photo_url = photoUrl
 
-      await fetch('/api/training/session', {
+      const res = await fetch('/api/training/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
+      const session = await res.json()
+
+      if (session?.id && isCardio && (distance || level || avgHr || calories)) {
+        const cardioNoteParts = [
+          level && `Level ${level}`,
+          avgHr && `${avgHr}bpm avg`,
+          calories && `${calories}cal`,
+        ].filter(Boolean)
+
+        await fetch('/api/training/exercise', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: session.id,
+            name: type,
+            set_number: 1,
+            set_type: 'working',
+            duration_sec: duration ? parseInt(duration, 10) * 60 : undefined,
+            distance_m: distance ? Math.round(parseFloat(distance) * 1000) : undefined,
+            notes: cardioNoteParts.length > 0 ? cardioNoteParts.join(' · ') : undefined,
+          }),
+        })
+      }
 
       setDone(true)
       setTimeout(() => { onLogged(); onClose() }, 1000)
@@ -95,6 +138,18 @@ export default function QuickLogModal({ onClose, onLogged }: Props) {
 
   const displayType = sessionType === 'Other' ? customType : sessionType
   const canSubmit = !submitting && !done && (sessionType && (sessionType !== 'Other' || customType.trim()))
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', backgroundColor: '#1c1c1e',
+    border: '1px solid #2c2c2e', borderRadius: '12px',
+    padding: '10px 14px', fontSize: '14px', color: '#fff',
+    outline: 'none', boxSizing: 'border-box',
+  }
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: '11px', color: '#52525b', fontWeight: 600,
+    marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em',
+  }
 
   return (
     <div
@@ -115,8 +170,8 @@ export default function QuickLogModal({ onClose, onLogged }: Props) {
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: '#fff' }}>Log Custom Workout</div>
-            <div style={{ fontSize: '12px', color: '#52525b', marginTop: '2px' }}>Screenshot or manual entry</div>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: '#fff' }}>Log Workout</div>
+            <div style={{ fontSize: '12px', color: '#52525b', marginTop: '2px' }}>Manual entry or screenshot</div>
           </div>
           <button
             onClick={onClose}
@@ -133,7 +188,7 @@ export default function QuickLogModal({ onClose, onLogged }: Props) {
 
         {/* Session type chips */}
         <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '11px', color: '#52525b', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Workout type</div>
+          <div style={labelStyle}>Workout type</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
             {SESSION_TYPES.map(t => (
               <button
@@ -157,19 +212,52 @@ export default function QuickLogModal({ onClose, onLogged }: Props) {
               value={customType}
               onChange={e => setCustomType(e.target.value)}
               placeholder="e.g. Martial Arts, Dance…"
-              style={{
-                marginTop: '10px', width: '100%', backgroundColor: '#1c1c1e',
-                border: '1px solid #2c2c2e', borderRadius: '12px',
-                padding: '10px 14px', fontSize: '14px', color: '#fff',
-                outline: 'none', boxSizing: 'border-box',
-              }}
+              style={{ ...inputStyle, marginTop: '10px' }}
             />
           )}
         </div>
 
+        {/* Date */}
+        <div style={{ marginBottom: '16px' }}>
+          <div style={labelStyle}>Date</div>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <button
+              onClick={() => setDate(TODAY)}
+              style={{
+                padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: 600,
+                cursor: 'pointer', flexShrink: 0,
+                backgroundColor: date === TODAY ? '#c8a97e22' : '#1c1c1e',
+                color: date === TODAY ? '#c8a97e' : '#71717a',
+                border: date === TODAY ? '1px solid #c8a97e55' : '1px solid #2c2c2e',
+              }}
+            >
+              Today
+            </button>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <input
+                type="date"
+                value={date}
+                max={TODAY}
+                onChange={e => setDate(e.target.value)}
+                style={{
+                  ...inputStyle,
+                  colorScheme: 'dark',
+                  cursor: 'pointer',
+                  color: date !== TODAY ? '#c8a97e' : '#52525b',
+                }}
+              />
+            </div>
+            {date !== TODAY && (
+              <div style={{ fontSize: '12px', color: '#c8a97e', fontWeight: 600, flexShrink: 0 }}>
+                {formatDateLabel(date)}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Duration */}
         <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '11px', color: '#52525b', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Duration (optional)</div>
+          <div style={labelStyle}>Duration (optional)</div>
           <div style={{ position: 'relative' }}>
             <input
               type="number"
@@ -178,30 +266,98 @@ export default function QuickLogModal({ onClose, onLogged }: Props) {
               placeholder="45"
               min={1}
               max={600}
-              style={{
-                width: '100%', backgroundColor: '#1c1c1e',
-                border: '1px solid #2c2c2e', borderRadius: '12px',
-                padding: '10px 40px 10px 14px', fontSize: '14px', color: '#fff',
-                outline: 'none', boxSizing: 'border-box',
-              }}
+              style={{ ...inputStyle, paddingRight: '40px' }}
             />
             <span style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: '#52525b' }}>min</span>
           </div>
         </div>
 
+        {/* Cardio-specific fields */}
+        {isCardio && (
+          <div style={{ marginBottom: '16px', backgroundColor: '#0f0f0f', border: '1px solid #1c1c1c', borderRadius: '14px', padding: '14px' }}>
+            <div style={{ fontSize: '11px', color: '#f97316', fontWeight: 700, marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Cardio Details
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {/* Distance */}
+              <div>
+                <div style={{ ...labelStyle, marginBottom: '6px' }}>Distance</div>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="number"
+                    value={distance}
+                    onChange={e => setDistance(e.target.value)}
+                    placeholder="5.0"
+                    step="0.1"
+                    min={0}
+                    style={{ ...inputStyle, paddingRight: '32px', fontSize: '13px' }}
+                  />
+                  <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: '#52525b' }}>km</span>
+                </div>
+              </div>
+
+              {/* Level / Intensity */}
+              <div>
+                <div style={{ ...labelStyle, marginBottom: '6px' }}>
+                  {sessionType === 'Running' ? 'Pace (min/km)' : 'Level / Intensity'}
+                </div>
+                <input
+                  type={sessionType === 'Running' ? 'text' : 'number'}
+                  value={level}
+                  onChange={e => setLevel(e.target.value)}
+                  placeholder={sessionType === 'Running' ? "5:30" : "12"}
+                  min={1}
+                  style={{ ...inputStyle, fontSize: '13px' }}
+                />
+              </div>
+
+              {/* Avg HR */}
+              <div>
+                <div style={{ ...labelStyle, marginBottom: '6px' }}>Avg Heart Rate</div>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="number"
+                    value={avgHr}
+                    onChange={e => setAvgHr(e.target.value)}
+                    placeholder="145"
+                    min={40}
+                    max={220}
+                    style={{ ...inputStyle, paddingRight: '40px', fontSize: '13px' }}
+                  />
+                  <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: '#52525b' }}>bpm</span>
+                </div>
+              </div>
+
+              {/* Calories */}
+              <div>
+                <div style={{ ...labelStyle, marginBottom: '6px' }}>Calories</div>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="number"
+                    value={calories}
+                    onChange={e => setCalories(e.target.value)}
+                    placeholder="350"
+                    min={0}
+                    style={{ ...inputStyle, paddingRight: '32px', fontSize: '13px' }}
+                  />
+                  <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: '#52525b' }}>cal</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Notes */}
         <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '11px', color: '#52525b', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Notes (optional)</div>
+          <div style={labelStyle}>Notes (optional)</div>
           <textarea
             value={notes}
             onChange={e => setNotes(e.target.value)}
-            placeholder="What did you do? PR, felt strong, etc."
+            placeholder={isCardio ? "How did it feel? Zones, effort level, etc." : "What did you do? PR, felt strong, etc."}
             rows={3}
             style={{
-              width: '100%', backgroundColor: '#1c1c1e',
-              border: '1px solid #2c2c2e', borderRadius: '12px',
-              padding: '10px 14px', fontSize: '14px', color: '#fff',
-              outline: 'none', resize: 'none', boxSizing: 'border-box',
+              ...inputStyle,
+              resize: 'none',
               fontFamily: 'inherit',
             }}
           />
@@ -209,7 +365,7 @@ export default function QuickLogModal({ onClose, onLogged }: Props) {
 
         {/* Photo upload */}
         <div style={{ marginBottom: '24px' }}>
-          <div style={{ fontSize: '11px', color: '#52525b', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Screenshot / Photo (optional)</div>
+          <div style={labelStyle}>Screenshot / Photo (optional)</div>
 
           {photoPreview ? (
             <div style={{ position: 'relative' }}>
@@ -282,7 +438,10 @@ export default function QuickLogModal({ onClose, onLogged }: Props) {
           ) : submitting ? (
             <><Loader2 size={17} style={{ animation: 'spin 1s linear infinite' }} /> Saving…</>
           ) : (
-            `Log ${displayType || 'Workout'}`
+            <>
+              Log {displayType || 'Workout'}
+              {date !== TODAY && <span style={{ fontSize: '12px', opacity: 0.7 }}> · {formatDateLabel(date)}</span>}
+            </>
           )}
         </button>
       </div>

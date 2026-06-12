@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { todayLocal } from '@/lib/date'
 import { X, Sparkles } from 'lucide-react'
 import type { MorningIntelligence } from '@/app/api/intelligence/morning/route'
 
@@ -17,7 +18,7 @@ export function PageInsightBanner({ page }: Props) {
   const [insight, setInsight] = useState<string | null>(null)
   const [dismissed, setDismissed] = useState(false)
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const cacheKey = `${CACHE_KEY_PREFIX}${today}`
   const dismissKey = `${DISMISS_KEY_PREFIX}${page}_${today}`
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { todayLocal } from '@/lib/date'
 import { Zap, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
 interface Props {
@@ -28,7 +29,7 @@ export default function TodaySession({ onStartSession }: Props) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        date: new Date().toISOString().split('T')[0],
+        date: todayLocal(),
         session_type: (data?.sessionType as string) ?? 'push',
         gym: (data?.gymName as string) ?? 'TopGym',
         started_at: new Date().toISOString(),

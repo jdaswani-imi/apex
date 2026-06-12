@@ -1,4 +1,5 @@
 import { Redis } from '@upstash/redis'
+import { todayLocal } from '@/lib/date'
 
 const redis = Redis.fromEnv()
 
@@ -29,7 +30,7 @@ export async function delCachedAI(...keys: string[]): Promise<void> {
 // Wipe all AI-generated content for a user on the current date.
 // Call this after food mutations or WHOOP syncs so stale briefs aren't served.
 export async function invalidateUserAICaches(userId: string): Promise<void> {
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const TIP_PAGES = ['food', 'today', 'training', 'sleep', 'supplements']
   await delCachedAI(
     `ai:brief:${userId}:${today}`,
@@ -63,7 +64,7 @@ export async function invalidateUserFoodCache(userId: string, date: string): Pro
 
 // Wipe cached WHOOP data. Call after a WHOOP sync.
 export async function invalidateUserWhoopCache(userId: string): Promise<void> {
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
   await delCachedAI(
     `db:recovery:${userId}:${today}`,

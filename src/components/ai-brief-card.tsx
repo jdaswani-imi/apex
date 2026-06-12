@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { todayLocal } from '@/lib/date'
 import { Sparkles, Loader2, ChevronRight, RefreshCw, Zap } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -71,14 +72,14 @@ export function AiBriefCard(props: AiBriefCardProps) {
   }
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0]
+    const today = todayLocal()
     pruneOldBriefKeys(today)
     const key = `${STORAGE_PREFIX}${today}_${fingerprint}`
     fetchBrief(key)
   }, [fingerprint])
 
   function handleRefresh() {
-    const today = new Date().toISOString().split('T')[0]
+    const today = todayLocal()
     const key = `${STORAGE_PREFIX}${today}_${fingerprint}`
     try { localStorage.removeItem(key) } catch {}
     setRefreshing(true)

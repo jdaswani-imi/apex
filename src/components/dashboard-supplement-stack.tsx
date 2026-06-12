@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import type { SupplementLog } from '@/lib/types'
-import { groupSupplementsByTime, TIME_GROUP_ORDER } from '@/lib/supplements-catalog'
+import { groupSupplementsByTime } from '@/lib/supplements-catalog'
 
 interface Props {
   initialSupplements: SupplementLog[]
@@ -150,7 +150,7 @@ export function DashboardSupplementStack({ initialSupplements, date }: Props) {
           <div className="space-y-3">
             {grouped.map(({ group, items }) => {
               const untaken = items.filter(s => !s.taken)
-              if (untaken.length === 0 && items.every(s => s.taken)) return null
+              if (untaken.length === 0) return null
               return (
                 <div key={group}>
                   <div className="flex items-center justify-between mb-1.5">
@@ -162,8 +162,7 @@ export function DashboardSupplementStack({ initialSupplements, date }: Props) {
                     )}
                   </div>
                   <div className="space-y-1.5">
-                    {items.slice(0, 3).map(s => {
-                      if (s.taken && !dismissing.has(s.id)) return null
+                    {untaken.slice(0, 3).map(s => {
                       const isDismissing = dismissing.has(s.id)
                       const isFilling = filling.has(s.id)
                       return (
@@ -200,6 +199,13 @@ export function DashboardSupplementStack({ initialSupplements, date }: Props) {
                 </div>
               )
             })}
+
+            {taken > 0 && (
+              <div className="flex items-center gap-1.5 pt-2 border-t border-white/5">
+                <span className="text-[10px] text-green-400/60">✓</span>
+                <span className="text-[10px] text-muted-foreground/40">{taken} consumed</span>
+              </div>
+            )}
           </div>
         )}
       </Link>

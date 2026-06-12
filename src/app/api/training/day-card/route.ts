@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { todayLocal } from '@/lib/date'
 import { NextResponse } from 'next/server'
 
 const DAY_SHORT: Record<number, string> = {
@@ -64,7 +65,7 @@ export async function GET(req: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = todayLocal()
   const dateParam = searchParams.get('date') ?? todayStr
 
   // Fetch shared data in parallel
