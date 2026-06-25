@@ -1567,7 +1567,7 @@ const FoodContent = memo(function FoodContent({
                 ) : (
                   <div className="space-y-2">
                     {items.map(item => (
-                      <div key={item.id} className="bg-card border border-border rounded-2xl overflow-hidden">
+                      <div key={item.id} className="bg-card border border-border rounded-2xl">
                         {editingId === item.id ? (
                           <div className="px-4 py-3 space-y-2.5">
                             <input
